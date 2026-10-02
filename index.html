@@ -81,7 +81,15 @@
           <span data-i18n="nav_dashboard">Статистика</span>
         </button>
         <button class="nav-item" data-view="flight-crew" id="nav-btn-flight">
-          <i data-lucide="plane"></i>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-helicopter">
+            <path d="M3 10l1 2h6" />
+            <path d="M12 9a2 2 0 0 0 -2 2v3c0 1.1 .9 2 2 2h7a2 2 0 0 0 2 -2c0 -3.31 -3.13 -5 -7 -5h-2" />
+            <path d="M13 9l0 -3" />
+            <path d="M5 6l15 0" />
+            <path d="M15 9.1v3.9h5.5" />
+            <path d="M15 19l0 -3" />
+            <path d="M19 19l-8 0" />
+          </svg>
           <span data-i18n="nav_flight_crew">Льотний склад</span>
         </button>
         <button class="nav-item" data-view="cabin-crew" id="nav-btn-cabin">
@@ -993,8 +1001,16 @@
 
                 <!-- Column Category Switcher (Flight vs Cabin) -->
                 <div style="display: flex; gap: var(--spacing-2); border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-top: var(--spacing-2);">
-                  <button class="btn btn-secondary active" id="btn-col-tab-flight" style="height: 34px; font-size: 12px;">
-                    <i data-lucide="plane"></i>
+                  <button class="btn btn-secondary active" id="btn-col-tab-flight" style="height: 34px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-helicopter">
+                      <path d="M3 10l1 2h6" />
+                      <path d="M12 9a2 2 0 0 0 -2 2v3c0 1.1 .9 2 2 2h7a2 2 0 0 0 2 -2c0 -3.31 -3.13 -5 -7 -5h-2" />
+                      <path d="M13 9l0 -3" />
+                      <path d="M5 6l15 0" />
+                      <path d="M15 9.1v3.9h5.5" />
+                      <path d="M15 19l0 -3" />
+                      <path d="M19 19l-8 0" />
+                    </svg>
                     <span data-i18n="tab_crew_flight">Льотний склад (Flight Crew)</span>
                   </button>
                   <button class="btn btn-secondary" id="btn-col-tab-cabin" style="height: 34px; font-size: 12px;">
