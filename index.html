@@ -265,9 +265,13 @@
                 <i data-lucide="search"></i>
                 <input type="text" id="flight-search" placeholder="Пошук пілота..." data-i18n-placeholder="search_flight_placeholder">
               </div>
-              <div style="display: flex; gap: var(--spacing-2);">
+              <div style="display: flex; gap: var(--spacing-2); align-items: center; flex-wrap: wrap;">
                 <select id="flight-filter-rank" class="form-select" style="height: 40px; padding: 0 var(--spacing-3); font-size: 13px; min-width: 140px;"></select>
                 <select id="flight-filter-dept" class="form-select" style="height: 40px; padding: 0 var(--spacing-3); font-size: 13px; min-width: 140px;"></select>
+                <div id="flight-crew-count-badge" class="status-badge status-neutral" style="height: 40px; font-size: 13px; font-weight: 600; padding: 0 var(--spacing-3); display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-surface-alt); white-space: nowrap; user-select: none;">
+                  <i data-lucide="users" style="width: 15px; height: 15px; color: var(--accent);"></i>
+                  <span id="flight-crew-count-text">Персонал: 0</span>
+                </div>
               </div>
               <div class="table-actions">
                 <button class="btn btn-secondary action-btn-admin" id="btn-import-flight">
@@ -305,9 +309,13 @@
                 <i data-lucide="search"></i>
                 <input type="text" id="cabin-search" placeholder="Пошук БП..." data-i18n-placeholder="search_cabin_placeholder">
               </div>
-              <div style="display: flex; gap: var(--spacing-2);">
+              <div style="display: flex; gap: var(--spacing-2); align-items: center; flex-wrap: wrap;">
                 <select id="cabin-filter-rank" class="form-select" style="height: 40px; padding: 0 var(--spacing-3); font-size: 13px; min-width: 140px;"></select>
                 <select id="cabin-filter-dept" class="form-select" style="height: 40px; padding: 0 var(--spacing-3); font-size: 13px; min-width: 140px;"></select>
+                <div id="cabin-crew-count-badge" class="status-badge status-neutral" style="height: 40px; font-size: 13px; font-weight: 600; padding: 0 var(--spacing-3); display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-surface-alt); white-space: nowrap; user-select: none;">
+                  <i data-lucide="users" style="width: 15px; height: 15px; color: var(--accent);"></i>
+                  <span id="cabin-crew-count-text">Персонал: 0</span>
+                </div>
               </div>
               <div class="table-actions">
                 <button class="btn btn-secondary action-btn-admin" id="btn-import-cabin">

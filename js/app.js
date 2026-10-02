@@ -77,6 +77,8 @@ const TRANSLATIONS = {
     btn_add_member: "Додати члена екіпажу",
     filter_all_ranks: "Всі посади",
     filter_all_depts: "Всі відділи",
+    label_personnel_count: "Персонал",
+    label_of: "з",
     
     // Flights Form
     logged_flights_title: "Перелік польотів",
@@ -344,6 +346,8 @@ const TRANSLATIONS = {
     btn_add_member: "Add Crew Member",
     filter_all_ranks: "All Ranks",
     filter_all_depts: "All Departments",
+    label_personnel_count: "Personnel",
+    label_of: "of",
     
     // Flights Form
     logged_flights_title: "Logged Flights",
@@ -1308,6 +1312,7 @@ function renderCrewTable(crewType) {
   
   const visibleHeaders = crewType === 'Flight' ? STATE.settings.visibleColumnsFlight : STATE.settings.visibleColumnsCabin;
   const sysDate = STATE.settings.referenceDate;
+  const dict = TRANSLATIONS[STATE.lang] || TRANSLATIONS.uk;
   
   // Render Headers
   tableHeaders.innerHTML = '';
@@ -1371,6 +1376,19 @@ function renderCrewTable(crewType) {
     
     return matchSearch && matchRank && matchDept;
   });
+
+  // Update personnel count badge (located immediately to the right of the department filter)
+  const countBadgeText = document.getElementById(`${crewType.toLowerCase()}-crew-count-text`);
+  if (countBadgeText) {
+    const isFiltered = Boolean(searchQuery || rankFilter || deptFilter);
+    const label = dict.label_personnel_count || (STATE.lang === 'uk' ? 'Персонал' : 'Personnel');
+    if (isFiltered && filtered.length !== list.length) {
+      const ofWord = dict.label_of || (STATE.lang === 'uk' ? 'з' : 'of');
+      countBadgeText.textContent = `${label}: ${filtered.length} ${ofWord} ${list.length}`;
+    } else {
+      countBadgeText.textContent = `${label}: ${filtered.length}`;
+    }
+  }
   
   // Sort list if sort state is active
   if (STATE.sort && STATE.sort.crewType === crewType && STATE.sort.column) {
@@ -1400,7 +1418,7 @@ function renderCrewTable(crewType) {
   }
   
   if (filtered.length === 0) {
-    tableBody.innerHTML = `<tr><td colspan="${visibleHeaders.length + (isEditor?1:0)}" style="text-align:center; font-style:italic; color:var(--text-secondary);">Співробітників не знайдено</td></tr>`;
+    tableBody.innerHTML = `<tr><td colspan="${visibleHeaders.length + (isEditor?1:0)}" style="text-align:center; font-style:italic; color:var(--text-secondary);">${STATE.lang === 'uk' ? 'Співробітників не знайдено' : 'No personnel found'}</td></tr>`;
     return;
   }
   
