@@ -2,7 +2,17 @@ import { CREW_COMPLIANCE_RULES, isExpiring } from '../execution/compliance_rules
 import { parseCrewXlsx } from '../execution/excel_parser.js';
 import { mergeCrewData } from '../execution/data_merger.js';
 import { calculateExpiryDate, determineStatus } from '../execution/compliance_calculator.js';
-import { downloadBackupJson, downloadBackupXlsx, simulateDriveSync, simulateDrivePhotoUpload, simulateDriveDocumentUpload } from '../execution/drive_sync.js';
+import { 
+  downloadBackupJson, 
+  downloadBackupXlsx, 
+  simulateDriveSync, 
+  simulateDrivePhotoUpload, 
+  simulateDriveDocumentUpload,
+  getMemberNameEn,
+  getMemberFolderPath,
+  verifyAndCreateCrewFolders,
+  testGoogleConnection
+} from '../execution/drive_sync.js';
 import { dispatchFlightLogEmail } from '../execution/email_dispatcher.js';
 
 // ================= BILINGUAL TRANSLATION DICTIONARY =================
@@ -80,6 +90,22 @@ const TRANSLATIONS = {
     
     // Settings
     set_sync_backup: "Синхронізація та Бекап",
+    set_google_sync: "Google Drive & Sheets API",
+    set_system_recommendations: "Рекомендовані системні налаштування",
+    label_sync_mode: "Режим роботи API",
+    label_google_client_id: "OAuth 2.0 Client ID / API Key",
+    label_google_sheet_id: "Google Sheets Spreadsheet ID",
+    label_google_drive_folder_id: "Google Drive Root Folder ID",
+    label_sync_interval: "Інтервал автосинхронізації",
+    btn_save_sync_settings: "Зберегти API",
+    btn_test_connection: "Тест з'єднання",
+    btn_verify_crew_folders: "Папки екіпажу (NAME_EN)",
+    label_alert_days: "Попередження (днів)",
+    label_critical_days: "Критичний термін (днів)",
+    label_date_format: "Формат дати",
+    label_backup_retention: "Кількість резервних копій у пам'яті",
+    btn_save_system_settings: "Зберегти системні налаштування",
+    modal_folders_title: "Реєстр особистих папок екіпажу (NAME_EN)",
     label_reference_date: "Розрахункова дата системи",
     btn_manual_sync_drive: "Синхронізувати з Drive",
     set_columns: "Відображення стовпчиків",
@@ -88,6 +114,159 @@ const TRANSLATIONS = {
     label_delete_crew: "Видалити члена екіпажу",
     btn_delete_crew_member: "Видалити співробітника",
     
+    // Settings Tabs & Sections
+    tab_sync: "Резервне копіювання та Синхронізація",
+    tab_personnel: "Персонал та Доступ",
+    tab_display: "Відображення",
+    tab_forms: "Форми",
+    tab_log: "Лог",
+    forms_list_title: "Бланки для заповнення та друку",
+    forms_list_desc: "Виберіть форму, додайте співробітників та сформуйте відомість для друку або збереження в PDF. Шаблони налаштовуються в Конструкторі форм.",
+    btn_manage_forms: "Конструктор та редактор форм",
+    label_sync_interval_card: "Періодичність синхронізації",
+
+    // Forms Builder
+    forms_builder_title: "Генератор та редактор форм (Бланків)",
+    forms_builder_subtitle: "Налаштуйте структуру та поля бланків, які відображатимуться у розділі «Бланки»",
+    label_select_template: "Виберіть форму для редагування:",
+    btn_form_new: "+ Створити нову форму",
+    form_step_1_logo: "1. Логотип та його позиція",
+    label_logo_source: "Джерело логотипу:",
+    opt_logo_standard: "Стандартний логотип (UH)",
+    opt_logo_custom: "Завантажити власний файл...",
+    opt_logo_none: "Без логотипу",
+    label_logo_pos: "Позиція логотипу на бланку:",
+    logo_pos_left: "Зліва",
+    logo_pos_center: "По центру",
+    logo_pos_right: "Справа",
+    form_step_2_details: "2. Назва форми, орієнтація та відступи",
+    label_form_title: "Назва форми (Заголовок)",
+    label_form_code: "Номер / Код форми",
+    label_form_subtitle: "Підзаголовок або інструкція (опціонально)",
+    label_form_orientation: "Орієнтація аркуша (А4):",
+    orient_portrait: "Книжкова (Портрет)",
+    orient_landscape: "Альбомна (Ландшафт)",
+    label_table_spacing: "Відступ між назвою та даними таблиці:",
+    form_step_3_data: "3. Дані (вибір таблиці та колонок)",
+    label_crew_source: "Джерело даних екіпажу:",
+    opt_source_flight: "Льотний склад (FLIGHT_CREW)",
+    opt_source_cabin: "Кабінний склад (CABIN_CREW)",
+    label_select_cols: "Виберіть стовпчики для включення у бланк:",
+    label_fit_single_line: "Вмістити інформацію в один рядок",
+    desc_fit_single_line: "Масштабує розмір шрифту та відступи комірок, щоб уникнути переносу тексту і не виходити за межі документу",
+    label_cell_padding: "Відступ всередині комірок (Cell Padding):",
+    desc_cell_padding: "Регулює відстань від тексту до меж комірки (від 1px для максимальної компактності)",
+    preset_padding_min: "1 px (Мін)",
+    preset_padding_compact: "3 px (Компактний)",
+    preset_padding_standard: "5 px (Стандарт)",
+    preset_padding_spacious: "8 px (Просторий)",
+    label_extra_grade: "Додати графу «Результат перевірки / Оцінка»",
+    label_extra_validity: "Додати графу «Термін дії нового свідоцтва»",
+    label_extra_remarks: "Додати графу «Зауваження інструктора»",
+    form_step_4_footer: "4. Дата, посада та підпис (Нижній колонтитул)",
+    label_date_format_form: "Формат відображення дат у бланку:",
+    label_date_left: "Поле дати (зліва):",
+    label_sign_rank: "Посада підписанта:",
+    label_sign_name: "ПІБ підписанта:",
+    label_sign_line: "Рядок для підпису:",
+    btn_save_custom_form: "Зберегти налаштування форми",
+    btn_preview_custom_form: "Друк / Preview",
+    preview_title_live: "Попередній перегляд бланка (А4)",
+    badge_live_preview: "Живе оновлення",
+    
+    // Blanks page multi-crew
+    label_crew_select_blank: "Співробітники для бланка:",
+    placeholder_select_crew: "+ Додати члена екіпажу до бланка...",
+    btn_add_to_blank: "+ Додати",
+    btn_select_all_crew: "Всі",
+    btn_clear_crew_list: "Очистити",
+    empty_blank_desc: "Порожній бланк (для ручного заповнення). Додайте одного або декількох співробітників, щоб сформувати заповнену відомість.",
+    selected_crew_count: "Обрано співробітників:",
+    btn_print_pdf: "Друк бланка / PDF",
+    btn_print_roster: "Друк відомості / PDF",
+    btn_edit_form: "Редагувати в генераторі",
+
+    // Settings Tab 1: Sync & Backups extra keys
+    set_sync_tables_title: "Таблиці Google Sheets для синхронізації",
+    set_sync_tables_desc: "Окремі таблиці для обліку персоналу та реєстрації польотів:",
+    label_sheet_personnel: "1. Таблиця персоналу (Flight & Cabin Crew)",
+    badge_sheets_personnel: "Аркуші: Flight_Crew, Cabin_Crew",
+    placeholder_sheet_personnel: "Google Sheet ID персоналу (напр. 1BxiMVs0XRA5...)",
+    btn_sync_personnel: "Синхронізувати персонал",
+    label_sheet_flights: "2. Таблиця польотів (Training Flights)",
+    badge_sheets_flights: "Аркуш: Training_Flights",
+    placeholder_sheet_flights: "Google Sheet ID польотів (напр. 1gHkl924Ksd...)",
+    btn_sync_flights: "Синхронізувати польоти",
+    btn_sync_all_now: "Синхронізувати всі таблиці зараз",
+    set_backup_restore_title: "Резервне копіювання та Відновлення",
+    label_backup_section_1: "1. Зробити резервну копію:",
+    btn_backup_snapshot: "Зберегти швидкий знімок (Snapshot)",
+    label_backup_section_2: "2. Відновити за допомогою резервної копії:",
+    btn_restore_json: "Відновити стан з JSON файлу",
+    btn_restore_excel: "Оновити базу з Excel (Smart Merge)",
+    label_saved_snapshots: "Збережені локальні знімки:",
+    label_last_sync: "Остання синхронізація:",
+
+    // Settings Tab 2: Personnel & Access extra keys
+    personnel_mgmt_title: "Керування персоналом (Додати / Видалити)",
+    personnel_mgmt_subtitle: "Загальний реєстр співробітників льотного та кабінного складу",
+    btn_add_personnel_modal: "+ Додати персонал",
+    search_personnel_placeholder: "Пошук співробітника (ПІБ, посада, email)...",
+    filter_all_categories: "Всі категорії",
+    filter_flight_crew: "Льотний склад",
+    filter_cabin_crew: "Кабінний склад",
+    th_pers_type: "Тип",
+    th_pers_name_ua: "ПІБ (Укр.)",
+    th_pers_name_en: "ПІБ (Англ.)",
+    th_pers_rank_dept: "Посада / Підрозділ",
+    th_pers_email: "Email",
+    th_pers_role: "Роль",
+    th_pers_actions: "Дії",
+    label_quick_delete: "Швидке видалення:",
+    btn_quick_delete: "Видалити вибраного співробітника",
+    permissions_title: "Налаштування прав доступу",
+    roles_matrix_title: "Матриця ролей системи:",
+    role_admin_desc: "ADMIN — Повний доступ: налаштування, бекапи, персонал, бланки.",
+    role_instructor_desc: "INSTRUCTOR — Внесення польотів, редагування тренувань персоналу.",
+    role_office_desc: "OFFICE — Перегляд списків екіпажу, завантаження та друк бланків.",
+    role_crew_desc: "CREW — Особистий кабінет: перегляд власних сертифікатів.",
+    user_accounts_title: "Облікові записи та призначення ролей:",
+    btn_add_user: "+ Додати користувача",
+    th_acc_email: "Email / Користувач",
+    th_acc_role: "Поточна роль",
+    th_acc_change_role: "Змінити роль",
+    th_acc_actions: "Дії",
+    modal_add_user_title: "Додати користувача",
+    notifications_title: "Налаштування повідомлень",
+    notifications_desc: "Автоматичні сповіщення про вихід термінів дії документів та оновлення кваліфікацій:",
+    label_alert_days_input: "Попередження (жовтий рівень, днів)",
+    label_critical_days_input: "Критичний термін (червоний, днів)",
+    label_notify_email_input: "Email для зведених звітів",
+    notify_opt_crew_update: "Сповіщати співробітника на Email при оновленні його документів",
+    notify_opt_instructor_exp: "Сповіщати відповідального інструктора при настанні критичного терміну",
+    notify_opt_weekly_digest: "Надсилати щотижневий звіт про закінчення термінів підготовок",
+    notify_opt_inapp: "Показувати спливаючі повідомлення в системі (In-App)",
+    btn_test_notification: "Тест сповіщення",
+    btn_save_notifications: "Зберегти",
+
+    // Settings Tab 3: Display extra keys
+    columns_disp_title: "Відображення стовпчиків у таблицях",
+    columns_disp_desc: "Двомовна версія налаштування: виберіть, які графи показувати в основних таблицях",
+    btn_cols_select_all: "Вибрати всі",
+    btn_cols_deselect_all: "Зняти всі",
+    btn_cols_reset_default: "За замовчуванням",
+    tab_crew_flight: "Льотний склад (Flight Crew)",
+    tab_crew_cabin: "Кабінний склад (Cabin Crew)",
+    rules_title: "Форматування та Розрахункові правила",
+    label_date_format_select: "Формат відображення дати",
+    label_ref_date_calc: "Розрахункова системна дата",
+    rule_eom_title: "Правило останнього дня місяця (End of Month)",
+    rule_eom_desc: "Для Flight Crew та перевірок OPC",
+    rule_date_prompt_title: "Уточнювати тип дати при внесенні",
+    rule_date_prompt_desc: "Діалог Completion vs Expiry Date",
+    label_backup_retention_count: "Кількість резервних ревізій у пам'яті",
+    btn_save_disp_settings: "Зберегти параметри відображення",
+
     // Portal
     portal_profile_title: "Особистий профіль",
     portal_expiries_title: "Терміни дії підготовок",
@@ -178,6 +357,22 @@ const TRANSLATIONS = {
     
     // Settings
     set_sync_backup: "Sync & Backups",
+    set_google_sync: "Google Drive & Sheets API",
+    set_system_recommendations: "Recommended System Settings",
+    label_sync_mode: "API Operation Mode",
+    label_google_client_id: "OAuth 2.0 Client ID / API Key",
+    label_google_sheet_id: "Google Sheets Spreadsheet ID",
+    label_google_drive_folder_id: "Google Drive Root Folder ID",
+    label_sync_interval: "Auto-sync Interval",
+    btn_save_sync_settings: "Save API Settings",
+    btn_test_connection: "Test Connection",
+    btn_verify_crew_folders: "Crew Folders (NAME_EN)",
+    label_alert_days: "Warning Alert (days)",
+    label_critical_days: "Critical Expiry (days)",
+    label_date_format: "Date Format",
+    label_backup_retention: "Backup Snapshots Retention",
+    btn_save_system_settings: "Save System Settings",
+    modal_folders_title: "Crew Personal Folders Registry (NAME_EN)",
     label_reference_date: "System Reference Date",
     btn_manual_sync_drive: "Sync with Drive",
     set_columns: "Column Visibility",
@@ -186,6 +381,159 @@ const TRANSLATIONS = {
     label_delete_crew: "Remove Crew Member",
     btn_delete_crew_member: "Delete Employee",
     
+    // Settings Tabs & Sections
+    tab_sync: "Backup & Sync",
+    tab_personnel: "Personnel & Access",
+    tab_display: "Display",
+    tab_forms: "Forms",
+    tab_log: "Log",
+    forms_list_title: "Printable Forms & Templates",
+    forms_list_desc: "Select a form, add crew members to the roster, and print or export to PDF. Templates can be configured in the Form Generator.",
+    btn_manage_forms: "Forms Generator & Editor",
+    label_sync_interval_card: "Sync Frequency & Schedule",
+
+    // Forms Builder
+    forms_builder_title: "Forms Generator & Editor",
+    forms_builder_subtitle: "Configure form structure and fields displayed in the Blank Forms section",
+    label_select_template: "Select form template to edit:",
+    btn_form_new: "+ Create New Template",
+    form_step_1_logo: "1. Logo & Position",
+    label_logo_source: "Logo Source:",
+    opt_logo_standard: "Standard Logo (UH)",
+    opt_logo_custom: "Upload Custom File...",
+    opt_logo_none: "No Logo",
+    label_logo_pos: "Logo Position on Sheet:",
+    logo_pos_left: "Left",
+    logo_pos_center: "Center",
+    logo_pos_right: "Right",
+    form_step_2_details: "2. Form Name, Orientation & Spacing",
+    label_form_title: "Form Title (Header)",
+    label_form_code: "Form Code / Number",
+    label_form_subtitle: "Subtitle or Instructions (Optional)",
+    label_form_orientation: "Page Orientation (A4):",
+    orient_portrait: "Portrait",
+    orient_landscape: "Landscape",
+    label_table_spacing: "Spacing between Title and Table Data:",
+    form_step_3_data: "3. Data (Source & Columns Selection)",
+    label_crew_source: "Crew Data Source:",
+    opt_source_flight: "Flight Crew (FLIGHT_CREW)",
+    opt_source_cabin: "Cabin Crew (CABIN_CREW)",
+    label_select_cols: "Select columns to include in blank:",
+    label_fit_single_line: "Fit information on a single line",
+    desc_fit_single_line: "Scales font size and cell padding to prevent line wrapping and page border overflow",
+    label_cell_padding: "Cell Padding (Horizontal / Vertical):",
+    desc_cell_padding: "Adjusts spacing between text and cell borders (down to 1px for maximum compactness)",
+    preset_padding_min: "1 px (Min)",
+    preset_padding_compact: "3 px (Compact)",
+    preset_padding_standard: "5 px (Standard)",
+    preset_padding_spacious: "8 px (Spacious)",
+    label_extra_grade: "Add 'Check Result / Grade' column",
+    label_extra_validity: "Add 'Validity Period' column",
+    label_extra_remarks: "Add 'Instructor Remarks' column",
+    form_step_4_footer: "4. Date, Position & Signature (Footer)",
+    label_date_format_form: "Date display format in blank:",
+    label_date_left: "Date field (left):",
+    label_sign_rank: "Signatory rank:",
+    label_sign_name: "Signatory full name:",
+    label_sign_line: "Signature line:",
+    btn_save_custom_form: "Save Form Settings",
+    btn_preview_custom_form: "Print / Preview",
+    preview_title_live: "Blank Live Preview (A4)",
+    badge_live_preview: "Live Update",
+    
+    // Blanks page multi-crew
+    label_crew_select_blank: "Crew members for blank:",
+    placeholder_select_crew: "+ Add crew member to blank...",
+    btn_add_to_blank: "+ Add",
+    btn_select_all_crew: "All",
+    btn_clear_crew_list: "Clear",
+    empty_blank_desc: "Blank form (for manual handwriting). Add one or more crew members to generate a filled roster.",
+    selected_crew_count: "Selected crew members:",
+    btn_print_pdf: "Print Blank / PDF",
+    btn_print_roster: "Print Roster / PDF",
+    btn_edit_form: "Edit in Generator",
+
+    // Settings Tab 1: Sync & Backups extra keys
+    set_sync_tables_title: "Google Sheets for Synchronization",
+    set_sync_tables_desc: "Dedicated spreadsheets for crew personnel and flight logs:",
+    label_sheet_personnel: "1. Personnel Spreadsheet (Flight & Cabin Crew)",
+    badge_sheets_personnel: "Sheets: Flight_Crew, Cabin_Crew",
+    placeholder_sheet_personnel: "Personnel Google Sheet ID (e.g. 1BxiMVs0XRA5...)",
+    btn_sync_personnel: "Sync Personnel",
+    label_sheet_flights: "2. Flight Logs Spreadsheet (Training Flights)",
+    badge_sheets_flights: "Sheet: Training_Flights",
+    placeholder_sheet_flights: "Flights Google Sheet ID (e.g. 1gHkl924Ksd...)",
+    btn_sync_flights: "Sync Flight Logs",
+    btn_sync_all_now: "Sync All Tables Now",
+    set_backup_restore_title: "Backup & Disaster Recovery",
+    label_backup_section_1: "1. Create System Backup:",
+    btn_backup_snapshot: "Save Fast Snapshot",
+    label_backup_section_2: "2. Restore from Backup Archive:",
+    btn_restore_json: "Restore State from JSON File",
+    btn_restore_excel: "Update Database from Excel (Smart Merge)",
+    label_saved_snapshots: "Saved Local Snapshots:",
+    label_last_sync: "Last Synchronized:",
+
+    // Settings Tab 2: Personnel & Access extra keys
+    personnel_mgmt_title: "Personnel Management (Add / Delete)",
+    personnel_mgmt_subtitle: "Master directory of flight and cabin crew members",
+    btn_add_personnel_modal: "+ Add Personnel",
+    search_personnel_placeholder: "Search crew (Name, rank, email)...",
+    filter_all_categories: "All Categories",
+    filter_flight_crew: "Flight Crew",
+    filter_cabin_crew: "Cabin Crew",
+    th_pers_type: "Type",
+    th_pers_name_ua: "Full Name (UA)",
+    th_pers_name_en: "Full Name (EN)",
+    th_pers_rank_dept: "Rank / Department",
+    th_pers_email: "Email",
+    th_pers_role: "Role",
+    th_pers_actions: "Actions",
+    label_quick_delete: "Quick Delete:",
+    btn_quick_delete: "Delete Selected Employee",
+    permissions_title: "Access Control & Permissions",
+    roles_matrix_title: "System Roles Matrix:",
+    role_admin_desc: "ADMIN — Full access: settings, backups, personnel, templates.",
+    role_instructor_desc: "INSTRUCTOR — Flight logging, training records editing.",
+    role_office_desc: "OFFICE — View crew rosters, download and print forms.",
+    role_crew_desc: "CREW — Personal portal: review personal certificates.",
+    user_accounts_title: "User Accounts & Role Assignments:",
+    btn_add_user: "+ Add User",
+    th_acc_email: "Email / User",
+    th_acc_role: "Current Role",
+    th_acc_change_role: "Assign Role",
+    th_acc_actions: "Actions",
+    modal_add_user_title: "Add User",
+    notifications_title: "Notification Settings",
+    notifications_desc: "Automated alerts for expiring documents and qualification renewals:",
+    label_alert_days_input: "Warning Threshold (Yellow, days)",
+    label_critical_days_input: "Critical Threshold (Red, days)",
+    label_notify_email_input: "Email for Summary Reports",
+    notify_opt_crew_update: "Email employee upon document updates",
+    notify_opt_instructor_exp: "Notify lead instructor when document reaches critical expiry",
+    notify_opt_weekly_digest: "Send weekly preparation expiration digest",
+    notify_opt_inapp: "Display in-app system notifications",
+    btn_test_notification: "Test Alert",
+    btn_save_notifications: "Save",
+
+    // Settings Tab 3: Display extra keys
+    columns_disp_title: "Column Visibility in Tables",
+    columns_disp_desc: "Bilingual column setup: select which columns to show in main tables",
+    btn_cols_select_all: "Select All",
+    btn_cols_deselect_all: "Deselect All",
+    btn_cols_reset_default: "Default Columns",
+    tab_crew_flight: "Flight Crew",
+    tab_crew_cabin: "Cabin Crew",
+    rules_title: "Formatting & Calculation Rules",
+    label_date_format_select: "Date Display Format",
+    label_ref_date_calc: "Reference System Date",
+    rule_eom_title: "End of Month Rule (EOM)",
+    rule_eom_desc: "For Flight Crew and OPC checks",
+    rule_date_prompt_title: "Prompt for Date Type on Entry",
+    rule_date_prompt_desc: "Completion vs Expiry Date dialog",
+    label_backup_retention_count: "Backup Snapshot Revisions Retention",
+    btn_save_disp_settings: "Save Display Settings",
+
     // Portal
     portal_profile_title: "Personal Profile",
     portal_expiries_title: "Training Expirations",
@@ -205,8 +553,192 @@ const TRANSLATIONS = {
   }
 };
 
+// ================= DEFAULT TEMPLATES & DICTIONARIES =================
+const DEFAULT_FORMS = [
+  {
+    id: 'form-uh-f-22',
+    name: 'Подання на присвоєння кваліфікації (Льотний склад)',
+    code: 'Форма UH-F-22',
+    subtitle: 'Авіакомпанія «Українські вертольоти» • Льотна служба',
+    crewType: 'Flight',
+    logo: 'PICS/LOGO_UH.png',
+    logoPos: 'left',
+    orientation: 'portrait',
+    fitSingleLine: false,
+    dateFormat: 'DD.MM.YYYY',
+    tableSpacing: 20,
+    cellPadding: 4,
+    columns: ['Rank', 'Department', 'Full_Name_UA', 'OPC', 'LPC', 'Type', 'EMER_1', 'EMER_3', 'MED'],
+    extraGrade: true,
+    extraValidity: true,
+    extraRemarks: false,
+    dateText: 'Дата: «____» ___________ 202___ р.',
+    signRank: 'Керівник льотної служби',
+    signName: 'Ковальов В.О.'
+  },
+  {
+    id: 'form-uh-c-09',
+    name: 'Звіт про перевірку в польоті БП (Кабінний склад)',
+    code: 'Форма UH-C-09',
+    subtitle: 'Авіакомпанія «Українські вертольоти» • Служба бортпровідників',
+    crewType: 'Cabin',
+    logo: 'PICS/LOGO_UH.png',
+    logoPos: 'center',
+    orientation: 'landscape',
+    fitSingleLine: true,
+    dateFormat: 'DD.MM.YYYY',
+    tableSpacing: 20,
+    cellPadding: 3,
+    columns: ['Rank', 'Department', 'Full_Name_UA', 'OPC', 'LPC', 'CC_Type', 'EMER_1', 'DG', 'AV_SEC', 'CRM'],
+    extraGrade: true,
+    extraValidity: true,
+    extraRemarks: true,
+    dateText: 'Дата: «____» ___________ 202___ р.',
+    signRank: 'Начальник служби бортпровідників',
+    signName: 'Сидоренко О.М.'
+  },
+  {
+    id: 'form-uh-tr-01',
+    name: 'Атестаційна відомість теоретичної підготовки',
+    code: 'Форма UH-TR-01',
+    subtitle: 'Навчально-тренувальний центр • Підсумковий контроль знань',
+    crewType: 'Flight',
+    logo: 'PICS/LOGO_UH.png',
+    logoPos: 'right',
+    orientation: 'portrait',
+    fitSingleLine: false,
+    dateFormat: 'DD.MM.YYYY',
+    tableSpacing: 20,
+    cellPadding: 4,
+    columns: ['Rank', 'Full_Name_UA', 'DG', 'AV_SEC', 'CRM'],
+    extraGrade: true,
+    extraValidity: true,
+    extraRemarks: false,
+    dateText: 'Дата: «____» ___________ 202___ р.',
+    signRank: 'Інструктор навчального центру',
+    signName: 'Бондарчук В.П.'
+  }
+];
+
+const BILINGUAL_COLUMNS = {
+  Flight: [
+    { key: 'Rank', ua: 'Посада', en: 'Rank' },
+    { key: 'Department', ua: 'Підрозділ', en: 'Department' },
+    { key: 'Name_Shrt_UA', ua: 'ПІБ скорочено (Укр.)', en: 'Short Name UA' },
+    { key: 'Full_Name_UA', ua: 'ПІБ повне (Укр.)', en: 'Full Name UA' },
+    { key: 'Full_Name_EN', ua: 'ПІБ повне (Англ.)', en: 'Full Name EN' },
+    { key: 'OPC', ua: 'Перевірка експлуатаційної кваліфікації (OPC)', en: 'Operator Proficiency Check (OPC)', expiring: true },
+    { key: 'OPC_NVG', ua: 'Перевірка польотів у ПНБ (OPC NVG)', en: 'Night Vision Goggles Check (OPC NVG)', expiring: true },
+    { key: 'LPC', ua: 'Перевірка кваліфікації пілота (LPC)', en: 'License Proficiency Check (LPC)', expiring: true },
+    { key: 'Type', ua: 'Кваліфікаційна перевірка типу ПС', en: 'Aircraft Type Rating Check', expiring: true },
+    { key: 'EMER_1', ua: 'Аварійно-рятувальні процедури (1 рік)', en: 'Emergency Procedures (1 Year)', expiring: true },
+    { key: 'EMER_3', ua: 'Аварійно-рятувальні процедури (3 роки)', en: 'Emergency Procedures (3 Years)', expiring: true },
+    { key: 'DG', ua: 'Небезпечні вантажі (DG)', en: 'Dangerous Goods (DG)', expiring: true },
+    { key: 'AV_SEC', ua: 'Авіаційна безпека (AV SEC)', en: 'Aviation Security (AV SEC)', expiring: true },
+    { key: 'CRM', ua: 'Взаємодія екіпажу (CRM)', en: 'Crew Resource Management (CRM)', expiring: true },
+    { key: 'MED', ua: 'Медичний сертифікат (MED)', en: 'Medical Certificate (MED)', expiring: true },
+    { key: 'LICENSE', ua: 'Свідоцтво члена екіпажу', en: 'Crew License', expiring: true },
+    { key: 'GI 275_T', ua: 'GI 275 Теорія', en: 'GI 275 Theory' },
+    { key: 'GI 275_PRCT', ua: 'GI 275 Практика', en: 'GI 275 Practice' },
+    { key: 'BIRD STRIKE', ua: 'Запобігання зіткненням з птахами', en: 'Bird Strike Prevention' },
+    { key: 'MSB', ua: 'MSB Підготовка', en: 'MSB Training' },
+    { key: 'PALL', ua: 'PALL Фільтрація', en: 'PALL Filtration' },
+    { key: 'HESLO_T', ua: 'HESLO Теорія (Зовнішня підвіска)', en: 'HESLO Theory (Sling Load)' },
+    { key: 'HESLO_PRCT', ua: 'HESLO Практика (Зовнішня підвіска)', en: 'HESLO Practice (Sling Load)' },
+    { key: 'HHO_T', ua: 'HHO Теорія (Лебідка)', en: 'HHO Theory (Hoist)' },
+    { key: 'HHO_PRCT', ua: 'HHO Практика (Лебідка)', en: 'HHO Practice (Hoist)' }
+  ],
+  Cabin: [
+    { key: 'Rank', ua: 'Посада', en: 'Rank' },
+    { key: 'Department', ua: 'Підрозділ', en: 'Department' },
+    { key: 'Name_Shrt_UA', ua: 'ПІБ скорочено (Укр.)', en: 'Short Name UA' },
+    { key: 'Full_Name_UA', ua: 'ПІБ повне (Укр.)', en: 'Full Name UA' },
+    { key: 'Full_Name_EN', ua: 'ПІБ повне (Англ.)', en: 'Full Name EN' },
+    { key: 'OPC', ua: 'Перевірка експлуатаційної кваліфікації (OPC)', en: 'Operator Proficiency Check (OPC)', expiring: true },
+    { key: 'LPC', ua: 'Перевірка кваліфікації бортпровідника (LPC)', en: 'Cabin Crew Check (LPC)', expiring: true },
+    { key: 'CC_Type', ua: 'Тип повітряного судна (БП)', en: 'Cabin Crew Type Rating', expiring: true },
+    { key: 'EMER_1', ua: 'Аварійно-рятувальні процедури (1 рік)', en: 'Emergency Procedures (1 Year)', expiring: true },
+    { key: 'EMER_3', ua: 'Аварійно-рятувальні процедури (3 роки)', en: 'Emergency Procedures (3 Years)', expiring: true },
+    { key: 'DG', ua: 'Небезпечні вантажі (DG)', en: 'Dangerous Goods (DG)', expiring: true },
+    { key: 'AV_SEC', ua: 'Авіаційна безпека (AV SEC)', en: 'Aviation Security (AV SEC)', expiring: true },
+    { key: 'CRM', ua: 'Взаємодія екіпажу (CRM)', en: 'Crew Resource Management (CRM)', expiring: true },
+    { key: 'MED', ua: 'Медичний сертифікат (MED)', en: 'Medical Certificate (MED)', expiring: true },
+    { key: 'Resc', ua: 'Рятувальні операції (Resc)', en: 'Rescue Operations' },
+    { key: 'Rappel', ua: 'Десантування (Rappel)', en: 'Rappel Operations' },
+    { key: 'Hoist', ua: 'Робота з лебідкою (Hoist)', en: 'Hoist Operations' },
+    { key: 'EOIR', ua: 'Оптико-електронна система (EOIR)', en: 'Electro-Optical Infra-Red' },
+    { key: 'NAIROBI', ua: 'Спеціальний тренінг Найробі', en: 'Nairobi Special Training' }
+  ]
+};
+
+/**
+ * Returns concise, standardized short title for form/blank column headers
+ * E.g. "LPC", "OPC", "DG", "AV_SEC", "MED", "Rank", "ПІБ"
+ */
+function getFormColumnShortTitle(colKey, lang = 'uk') {
+  if (!colKey) return '';
+  switch (colKey) {
+    case 'Rank':
+      return lang === 'uk' ? 'Посада' : 'Rank';
+    case 'Department':
+      return lang === 'uk' ? 'Підрозділ' : 'Department';
+    case 'Name_Shrt_UA':
+      return lang === 'uk' ? 'ПІБ (скор.)' : 'Short Name';
+    case 'Full_Name_UA':
+      return lang === 'uk' ? 'ПІБ' : 'Full Name';
+    case 'Full_Name_EN':
+      return lang === 'uk' ? 'ПІБ (англ.)' : 'Name (EN)';
+    case 'LICENSE':
+      return lang === 'uk' ? 'Свідоцтво' : 'License';
+    case 'Type':
+    case 'CC_Type':
+      return lang === 'uk' ? 'Тип ПС' : 'Type';
+    case 'OPC_NVG':
+      return 'OPC NVG';
+    case 'AV_SEC':
+      return 'AV SEC';
+    case 'EMER_1':
+      return lang === 'uk' ? 'EMER (1р)' : 'EMER (1y)';
+    case 'EMER_3':
+      return lang === 'uk' ? 'EMER (3р)' : 'EMER (3y)';
+    case 'GI 275_T':
+      return 'GI 275 (T)';
+    case 'GI 275_PRCT':
+      return 'GI 275 (P)';
+    case 'BIRD STRIKE':
+      return 'Bird Strike';
+    case 'HESLO_T':
+      return 'HESLO (T)';
+    case 'HESLO_PRCT':
+      return 'HESLO (P)';
+    case 'HHO_T':
+      return 'HHO (T)';
+    case 'HHO_PRCT':
+      return 'HHO (P)';
+    case 'MSB':
+      return 'MSB';
+    case 'PALL':
+      return 'PALL';
+    case 'Resc':
+      return 'Resc';
+    case 'Rappel':
+      return 'Rappel';
+    case 'Hoist':
+      return 'Hoist';
+    case 'EOIR':
+      return 'EOIR';
+    case 'NAIROBI':
+      return 'Nairobi';
+    default:
+      return colKey;
+  }
+}
+
 // ================= DEFAULT APP STATE =================
+export const APP_VERSION = '0.2';
+
 const STATE = {
+  version: APP_VERSION,
   currentView: 'dashboard',
   lang: 'uk',
   theme: 'light',
@@ -215,6 +747,13 @@ const STATE = {
   cabinCrew: [],
   changelog: [],
   flights: [],
+  forms: [],
+  formSelectedCrew: {},
+  snapshots: [],
+  activeSettingsTab: 'sync',
+  activeColumnsTab: 'Flight',
+  editingFormId: null,
+  lastSyncTimestamp: null,
   selectedCrewMemberId: null,
   previousCrewView: null,
   isEditingPortalProfile: false,
@@ -228,6 +767,28 @@ const STATE = {
     datePrompt: true,
     autoSync: false,
     referenceDate: '2026-07-12',
+    syncMode: 'mock',
+    googleApiKey: '',
+    googleClientId: '',
+    googleSpreadsheetId: '',
+    googleSpreadsheetIdPersonnel: '',
+    googleSpreadsheetIdFlights: '',
+    googleDriveFolderId: '',
+    syncInterval: '5',
+    alertThresholdDays: 30,
+    criticalThresholdDays: 7,
+    dateFormat: 'YYYY-MM-DD',
+    eomRule: true,
+    backupRetention: 5,
+    notifications: {
+      alertThresholdDays: 30,
+      criticalThresholdDays: 7,
+      digestEmail: 'training.dept@ukr-helicopters.ua',
+      notifyCrewDocUpdate: true,
+      notifyInstructorExpirations: true,
+      notifyWeeklyDigest: true,
+      notifyInApp: true
+    },
     visibleColumnsFlight: [
       'Rank', 'Department', 'Name_Shrt_UA', 'OPC', 'OPC_NVG', 'LPC', 'Type', 'EMER_1', 'EMER_3', 'DG', 'AV_SEC', 'CRM', 'MED', 'LICENSE',
       'GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'HHO_T', 'HHO_PRCT'
@@ -284,6 +845,8 @@ function saveStateToStorage() {
   localStorage.setItem('aerocheck_changelog', JSON.stringify(STATE.changelog));
   localStorage.setItem('aerocheck_settings', JSON.stringify(STATE.settings));
   localStorage.setItem('aerocheck_flights', JSON.stringify(STATE.flights));
+  localStorage.setItem('aerocheck_forms', JSON.stringify(STATE.forms));
+  localStorage.setItem('aerocheck_snapshots', JSON.stringify(STATE.snapshots));
 }
 
 /**
@@ -347,7 +910,7 @@ function switchView(viewName) {
     const allCrew = [...STATE.flightCrew, ...STATE.cabinCrew];
     let member = null;
     if (STATE.selectedCrewMemberId) {
-      member = allCrew.find(c => c.id === STATE.selectedCrewMemberId);
+      member = allCrew.find(c => String(c.id) === String(STATE.selectedCrewMemberId));
     }
     if (!member) {
       const email = STATE.currentUser ? STATE.currentUser.email : '';
@@ -378,6 +941,8 @@ function switchView(viewName) {
     renderPersonalPortal();
   } else if (viewName === 'training-flights') {
     renderTrainingFlightsForm();
+  } else if (viewName === 'forms') {
+    renderForms();
   }
   
   // Re-initialize Lucide Icons
@@ -882,8 +1447,9 @@ function renderCrewTable(crewType) {
             td.textContent = val;
           }
 
-          // Make name interactive for ADMIN and INSTRUCTOR to view individual portal
-          if (isEditor) {
+          // Make name interactive for ADMIN, INSTRUCTOR and OFFICE to view individual portal
+          const canViewPortal = role === ROLES.ADMIN || role === ROLES.INSTRUCTOR || role === ROLES.OFFICE;
+          if (canViewPortal) {
             td.style.cursor = 'pointer';
             td.style.color = 'var(--accent)';
             td.style.textDecoration = 'underline';
@@ -931,6 +1497,48 @@ function formatDateUa(dateStr) {
   const m = UA_MONTHS[date.getMonth()];
   const y = String(date.getFullYear()).substring(2);
   return `${d} ${m}. ${y}`;
+}
+
+/**
+ * Formats date string according to a selected pattern:
+ * 'DD.MM.YYYY', 'YYYY-MM-DD', 'DD/MM/YYYY', 'DD MMM YYYY', 'WORDS'
+ */
+function formatDateCustom(dateStr, pattern = 'DD.MM.YYYY') {
+  if (!dateStr || dateStr === '-' || dateStr === 'N/A') return '-';
+  const cleanStr = String(dateStr).trim();
+  const match = cleanStr.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  let year, month, day;
+  if (match) {
+    year = match[1];
+    month = match[2].padStart(2, '0');
+    day = match[3].padStart(2, '0');
+  } else {
+    const d = new Date(cleanStr);
+    if (isNaN(d.getTime())) return dateStr;
+    year = String(d.getFullYear());
+    month = String(d.getMonth() + 1).padStart(2, '0');
+    day = String(d.getDate()).padStart(2, '0');
+  }
+
+  const UA_MONTHS_SHORT = ['СІЧ', 'ЛЮТ', 'БЕР', 'КВІ', 'ТРА', 'ЧЕР', 'ЛИП', 'СЕР', 'ВЕР', 'ЖОВ', 'ЛИС', 'ГРУ'];
+  const UA_MONTHS_FULL = ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'];
+  const mIdx = parseInt(month, 10) - 1;
+
+  switch (pattern) {
+    case 'DD.MM.YY':
+      return `${day}.${month}.${year.slice(-2)}`;
+    case 'YYYY-MM-DD':
+      return `${year}-${month}-${day}`;
+    case 'DD/MM/YYYY':
+      return `${day}/${month}/${year}`;
+    case 'DD MMM YYYY':
+      return `${day} ${UA_MONTHS_SHORT[mIdx] || month} ${year}`;
+    case 'WORDS':
+      return `«${day}» ${UA_MONTHS_FULL[mIdx] || month} ${year} р.`;
+    case 'DD.MM.YYYY':
+    default:
+      return `${day}.${month}.${year}`;
+  }
 }
 
 /**
@@ -2437,83 +3045,2005 @@ function populateSelectors() {
   });
 }
 
+let currentFoldersFilter = 'all';
+let cachedVerifiedFolders = { flight: [], cabin: [] };
+
 /**
- * Renders the Settings views variables and check-grids
+ * Opens and renders the Crew Folders Registry modal
+ */
+function openCrewFoldersRegistryModal() {
+  const backdrop = document.getElementById('crew-folders-modal-backdrop');
+  if (!backdrop) return;
+  
+  showToast(STATE.lang === 'uk' ? "Перевірка структури папок екіпажу (NAME_EN)..." : "Verifying crew folder structure (NAME_EN)...");
+  
+  verifyAndCreateCrewFolders(STATE.flightCrew, STATE.cabinCrew, STATE.settings.googleDriveFolderId, (res) => {
+    if (!res.success) {
+      showToast("Помилка перевірки папок: " + res.error, "error");
+      return;
+    }
+    
+    cachedVerifiedFolders.flight = res.flightFolders;
+    cachedVerifiedFolders.cabin = res.cabinFolders;
+    
+    // Update count badges
+    const countAllEl = document.getElementById('folders-count-all');
+    const countFlightEl = document.getElementById('folders-count-flight');
+    const countCabinEl = document.getElementById('folders-count-cabin');
+    const verifiedTimeEl = document.getElementById('folders-last-verified-text');
+    
+    if (countAllEl) countAllEl.textContent = res.total;
+    if (countFlightEl) countFlightEl.textContent = res.flightFolders.length;
+    if (countCabinEl) countCabinEl.textContent = res.cabinFolders.length;
+    if (verifiedTimeEl) verifiedTimeEl.textContent = `${STATE.lang === 'uk' ? 'Перевірено' : 'Verified'}: ${res.timestamp}`;
+    
+    renderFoldersTable(currentFoldersFilter, '');
+    backdrop.classList.add('active');
+    if (window.lucide) window.lucide.createIcons();
+  });
+}
+
+/**
+ * Renders rows in the Crew Folders Registry table
+ */
+function renderFoldersTable(filter, search) {
+  const tbody = document.getElementById('folders-registry-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+  
+  let combined = [];
+  if (filter === 'all' || filter === 'FLIGHT') {
+    combined = combined.concat(cachedVerifiedFolders.flight || []);
+  }
+  if (filter === 'all' || filter === 'CABIN') {
+    combined = combined.concat(cachedVerifiedFolders.cabin || []);
+  }
+  
+  const query = (search || '').trim().toLowerCase();
+  if (query) {
+    combined = combined.filter(item => 
+      (item.nameEn && item.nameEn.toLowerCase().includes(query)) || 
+      (item.path && item.path.toLowerCase().includes(query))
+    );
+  }
+  
+  if (combined.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-secondary); padding: var(--spacing-4);">Не знайдено записів</td></tr>`;
+    return;
+  }
+  
+  combined.forEach(folder => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <span class="status-badge status-neutral" style="font-size: 10px; font-weight: 700;">${folder.crewType}</span>
+      </td>
+      <td style="font-weight: 600; color: var(--text-primary);">
+        <i data-lucide="folder" style="width: 14px; height: 14px; margin-right: 6px; color: var(--accent); vertical-align: middle;"></i>
+        <span>${folder.nameEn}</span>
+      </td>
+      <td>
+        <code style="font-size: 11px; color: var(--text-secondary); background: var(--bg-surface-alt); padding: 2px 6px; border-radius: 4px;">${folder.path}</code>
+      </td>
+      <td style="text-align: center;">
+        <span class="status-badge status-valid" style="font-size: 10px;">${folder.status}</span>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+  if (window.lucide) window.lucide.createIcons();
+}
+
+/**
+ * Coordinates settings sub-navigation and renders active tab
+ */
+function initSettingsSubnav() {
+  document.querySelectorAll('.settings-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabName = btn.getAttribute('data-settings-tab');
+      activateSettingsTab(tabName);
+    });
+  });
+}
+
+function activateSettingsTab(tabName) {
+  STATE.activeSettingsTab = tabName;
+  document.querySelectorAll('.settings-tab-btn').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-settings-tab') === tabName);
+  });
+  document.querySelectorAll('.settings-tab-panel').forEach(p => {
+    p.classList.toggle('active', p.id === `settings-panel-${tabName}`);
+  });
+
+  if (tabName === 'sync') {
+    renderSettingsSyncTab();
+  } else if (tabName === 'personnel') {
+    renderSettingsPersonnelTab();
+  } else if (tabName === 'display') {
+    renderSettingsDisplayTab();
+  } else if (tabName === 'forms') {
+    renderSettingsFormsTab();
+  } else if (tabName === 'log') {
+    renderSettingsLogTab();
+  }
+  if (window.lucide) window.lucide.createIcons();
+}
+
+/**
+ * Main Settings view entry point
  */
 function renderSettings() {
-  document.getElementById('settings-ref-date').value = STATE.settings.referenceDate;
-  document.getElementById('settings-auto-sync').checked = STATE.settings.autoSync;
-  document.getElementById('settings-date-prompt').checked = STATE.settings.datePrompt;
-  
-  // Render column checkbox settings
-  const columnsContainer = document.getElementById('columns-visibility-container');
-  columnsContainer.innerHTML = '';
-  
-  // Add section headers
-  columnsContainer.insertAdjacentHTML('beforeend', `<div style="grid-column: 1/-1; font-weight:700; margin-top:8px; border-bottom:1px solid var(--border-color); padding-bottom:4px;">Flight Crew Columns</div>`);
-  
-  const flightAllHeaders = [
-    'Rank', 'Department', 'Name_Shrt_UA', 'Full_Name_UA', 'Full_Name_EN', 
-    'OPC', 'OPC_NVG', 'LPC', 'Type', 'EMER_1', 'EMER_3', 'DG', 'AV_SEC', 'CRM', 'MED', 'LICENSE'
-  ];
-  
-  flightAllHeaders.forEach(col => {
-    const isVisible = STATE.settings.visibleColumnsFlight.includes(col);
-    columnsContainer.insertAdjacentHTML('beforeend', `
-      <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
-        <input type="checkbox" class="col-vis-checkbox-flight" data-col="${col}" ${isVisible ? 'checked' : ''}>
-        <span>${col}</span>
-      </label>
-    `);
-  });
-  
-  columnsContainer.insertAdjacentHTML('beforeend', `<div style="grid-column: 1/-1; font-weight:700; margin-top:16px; border-bottom:1px solid var(--border-color); padding-bottom:4px;">Cabin Crew Columns</div>`);
-  
-  const cabinAllHeaders = [
-    'Rank', 'Department', 'Name_Shrt_UA', 'Full_Name_UA', 'Full_Name_EN', 
-    'OPC', 'LPC', 'CC_Type', 'EMER_1', 'EMER_3', 'DG', 'AV_SEC', 'CRM', 'MED'
-  ];
-  
-  cabinAllHeaders.forEach(col => {
-    const isVisible = STATE.settings.visibleColumnsCabin.includes(col);
-    columnsContainer.insertAdjacentHTML('beforeend', `
-      <label style="display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer;">
-        <input type="checkbox" class="col-vis-checkbox-cabin" data-col="${col}" ${isVisible ? 'checked' : ''}>
-        <span>${col}</span>
-      </label>
-    `);
-  });
-  
-  // Add listeners to checks
-  document.querySelectorAll('.col-vis-checkbox-flight').forEach(chk => {
-    chk.addEventListener('change', (e) => {
-      const colName = e.target.getAttribute('data-col');
-      if (e.target.checked) {
-        if (!STATE.settings.visibleColumnsFlight.includes(colName)) {
-          STATE.settings.visibleColumnsFlight.push(colName);
-        }
-      } else {
-        STATE.settings.visibleColumnsFlight = STATE.settings.visibleColumnsFlight.filter(c => c !== colName);
-      }
-      saveStateToStorage();
-    });
-  });
-  
-  document.querySelectorAll('.col-vis-checkbox-cabin').forEach(chk => {
-    chk.addEventListener('change', (e) => {
-      const colName = e.target.getAttribute('data-col');
-      if (e.target.checked) {
-        if (!STATE.settings.visibleColumnsCabin.includes(colName)) {
-          STATE.settings.visibleColumnsCabin.push(colName);
-        }
-      } else {
-        STATE.settings.visibleColumnsCabin = STATE.settings.visibleColumnsCabin.filter(c => c !== colName);
-      }
-      saveStateToStorage();
-    });
-  });
-  
+  const role = STATE.currentUser ? STATE.currentUser.role : 'ADMIN';
+  const logTabBtn = document.getElementById('settings-tab-btn-log');
+  if (logTabBtn) {
+    logTabBtn.style.display = role === ROLES.ADMIN ? 'inline-flex' : 'none';
+  }
+  let activeTab = STATE.activeSettingsTab || 'sync';
+  if (activeTab === 'log' && role !== ROLES.ADMIN) {
+    activeTab = 'sync';
+  }
+  activateSettingsTab(activeTab);
   populateSelectors();
+}
+
+/**
+ * TAB 1: Renders Backup & Synchronization panel
+ */
+function renderSettingsSyncTab() {
+  const syncModeSelect = document.getElementById('settings-sync-mode');
+  const googleClientInput = document.getElementById('settings-google-client-id');
+  const googleDriveFolderInput = document.getElementById('settings-google-drive-folder-id');
+  const googleSheetPersonnelInput = document.getElementById('settings-google-sheet-id');
+  const googleSheetFlightsInput = document.getElementById('settings-google-sheet-flights-id');
+  const syncIntervalSelect = document.getElementById('settings-sync-interval');
+  const googleBadge = document.getElementById('google-conn-status-badge');
+  const lastSyncDisplay = document.getElementById('last-sync-timestamp-display');
+
+  if (syncModeSelect) syncModeSelect.value = STATE.settings.syncMode || 'mock';
+  if (googleClientInput) googleClientInput.value = STATE.settings.googleClientId || '';
+  if (googleDriveFolderInput) googleDriveFolderInput.value = STATE.settings.googleDriveFolderId || '';
+  if (googleSheetPersonnelInput) googleSheetPersonnelInput.value = STATE.settings.googleSpreadsheetIdPersonnel || STATE.settings.googleSpreadsheetId || '';
+  if (googleSheetFlightsInput) googleSheetFlightsInput.value = STATE.settings.googleSpreadsheetIdFlights || '';
+  if (syncIntervalSelect) syncIntervalSelect.value = STATE.settings.syncInterval || '5';
+
+  if (lastSyncDisplay) {
+    lastSyncDisplay.textContent = STATE.lastSyncTimestamp || 'Ще не виконувалась';
+  }
+
+  if (googleBadge) {
+    if (STATE.settings.syncMode === 'live' && (STATE.settings.googleClientId || STATE.settings.googleApiKey)) {
+      googleBadge.className = 'status-badge status-valid';
+      googleBadge.textContent = 'Live Connected';
+    } else {
+      googleBadge.className = 'status-badge status-neutral';
+      googleBadge.textContent = 'Offline Mock';
+    }
+  }
+
+  renderSnapshotsList();
+}
+
+function renderSnapshotsList() {
+  const container = document.getElementById('snapshots-list-container');
+  if (!container) return;
+
+  if (!STATE.snapshots || STATE.snapshots.length === 0) {
+    container.innerHTML = `<div style="color: var(--text-secondary); padding: 8px 0; font-style: italic;">Немає збережених локальних знімків</div>`;
+    return;
+  }
+
+  container.innerHTML = '';
+  STATE.snapshots.slice(-8).reverse().forEach((snap) => {
+    const item = document.createElement('div');
+    item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:6px 8px; border-bottom:1px solid var(--border-color);';
+    item.innerHTML = `
+      <div>
+        <strong>${snap.name || 'Snapshot'}</strong> 
+        <span style="color:var(--text-secondary); margin-left:6px; font-size:11px;">${new Date(snap.timestamp).toLocaleString()}</span>
+        <div style="font-size:11px; color:var(--text-secondary);">${snap.flightCount || 0} Flight / ${snap.cabinCount || 0} Cabin • ${snap.flightsCount || 0} польотів</div>
+      </div>
+      <div style="display:flex; gap:6px;">
+        <button class="btn btn-secondary btn-restore-snap" data-id="${snap.id}" style="height:26px; padding:0 8px; font-size:11px;">
+          Відновити
+        </button>
+        <button class="btn btn-secondary btn-del-snap" data-id="${snap.id}" style="height:26px; padding:0 6px; font-size:11px; color:var(--badge-expired-color);">
+          ✕
+        </button>
+      </div>
+    `;
+    container.appendChild(item);
+  });
+
+  container.querySelectorAll('.btn-restore-snap').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const snapId = e.currentTarget.getAttribute('data-id');
+      const snap = STATE.snapshots.find(s => s.id === snapId);
+      if (!snap) return;
+      if (confirm(`Відновити стан системи до точки: ${snap.name} (${new Date(snap.timestamp).toLocaleString()})?`)) {
+        STATE.flightCrew = snap.flightCrew || [];
+        STATE.cabinCrew = snap.cabinCrew || [];
+        STATE.flights = snap.flights || [];
+        STATE.changelog = snap.changelog || [];
+        if (snap.forms) STATE.forms = snap.forms;
+        saveStateToStorage();
+        showToast("Стан системи успішно відновлено зі знімка!");
+        renderSettings();
+      }
+    });
+  });
+
+  container.querySelectorAll('.btn-del-snap').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const snapId = e.currentTarget.getAttribute('data-id');
+      STATE.snapshots = STATE.snapshots.filter(s => s.id !== snapId);
+      saveStateToStorage();
+      renderSnapshotsList();
+      showToast("Знімок видалено");
+    });
+  });
+}
+
+/**
+ * TAB 2: Renders Personnel & Access Control panel
+ */
+function renderSettingsPersonnelTab() {
+  const tbody = document.getElementById('settings-personnel-table-body');
+  const searchInput = document.getElementById('personnel-search-input');
+  const filterSelect = document.getElementById('personnel-filter-select');
+  if (!tbody) return;
+
+  const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  const filterType = filterSelect ? filterSelect.value : 'ALL';
+
+  const allCrew = [
+    ...STATE.flightCrew.map(c => ({ ...c, crewType: 'Flight' })),
+    ...STATE.cabinCrew.map(c => ({ ...c, crewType: 'Cabin' }))
+  ];
+
+  let filtered = allCrew;
+  if (filterType !== 'ALL') {
+    filtered = filtered.filter(c => c.crewType === filterType);
+  }
+  if (query) {
+    filtered = filtered.filter(c => 
+      (c.Full_Name_UA && c.Full_Name_UA.toLowerCase().includes(query)) ||
+      (c.Full_Name_EN && c.Full_Name_EN.toLowerCase().includes(query)) ||
+      (c.Name_Shrt_UA && c.Name_Shrt_UA.toLowerCase().includes(query)) ||
+      (c.Rank && c.Rank.toLowerCase().includes(query)) ||
+      (c.Email && c.Email.toLowerCase().includes(query))
+    );
+  }
+
+  tbody.innerHTML = '';
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-secondary); padding: var(--spacing-4);">Співробітників не знайдено</td></tr>`;
+  } else {
+    filtered.forEach(m => {
+      const tr = document.createElement('tr');
+      const userRoles = JSON.parse(localStorage.getItem('aerocheck_user_roles') || '{}');
+      const assignedRole = m.Email && userRoles[m.Email.toLowerCase()] ? userRoles[m.Email.toLowerCase()] : (m.Email ? 'CREW' : '—');
+      
+      tr.innerHTML = `
+        <td>
+          <span class="status-badge status-neutral" style="font-size: 10px; font-weight: 700;">
+            ${m.crewType === 'Flight' ? '✈ FLIGHT' : '👥 CABIN'}
+          </span>
+        </td>
+        <td style="font-weight: 600;">${m.Full_Name_UA || m.Name_Shrt_UA || '-'}</td>
+        <td style="color: var(--text-secondary);">${m.Full_Name_EN || '-'}</td>
+        <td>${m.Rank || '-'} <span style="font-size: 11px; color: var(--text-secondary);">(${m.Department || '-'})</span></td>
+        <td style="font-family: monospace; font-size: 11px;">${m.Email || '<span style="color:var(--text-secondary)">—</span>'}</td>
+        <td><span class="status-badge ${assignedRole === 'ADMIN' ? 'status-expired' : 'status-neutral'}" style="font-size: 10px;">${assignedRole}</span></td>
+        <td style="text-align: center;">
+          <div style="display: flex; gap: 4px; justify-content: center;">
+            <button class="btn btn-secondary btn-edit-crew-member" data-id="${m.id}" data-type="${m.crewType}" style="height: 28px; width: 28px; padding: 0;" title="Редагувати">
+              <i data-lucide="edit-2" style="width: 13px; height: 13px;"></i>
+            </button>
+            <button class="btn btn-danger btn-del-crew-row" data-id="${m.id}" data-type="${m.crewType}" data-name="${m.Full_Name_UA || m.Full_Name_EN}" style="height: 28px; width: 28px; padding: 0;" title="Видалити">
+              <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
+            </button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('.btn-edit-crew-member').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.getAttribute('data-id');
+        const type = e.currentTarget.getAttribute('data-type');
+        const list = type === 'Flight' ? STATE.flightCrew : STATE.cabinCrew;
+        const member = list.find(c => c.id === id);
+        if (member) openCrewEditModal(member);
+      });
+    });
+
+    tbody.querySelectorAll('.btn-del-crew-row').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const id = e.currentTarget.getAttribute('data-id');
+        const type = e.currentTarget.getAttribute('data-type');
+        const name = e.currentTarget.getAttribute('data-name');
+        confirmDeleteCrewMember(id, type, name);
+      });
+    });
+  }
+
+  // Populate quick delete selector
+  const deleteSelect = document.getElementById('mgmt-delete-select');
+  if (deleteSelect) {
+    deleteSelect.innerHTML = '<option value="">-- Виберіть співробітника для видалення --</option>';
+    allCrew.sort((a, b) => (a.Full_Name_UA || '').localeCompare(b.Full_Name_UA || '')).forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.id;
+      opt.textContent = `[${m.crewType}] ${m.Full_Name_UA || m.Full_Name_EN} (${m.Rank || ''})`;
+      deleteSelect.appendChild(opt);
+    });
+  }
+
+  // Populate user accounts table
+  renderUserAccountsTable();
+
+  // Populate notifications settings
+  const alertDaysInput = document.getElementById('settings-alert-days');
+  const criticalDaysInput = document.getElementById('settings-critical-days');
+  const notifyEmailInput = document.getElementById('settings-notify-email');
+  const chkDocUpdate = document.getElementById('settings-notify-crew-doc-update');
+  const chkExp = document.getElementById('settings-notify-instructor-expirations');
+  const chkWeekly = document.getElementById('settings-notify-weekly-digest');
+  const chkInApp = document.getElementById('settings-notify-inapp');
+
+  const notif = STATE.settings.notifications || {};
+  if (alertDaysInput) alertDaysInput.value = STATE.settings.alertThresholdDays || 30;
+  if (criticalDaysInput) criticalDaysInput.value = STATE.settings.criticalThresholdDays || 7;
+  if (notifyEmailInput) notifyEmailInput.value = notif.digestEmail || 'training.dept@ukr-helicopters.ua';
+  if (chkDocUpdate) chkDocUpdate.checked = notif.notifyCrewDocUpdate !== false;
+  if (chkExp) chkExp.checked = notif.notifyInstructorExpirations !== false;
+  if (chkWeekly) chkWeekly.checked = notif.notifyWeeklyDigest !== false;
+  if (chkInApp) chkInApp.checked = notif.notifyInApp !== false;
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function renderUserAccountsTable() {
+  const tbody = document.getElementById('user-accounts-table-body');
+  if (!tbody) return;
+
+  const userRoles = JSON.parse(localStorage.getItem('aerocheck_user_roles') || '{}');
+  const customUsers = JSON.parse(localStorage.getItem('aerocheck_custom_users') || '[]');
+  const deletedUsers = JSON.parse(localStorage.getItem('aerocheck_deleted_users') || '[]');
+  
+  const systemAccounts = [
+    { email: 'admin@ukr-helicopters.ua', name: 'Системний Адміністратор', role: 'ADMIN', default: true },
+    { email: 'instructor@ukr-helicopters.ua', name: 'Інструктор Льотної Служби', role: 'INSTRUCTOR', default: true },
+    { email: 'office@ukr-helicopters.ua', name: 'Офіс / Документообіг', role: 'OFFICE', default: true }
+  ];
+
+  const crewWithEmails = [...STATE.flightCrew, ...STATE.cabinCrew]
+    .filter(c => c.Email && c.Email.trim() !== '')
+    .map(c => ({
+      email: c.Email.trim().toLowerCase(),
+      name: c.Full_Name_UA || c.Full_Name_EN,
+      role: userRoles[c.Email.trim().toLowerCase()] || 'CREW'
+    }));
+
+  const allUsersMap = new Map();
+  systemAccounts.forEach(u => allUsersMap.set(u.email.toLowerCase(), u));
+  crewWithEmails.forEach(u => {
+    if (!allUsersMap.has(u.email.toLowerCase())) {
+      allUsersMap.set(u.email.toLowerCase(), u);
+    }
+  });
+  customUsers.forEach(u => {
+    allUsersMap.set(u.email.toLowerCase(), {
+      email: u.email.toLowerCase(),
+      name: u.name || '',
+      role: u.role || 'CREW',
+      isCustom: true
+    });
+  });
+
+  // Exclude deleted accounts
+  deletedUsers.forEach(delEmail => {
+    allUsersMap.delete(delEmail.toLowerCase());
+  });
+
+  const currentUserEmail = STATE.currentUser ? STATE.currentUser.email.toLowerCase() : '';
+
+  tbody.innerHTML = '';
+  if (allUsersMap.size === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding:16px; color:var(--text-secondary); font-style:italic;">Немає користувачів</td></tr>`;
+    return;
+  }
+
+  allUsersMap.forEach((user, email) => {
+    const currentRole = userRoles[email] || user.role || 'CREW';
+    const isCurrentSession = currentUserEmail === email;
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>
+        <div style="display:flex; align-items:center; gap:6px;">
+          <strong style="color:var(--text-primary); font-size:12px;">${email}</strong>
+          ${isCurrentSession ? '<span class="status-badge status-valid" style="font-size:9px; padding:1px 5px;">Поточний сеанс</span>' : ''}
+        </div>
+        ${user.name ? `<div style="font-size:11px; color:var(--text-secondary);">${user.name}</div>` : ''}
+      </td>
+      <td>
+        <span class="status-badge ${currentRole === 'ADMIN' ? 'status-expired' : 'status-neutral'}" style="font-size:10px;">${currentRole}</span>
+      </td>
+      <td>
+        <select class="form-select user-role-changer" data-email="${email}" style="height:28px; padding:0 6px; font-size:11.5px;">
+          <option value="ADMIN" ${currentRole === 'ADMIN' ? 'selected' : ''}>ADMIN</option>
+          <option value="INSTRUCTOR" ${currentRole === 'INSTRUCTOR' ? 'selected' : ''}>INSTRUCTOR</option>
+          <option value="OFFICE" ${currentRole === 'OFFICE' ? 'selected' : ''}>OFFICE</option>
+          <option value="CREW" ${currentRole === 'CREW' ? 'selected' : ''}>CREW</option>
+        </select>
+      </td>
+      <td style="text-align:center;">
+        <button class="btn btn-secondary btn-delete-user" data-email="${email}" title="${isCurrentSession ? 'Неможливо видалити поточний сеанс' : 'Видалити користувача'}" ${isCurrentSession ? 'disabled style="opacity:0.35; cursor:not-allowed; padding:0; width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center;"' : 'style="color:var(--danger-color); border-color:rgba(239,68,68,0.3); padding:0; width:28px; height:28px; display:inline-flex; align-items:center; justify-content:center;"'}>
+          <i data-lucide="trash-2" style="width:13px; height:13px;"></i>
+        </button>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  // Attach role changer listeners
+  tbody.querySelectorAll('.user-role-changer').forEach(sel => {
+    sel.addEventListener('change', (e) => {
+      const email = e.target.getAttribute('data-email');
+      const newRole = e.target.value;
+      const roles = JSON.parse(localStorage.getItem('aerocheck_user_roles') || '{}');
+      roles[email] = newRole;
+      localStorage.setItem('aerocheck_user_roles', JSON.stringify(roles));
+
+      if (STATE.currentUser && STATE.currentUser.email.toLowerCase() === email.toLowerCase()) {
+        STATE.currentUser.role = newRole;
+        sessionStorage.setItem('aerocheck_session_user', JSON.stringify(STATE.currentUser));
+      }
+
+      STATE.changelog.unshift({
+        timestamp: new Date().toISOString(),
+        userEmail: STATE.currentUser ? STATE.currentUser.email : 'admin@ukr-helicopters.ua',
+        crewMember: email,
+        crewType: 'System',
+        type: 'MANUAL_EDIT',
+        details: [{
+          field: 'user_role',
+          oldValue: userRoles[email] || 'default',
+          newValue: newRole
+        }]
+      });
+      saveStateToStorage();
+
+      showToast(`Роль для ${email} змінено на ${newRole}`);
+      renderSettingsPersonnelTab();
+    });
+  });
+
+  // Attach user delete listeners
+  tbody.querySelectorAll('.btn-delete-user:not([disabled])').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const email = btn.getAttribute('data-email');
+      if (email) deleteUserAccount(email);
+    });
+  });
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+/**
+ * Deletes a user account and revokes their access
+ */
+function deleteUserAccount(email) {
+  const currentUserEmail = STATE.currentUser ? STATE.currentUser.email.toLowerCase() : '';
+  if (email.toLowerCase() === currentUserEmail) {
+    showToast(STATE.lang === 'uk' ? 'Неможливо видалити користувача поточного сеансу' : 'Cannot delete current session user', 'warning');
+    return;
+  }
+
+  const backdrop = document.getElementById('confirm-backdrop');
+  if (backdrop) {
+    document.getElementById('confirm-title').textContent = STATE.lang === 'uk' ? 'Видалення користувача' : 'Delete User';
+    document.getElementById('confirm-message').textContent = STATE.lang === 'uk'
+      ? `Ви впевнені, що хочете видалити обліковий запис «${email}»? Користувач втратить доступ до системи.`
+      : `Are you sure you want to delete user account "${email}"?`;
+
+    const btnSubmit = document.getElementById('btn-submit-confirm');
+    const btnCancel = document.getElementById('btn-cancel-confirm');
+    btnSubmit.textContent = STATE.lang === 'uk' ? 'Так, видалити' : 'Yes, delete';
+
+    const newSubmit = btnSubmit.cloneNode(true);
+    btnSubmit.parentNode.replaceChild(newSubmit, btnSubmit);
+    const newCancel = btnCancel.cloneNode(true);
+    btnCancel.parentNode.replaceChild(newCancel, btnCancel);
+
+    backdrop.classList.add('active');
+
+    newCancel.addEventListener('click', () => {
+      backdrop.classList.remove('active');
+    });
+
+    newSubmit.addEventListener('click', () => {
+      const deletedUsers = JSON.parse(localStorage.getItem('aerocheck_deleted_users') || '[]');
+      if (!deletedUsers.includes(email.toLowerCase())) {
+        deletedUsers.push(email.toLowerCase());
+        localStorage.setItem('aerocheck_deleted_users', JSON.stringify(deletedUsers));
+      }
+
+      let customUsers = JSON.parse(localStorage.getItem('aerocheck_custom_users') || '[]');
+      customUsers = customUsers.filter(u => u.email.toLowerCase() !== email.toLowerCase());
+      localStorage.setItem('aerocheck_custom_users', JSON.stringify(customUsers));
+
+      localStorage.removeItem(`aerocheck_pass_${email.toLowerCase()}`);
+      const roles = JSON.parse(localStorage.getItem('aerocheck_user_roles') || '{}');
+      delete roles[email.toLowerCase()];
+      localStorage.setItem('aerocheck_user_roles', JSON.stringify(roles));
+
+      STATE.changelog.unshift({
+        timestamp: new Date().toISOString(),
+        userEmail: STATE.currentUser ? STATE.currentUser.email : 'admin@ukr-helicopters.ua',
+        crewMember: email,
+        crewType: 'System',
+        type: 'CREW_DELETE',
+        details: [{
+          field: 'user_account',
+          oldValue: email,
+          newValue: 'DELETED'
+        }]
+      });
+      saveStateToStorage();
+
+      backdrop.classList.remove('active');
+      showToast(STATE.lang === 'uk' ? `Користувача ${email} успішно видалено` : `User ${email} deleted`);
+      renderUserAccountsTable();
+    });
+  }
+}
+
+/**
+ * Creates or updates a user account
+ */
+function addUserAccount(email, name, role, password) {
+  const cleanEmail = (email || '').trim().toLowerCase();
+  if (!cleanEmail || !cleanEmail.includes('@')) {
+    showToast(STATE.lang === 'uk' ? 'Введіть коректну адресу email' : 'Please enter valid email', 'warning');
+    return false;
+  }
+
+  // Remove from deleted users if previously deleted
+  let deletedUsers = JSON.parse(localStorage.getItem('aerocheck_deleted_users') || '[]');
+  deletedUsers = deletedUsers.filter(e => e.toLowerCase() !== cleanEmail);
+  localStorage.setItem('aerocheck_deleted_users', JSON.stringify(deletedUsers));
+
+  // Save to custom users
+  let customUsers = JSON.parse(localStorage.getItem('aerocheck_custom_users') || '[]');
+  const existingIdx = customUsers.findIndex(u => u.email.toLowerCase() === cleanEmail);
+  const newUserObj = {
+    email: cleanEmail,
+    name: name ? name.trim() : '',
+    role: role || 'CREW',
+    isCustom: true
+  };
+  if (existingIdx >= 0) {
+    customUsers[existingIdx] = newUserObj;
+  } else {
+    customUsers.push(newUserObj);
+  }
+  localStorage.setItem('aerocheck_custom_users', JSON.stringify(customUsers));
+
+  // Save role
+  const roles = JSON.parse(localStorage.getItem('aerocheck_user_roles') || '{}');
+  roles[cleanEmail] = role || 'CREW';
+  localStorage.setItem('aerocheck_user_roles', JSON.stringify(roles));
+
+  // Save password
+  const passToSave = password ? password.trim() : '123456';
+  localStorage.setItem(`aerocheck_pass_${cleanEmail}`, passToSave);
+
+  // Changelog
+  STATE.changelog.unshift({
+    timestamp: new Date().toISOString(),
+    userEmail: STATE.currentUser ? STATE.currentUser.email : 'admin@ukr-helicopters.ua',
+    crewMember: cleanEmail,
+    crewType: 'System',
+    type: 'CREW_ADD',
+    details: [{
+      field: 'user_account',
+      oldValue: 'none',
+      newValue: `Created user ${cleanEmail} (${role || 'CREW'})`
+    }]
+  });
+  saveStateToStorage();
+
+  showToast(STATE.lang === 'uk' ? `Користувача ${cleanEmail} успішно створено!` : `User ${cleanEmail} created!`);
+  renderUserAccountsTable();
+  return true;
+}
+
+function confirmDeleteCrewMember(memberId, crewType, name) {
+  document.getElementById('confirm-message').textContent = STATE.lang === 'uk'
+    ? `Ви впевнені, що хочете остаточно видалити співробітника: ${name}?`
+    : `Are you sure you want to permanently delete: ${name}?`;
+    
+  const backdrop = document.getElementById('confirm-backdrop');
+  backdrop.classList.add('active');
+  
+  const btnSubmit = document.getElementById('btn-submit-confirm');
+  const btnCancel = document.getElementById('btn-cancel-confirm');
+  
+  const handleConfirm = () => {
+    backdrop.classList.remove('active');
+    btnSubmit.removeEventListener('click', handleConfirm);
+    btnCancel.removeEventListener('click', handleCancel);
+
+    if (crewType === 'Flight') {
+      STATE.flightCrew = STATE.flightCrew.filter(c => c.id !== memberId);
+    } else {
+      STATE.cabinCrew = STATE.cabinCrew.filter(c => c.id !== memberId);
+    }
+    
+    STATE.changelog.push({
+      timestamp: new Date().toISOString(),
+      userEmail: STATE.currentUser ? STATE.currentUser.email : 'system@aerocheck.com',
+      crewMember: name,
+      crewType: crewType,
+      type: 'MANUAL_EDIT',
+      details: [{ field: 'status', oldValue: 'active', newValue: 'DELETED' }]
+    });
+    
+    saveStateToStorage();
+    showToast(`Співробітника ${name} успішно видалено`);
+    renderSettingsPersonnelTab();
+    if (STATE.currentView === 'flight-crew') renderCrewTable('Flight');
+    if (STATE.currentView === 'cabin-crew') renderCrewTable('Cabin');
+  };
+
+  const handleCancel = () => {
+    backdrop.classList.remove('active');
+    btnSubmit.removeEventListener('click', handleConfirm);
+    btnCancel.removeEventListener('click', handleCancel);
+  };
+
+  btnSubmit.addEventListener('click', handleConfirm);
+  btnCancel.addEventListener('click', handleCancel);
+}
+
+/**
+ * TAB 3: Renders Display & Column Visibility panel
+ */
+function renderSettingsDisplayTab() {
+  const activeColTab = STATE.activeColumnsTab || 'Flight';
+  
+  const btnFlight = document.getElementById('btn-col-tab-flight');
+  const btnCabin = document.getElementById('btn-col-tab-cabin');
+  if (btnFlight && btnCabin) {
+    btnFlight.classList.toggle('active', activeColTab === 'Flight');
+    btnCabin.classList.toggle('active', activeColTab === 'Cabin');
+  }
+
+  const container = document.getElementById('columns-visibility-container');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const columnsList = BILINGUAL_COLUMNS[activeColTab] || [];
+  const currentVisible = activeColTab === 'Flight' ? STATE.settings.visibleColumnsFlight : STATE.settings.visibleColumnsCabin;
+
+  columnsList.forEach(col => {
+    const isVisible = currentVisible.includes(col.key);
+    const labelTitle = STATE.lang === 'uk' ? col.ua : col.en;
+    const subTitle = STATE.lang === 'uk' ? col.en : col.ua;
+
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex; align-items:flex-start; gap:8px; padding:8px; background:var(--bg-surface-alt); border-radius:var(--radius-md); border:1px solid var(--border-color);';
+    div.innerHTML = `
+      <input type="checkbox" class="col-vis-checkbox" data-key="${col.key}" data-type="${activeColTab}" ${isVisible ? 'checked' : ''} style="margin-top:3px; cursor:pointer;">
+      <div style="flex:1; cursor:pointer;" onclick="this.previousElementSibling.click()">
+        <div style="font-weight:600; font-size:12.5px; color:var(--text-primary);">${col.key} — ${labelTitle}</div>
+        <div style="font-size:11px; color:var(--text-secondary);">${subTitle}</div>
+        ${col.expiring ? '<span class="status-badge status-warning" style="font-size:9.5px; padding:1px 5px; margin-top:3px; display:inline-block;">Термін дії (11 обовʼязкових)</span>' : ''}
+      </div>
+    `;
+    container.appendChild(div);
+  });
+
+  container.querySelectorAll('.col-vis-checkbox').forEach(chk => {
+    chk.addEventListener('change', (e) => {
+      const key = e.target.getAttribute('data-key');
+      const type = e.target.getAttribute('data-type');
+      let targetList = type === 'Flight' ? STATE.settings.visibleColumnsFlight : STATE.settings.visibleColumnsCabin;
+
+      if (e.target.checked) {
+        if (!targetList.includes(key)) targetList.push(key);
+      } else {
+        targetList = targetList.filter(k => k !== key);
+      }
+
+      if (type === 'Flight') {
+        STATE.settings.visibleColumnsFlight = targetList;
+      } else {
+        STATE.settings.visibleColumnsCabin = targetList;
+      }
+      saveStateToStorage();
+    });
+  });
+
+  // Recommended Operational & System Settings
+  const alertDaysInput = document.getElementById('settings-alert-days');
+  const criticalDaysInput = document.getElementById('settings-critical-days');
+  const dateFormatSelect = document.getElementById('settings-date-format');
+  const refDateInput = document.getElementById('settings-ref-date');
+  const eomRuleCheck = document.getElementById('settings-eom-rule');
+  const datePromptCheck = document.getElementById('settings-date-prompt');
+  const backupRetentionInput = document.getElementById('settings-backup-retention');
+
+  if (alertDaysInput) alertDaysInput.value = STATE.settings.alertThresholdDays !== undefined ? STATE.settings.alertThresholdDays : 30;
+  if (criticalDaysInput) criticalDaysInput.value = STATE.settings.criticalThresholdDays !== undefined ? STATE.settings.criticalThresholdDays : 7;
+  if (dateFormatSelect) dateFormatSelect.value = STATE.settings.dateFormat || 'YYYY-MM-DD';
+  if (refDateInput) refDateInput.value = STATE.settings.referenceDate || '2026-07-12';
+  if (eomRuleCheck) eomRuleCheck.checked = STATE.settings.eomRule !== false;
+  if (datePromptCheck) datePromptCheck.checked = STATE.settings.datePrompt !== false;
+  if (backupRetentionInput) backupRetentionInput.value = STATE.settings.backupRetention || 5;
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+/**
+ * TAB 4: Renders Forms Generator & Editor panel
+ */
+function renderSettingsFormsTab() {
+  const select = document.getElementById('form-select-template');
+  if (!select) return;
+
+  select.innerHTML = '';
+  STATE.forms.forEach((f) => {
+    const opt = document.createElement('option');
+    opt.value = f.id;
+    opt.textContent = `${f.code || 'Form'} • ${f.name} [${f.crewType}]`;
+    if (STATE.editingFormId === f.id) opt.selected = true;
+    select.appendChild(opt);
+  });
+
+  if (!STATE.editingFormId && STATE.forms.length > 0) {
+    STATE.editingFormId = STATE.forms[0].id;
+    select.value = STATE.forms[0].id;
+  }
+
+  loadFormIntoBuilder(STATE.editingFormId);
+}
+
+function loadFormIntoBuilder(formId) {
+  const form = STATE.forms.find(f => f.id === formId) || STATE.forms[0];
+  if (!form) return;
+
+  STATE.editingFormId = form.id;
+  
+  const titleInput = document.getElementById('form-builder-title');
+  const codeInput = document.getElementById('form-builder-code');
+  const subtitleInput = document.getElementById('form-builder-subtitle');
+  const sourceSelect = document.getElementById('form-builder-source');
+  const logoSelect = document.getElementById('form-logo-select');
+  const customLogoUpload = document.getElementById('form-custom-logo-upload');
+  const extraGrade = document.getElementById('form-builder-extra-grade');
+  const extraValidity = document.getElementById('form-builder-extra-validity');
+  const extraRemarks = document.getElementById('form-builder-extra-remarks');
+  const dateTextInput = document.getElementById('form-builder-date-text');
+  const signRankInput = document.getElementById('form-builder-sign-rank');
+  const signNameInput = document.getElementById('form-builder-sign-name');
+  const btnDelete = document.getElementById('btn-delete-custom-form');
+
+  if (titleInput) titleInput.value = form.name || '';
+  if (codeInput) codeInput.value = form.code || '';
+  if (subtitleInput) subtitleInput.value = form.subtitle || '';
+  if (sourceSelect) sourceSelect.value = form.crewType || 'Flight';
+  
+  if (logoSelect) {
+    if (form.logo === 'PICS/LOGO_UH.png' || !form.logo) {
+      logoSelect.value = 'PICS/LOGO_UH.png';
+      if (customLogoUpload) customLogoUpload.style.display = 'none';
+    } else if (form.logo === 'none') {
+      logoSelect.value = 'none';
+      if (customLogoUpload) customLogoUpload.style.display = 'none';
+    } else {
+      logoSelect.value = 'custom';
+      if (customLogoUpload) customLogoUpload.style.display = 'block';
+      window.currentUploadedCustomLogo = form.logo;
+    }
+  }
+
+  document.querySelectorAll('.logo-pos-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-pos') === (form.logoPos || 'left'));
+  });
+
+  // Orientation
+  const formOrientation = form.orientation || 'portrait';
+  document.querySelectorAll('.orientation-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-orientation') === formOrientation);
+  });
+
+  // Fit single line
+  const fitSingleLineCheck = document.getElementById('form-builder-fit-single-line');
+  if (fitSingleLineCheck) {
+    fitSingleLineCheck.checked = form.fitSingleLine === true;
+  }
+
+  // Date format
+  const dateFormatSelect = document.getElementById('form-builder-date-format');
+  if (dateFormatSelect) {
+    dateFormatSelect.value = form.dateFormat || 'DD.MM.YYYY';
+  }
+
+  if (extraGrade) extraGrade.checked = form.extraGrade !== false;
+  if (extraValidity) extraValidity.checked = form.extraValidity !== false;
+  if (extraRemarks) extraRemarks.checked = form.extraRemarks === true;
+
+  const spacingSlider = document.getElementById('form-builder-table-spacing');
+  const spacingNum = document.getElementById('form-builder-table-spacing-num');
+  const spacingVal = document.getElementById('form-builder-spacing-val');
+  const spacing = form.tableSpacing !== undefined ? form.tableSpacing : 20;
+  if (spacingSlider) spacingSlider.value = spacing;
+  if (spacingNum) spacingNum.value = spacing;
+  if (spacingVal) spacingVal.textContent = `${spacing} px`;
+
+  const paddingSlider = document.getElementById('form-builder-cell-padding');
+  const paddingNum = document.getElementById('form-builder-cell-padding-num');
+  const paddingVal = document.getElementById('form-builder-padding-val');
+  const cellPadding = form.cellPadding !== undefined ? form.cellPadding : 4;
+  if (paddingSlider) paddingSlider.value = cellPadding;
+  if (paddingNum) paddingNum.value = cellPadding;
+  if (paddingVal) paddingVal.textContent = `${cellPadding} px`;
+
+  if (dateTextInput) dateTextInput.value = form.dateText || 'Дата: «____» ___________ 202___ р.';
+  if (signRankInput) signRankInput.value = form.signRank || 'Керівник льотної служби';
+  if (signNameInput) signNameInput.value = form.signName || '';
+
+  if (btnDelete) {
+    btnDelete.style.display = STATE.forms.length > 1 ? 'inline-flex' : 'none';
+  }
+
+  populateFormBuilderColumns(form.crewType || 'Flight', form.columns || []);
+  updatePaperPreview();
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function populateFormBuilderColumns(crewType, selectedColumns = []) {
+  const container = document.getElementById('form-builder-columns');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const cols = BILINGUAL_COLUMNS[crewType] || [];
+  cols.forEach(col => {
+    const isChecked = selectedColumns.includes(col.key);
+    const label = document.createElement('label');
+    label.style.cssText = 'display:flex; align-items:center; gap:6px; font-size:11.5px; cursor:pointer; background:#fff; padding:4px 6px; border-radius:4px; border:1px solid var(--border-color);';
+    label.innerHTML = `
+      <input type="checkbox" class="form-builder-col-chk" data-col="${col.key}" ${isChecked ? 'checked' : ''}>
+      <span style="font-weight:600;">${col.key}</span>
+      <span style="color:var(--text-secondary); font-size:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">(${col.ua})</span>
+    `;
+    container.appendChild(label);
+  });
+
+  container.querySelectorAll('.form-builder-col-chk').forEach(chk => {
+    chk.addEventListener('change', updatePaperPreview);
+  });
+}
+
+function updatePaperPreview() {
+  const title = document.getElementById('form-builder-title')?.value || 'Назва форми';
+  const code = document.getElementById('form-builder-code')?.value || 'Форма UH-XX';
+  const subtitle = document.getElementById('form-builder-subtitle')?.value || '';
+  const dateText = document.getElementById('form-builder-date-text')?.value || 'Дата: «____» ___________ 202___ р.';
+  const signRank = document.getElementById('form-builder-sign-rank')?.value || 'Посада підписанта';
+  const signName = document.getElementById('form-builder-sign-name')?.value || '';
+  
+  const activeLogoPosBtn = document.querySelector('.logo-pos-btn.active');
+  const logoPos = activeLogoPosBtn ? activeLogoPosBtn.getAttribute('data-pos') : 'left';
+
+  const activeOrientBtn = document.querySelector('.orientation-btn.active');
+  const orientation = activeOrientBtn ? activeOrientBtn.getAttribute('data-orientation') : 'portrait';
+  const paperSheet = document.getElementById('form-paper-preview');
+  if (paperSheet) {
+    paperSheet.classList.toggle('orientation-landscape', orientation === 'landscape');
+    paperSheet.classList.toggle('orientation-portrait', orientation !== 'landscape');
+  }
+
+  const fitSingleLine = document.getElementById('form-builder-fit-single-line')?.checked === true;
+  const dateFormat = document.getElementById('form-builder-date-format')?.value || 'DD.MM.YYYY';
+  
+  const logoSelectVal = document.getElementById('form-logo-select')?.value;
+  let logoSrc = 'PICS/LOGO_UH.png';
+  if (logoSelectVal === 'none') {
+    logoSrc = '';
+  } else if (logoSelectVal === 'custom') {
+    logoSrc = window.currentUploadedCustomLogo || 'PICS/LOGO_UH.png';
+  }
+
+  const header = document.getElementById('paper-preview-header');
+  const logoImg = document.getElementById('paper-preview-logo');
+  if (header) {
+    header.className = `paper-header pos-${logoPos}`;
+  }
+  if (logoImg) {
+    if (logoSrc) {
+      logoImg.src = logoSrc;
+      logoImg.style.display = 'block';
+    } else {
+      logoImg.style.display = 'none';
+    }
+  }
+
+  const pTitle = document.getElementById('paper-preview-title');
+  const pCode = document.getElementById('paper-preview-code');
+  const pSub = document.getElementById('paper-preview-subtitle');
+  if (pTitle) pTitle.textContent = title;
+  if (pCode) pCode.textContent = code;
+  if (pSub) pSub.textContent = subtitle;
+
+  const spacing = parseInt(document.getElementById('form-builder-table-spacing')?.value, 10) || 20;
+  const spacingVal = document.getElementById('form-builder-spacing-val');
+  if (spacingVal) spacingVal.textContent = `${spacing} px`;
+
+  const cellPadding = parseInt(document.getElementById('form-builder-cell-padding')?.value, 10) || 4;
+  const paddingVal = document.getElementById('form-builder-padding-val');
+  if (paddingVal) paddingVal.textContent = `${cellPadding} px`;
+
+  const selectedCols = [];
+  document.querySelectorAll('.form-builder-col-chk:checked').forEach(c => {
+    selectedCols.push(c.getAttribute('data-col'));
+  });
+
+  const extraGrade = document.getElementById('form-builder-extra-grade')?.checked;
+  const extraValidity = document.getElementById('form-builder-extra-validity')?.checked;
+  const extraRemarks = document.getElementById('form-builder-extra-remarks')?.checked;
+
+  const paperTable = document.getElementById('paper-preview-table');
+  if (paperTable) {
+    paperTable.style.marginTop = `${spacing}px`;
+    paperTable.classList.toggle('fit-single-line', fitSingleLine);
+    paperTable.style.setProperty('--cell-pad-h', `${cellPadding}px`);
+    paperTable.style.setProperty('--cell-pad-v', `${Math.max(2, Math.min(6, Math.round(cellPadding * 0.75)))}px`);
+
+    const totalColCount = selectedCols.slice(0, 8).length + (extraGrade ? 1 : 0) + (extraValidity ? 1 : 0) + (extraRemarks ? 1 : 0) + 1;
+    if (fitSingleLine) {
+      if (totalColCount > 10) {
+        paperTable.style.fontSize = '8px';
+      } else if (totalColCount > 7) {
+        paperTable.style.fontSize = '9px';
+      } else if (totalColCount > 5) {
+        paperTable.style.fontSize = '10px';
+      } else {
+        paperTable.style.fontSize = '10.5px';
+      }
+    } else {
+      paperTable.style.fontSize = '11px';
+    }
+  }
+
+  const theadTr = document.getElementById('paper-preview-thead-tr');
+  const tbody = document.getElementById('paper-preview-tbody');
+  if (theadTr && tbody) {
+    let thHtml = '<th style="width:26px; text-align:center; padding-left:1px !important; padding-right:1px !important;">№</th>';
+    selectedCols.slice(0, 8).forEach(col => {
+      const shortLabel = getFormColumnShortTitle(col, STATE.lang);
+      const isRank = (col === 'Rank');
+      const isName = ['Full_Name_UA', 'Full_Name_EN', 'Name_Shrt_UA'].includes(col);
+      if (isRank) {
+        thHtml += `<th class="col-rank">${shortLabel}</th>`;
+      } else if (isName) {
+        thHtml += `<th class="col-name" style="width:24%; min-width:80px;">${shortLabel}</th>`;
+      } else {
+        thHtml += `<th>${shortLabel}</th>`;
+      }
+    });
+    const gradeTitle = STATE.lang === 'uk' ? 'Результат' : 'Result';
+    const validityTitle = STATE.lang === 'uk' ? 'Термін дії' : 'Validity';
+    const remarksTitle = STATE.lang === 'uk' ? 'Примітка' : 'Remarks';
+    if (extraGrade) thHtml += `<th style="width:11%;">${gradeTitle}</th>`;
+    if (extraValidity) thHtml += `<th style="width:13%;">${validityTitle}</th>`;
+    if (extraRemarks) thHtml += `<th style="width:14%;">${remarksTitle}</th>`;
+    theadTr.innerHTML = thHtml;
+
+    let sampleTd1 = '<td style="text-align:center; padding-left:1px !important; padding-right:1px !important;">1</td>';
+    let sampleTd2 = '<td style="text-align:center; padding-left:1px !important; padding-right:1px !important;">2</td>';
+    selectedCols.slice(0, 8).forEach(col => {
+      const isRank = (col === 'Rank');
+      const isName = ['Full_Name_UA', 'Full_Name_EN', 'Name_Shrt_UA'].includes(col);
+      if (isName) {
+        sampleTd1 += '<td class="col-name"><strong>Алекса <span class="crew-initials" style="white-space: nowrap;">С.М.</span></strong></td>';
+        sampleTd2 += '<td class="col-name"><strong>Бондар <span class="crew-initials" style="white-space: nowrap;">В.І.</span></strong></td>';
+      } else if (isRank) {
+        sampleTd1 += '<td class="col-rank">КПС</td>';
+        sampleTd2 += '<td class="col-rank">ВП</td>';
+      } else if (col === 'Department') {
+        sampleTd1 += '<td style="text-align:center;">ЛЬОТНИЙ</td>';
+        sampleTd2 += '<td style="text-align:center;">ЛЬОТНИЙ</td>';
+      } else {
+        sampleTd1 += `<td style="text-align:center;">${formatDateCustom('2026-12-31', dateFormat)}</td>`;
+        sampleTd2 += `<td style="text-align:center;">${formatDateCustom('2026-12-31', dateFormat)}</td>`;
+      }
+    });
+    if (extraGrade) {
+      sampleTd1 += `<td style="color:#0f766e; font-weight:600; text-align:center;">${STATE.lang === 'uk' ? 'Зараховано' : 'Passed'}</td>`;
+      sampleTd2 += `<td style="color:#0f766e; font-weight:600; text-align:center;">${STATE.lang === 'uk' ? 'Зараховано' : 'Passed'}</td>`;
+    }
+    if (extraValidity) {
+      sampleTd1 += `<td style="text-align:center;">${formatDateCustom('2027-12-31', dateFormat)}</td>`;
+      sampleTd2 += `<td style="text-align:center;">${formatDateCustom('2027-12-31', dateFormat)}</td>`;
+    }
+    if (extraRemarks) {
+      sampleTd1 += `<td style="text-align:center;">${STATE.lang === 'uk' ? 'Без зауважень' : 'No remarks'}</td>`;
+      sampleTd2 += `<td style="text-align:center;">${STATE.lang === 'uk' ? 'Без зауважень' : 'No remarks'}</td>`;
+    }
+
+    tbody.innerHTML = `<tr>${sampleTd1}</tr><tr>${sampleTd2}</tr>`;
+  }
+
+  const pDate = document.getElementById('paper-preview-footer-date');
+  const pRank = document.getElementById('paper-preview-footer-rank');
+  const pName = document.getElementById('paper-preview-footer-name');
+  if (pDate) pDate.textContent = dateText;
+  if (pRank) pRank.textContent = signRank;
+  if (pName) pName.textContent = signName ? `____________ (${signName})` : (STATE.lang === 'uk' ? '____________ (підпис)' : '____________ (signature)');
+}
+
+/**
+ * TAB 5: Renders System Audit & Change Log panel (ADMIN only)
+ */
+function renderSettingsLogTab() {
+  const role = STATE.currentUser ? STATE.currentUser.role : 'ADMIN';
+  const tbody = document.getElementById('settings-log-tbody');
+  const counterBadge = document.getElementById('log-counter-badge');
+  if (!tbody) return;
+
+  if (role !== ROLES.ADMIN) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 24px; color: var(--danger-color); font-weight: 500;">
+      ${STATE.lang === 'uk' ? 'Доступ заборонено. Перегляд журналу аудиту доступний лише адміністратору (ADMIN).' : 'Access denied. Audit log is available only for ADMIN.'}
+    </td></tr>`;
+    if (counterBadge) counterBadge.textContent = 'Доступ обмежено';
+    return;
+  }
+
+  const searchInput = document.getElementById('log-search-input');
+  const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+  const filterTypeSelect = document.getElementById('log-filter-type');
+  const selectedType = filterTypeSelect ? filterTypeSelect.value : 'ALL';
+
+  if (!Array.isArray(STATE.changelog)) {
+    STATE.changelog = [];
+  }
+
+  // Sort newest first
+  const sortedLogs = [...STATE.changelog].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+  // Filter logs
+  const filteredLogs = sortedLogs.filter(log => {
+    if (selectedType !== 'ALL' && log.type !== selectedType) {
+      return false;
+    }
+
+    if (query) {
+      const email = (log.userEmail || '').toLowerCase();
+      const crew = (log.crewMember || '').toLowerCase();
+      const type = (log.type || '').toLowerCase();
+      const detailsStr = JSON.stringify(log.details || '').toLowerCase();
+      if (!email.includes(query) && !crew.includes(query) && !type.includes(query) && !detailsStr.includes(query)) {
+        return false;
+      }
+    }
+    return true;
+  });
+
+  // Update counter badge
+  if (counterBadge) {
+    counterBadge.textContent = STATE.lang === 'uk'
+      ? `Всього: ${STATE.changelog.length} (Відображено: ${filteredLogs.length})`
+      : `Total: ${STATE.changelog.length} (Showing: ${filteredLogs.length})`;
+  }
+
+  tbody.innerHTML = '';
+  if (filteredLogs.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5" style="text-align: center; padding: 32px 16px; color: var(--text-secondary); font-style: italic;">
+          ${STATE.lang === 'uk' ? 'Записів у журналі аудиту не знайдено' : 'No audit log entries found'}
+        </td>
+      </tr>
+    `;
+    return;
+  }
+
+  const typeConfig = {
+    MANUAL_EDIT: {
+      label: { uk: 'Ручна зміна', en: 'Manual Edit' },
+      style: 'background-color: rgba(59, 130, 246, 0.12); color: #2563eb; border: 1px solid rgba(59, 130, 246, 0.3);'
+    },
+    FLIGHT_LOG: {
+      label: { uk: 'Політ', en: 'Flight Log' },
+      style: 'background-color: rgba(168, 85, 247, 0.12); color: #7c3aed; border: 1px solid rgba(168, 85, 247, 0.3);'
+    },
+    CREW_ADD: {
+      label: { uk: 'Додано', en: 'Added' },
+      style: 'background-color: rgba(16, 185, 129, 0.12); color: #059669; border: 1px solid rgba(16, 185, 129, 0.3);'
+    },
+    CREW_DELETE: {
+      label: { uk: 'Видалено', en: 'Deleted' },
+      style: 'background-color: rgba(239, 68, 68, 0.12); color: #dc2626; border: 1px solid rgba(239, 68, 68, 0.3);'
+    },
+    MERGE_IMPORT: {
+      label: { uk: 'Імпорт Excel', en: 'Excel Import' },
+      style: 'background-color: rgba(14, 165, 233, 0.12); color: #0284c7; border: 1px solid rgba(14, 165, 233, 0.3);'
+    }
+  };
+
+  filteredLogs.forEach(log => {
+    const dateObj = new Date(log.timestamp);
+    const dateStr = !isNaN(dateObj.getTime())
+      ? `${dateObj.toLocaleDateString('uk-UA')}, ${dateObj.toLocaleTimeString('uk-UA')}`
+      : (log.timestamp || '-');
+
+    const cfg = typeConfig[log.type] || {
+      label: { uk: log.type || 'Дія', en: log.type || 'Action' },
+      style: 'background-color: var(--bg-surface-alt); color: var(--text-secondary); border: 1px solid var(--border-color);'
+    };
+    const typeLabel = cfg.label[STATE.lang] || cfg.label.uk;
+
+    const userEmail = log.userEmail || 'system@aerocheck.com';
+    const isSpecialAdmin = userEmail.includes('admin');
+
+    const crewTarget = log.crewMember || '-';
+    const crewTypeBadge = log.crewType
+      ? `<span class="status-badge status-neutral" style="font-size: 10px; padding: 1px 5px; margin-left: 4px;">${log.crewType}</span>`
+      : '';
+
+    let detailsHtml = '';
+    if (Array.isArray(log.details) && log.details.length > 0) {
+      detailsHtml = log.details.map(d => {
+        if (!d) return '';
+        if (d.field === 'flight' && typeof d.newValue === 'object') {
+          const f = d.newValue;
+          return `<div><strong>Тренувальний політ:</strong> дата ${f.date || '-'}, тривалість: ${f.duration || 0} год., вправи: ${(f.exercises || []).join(', ') || 'немає'}</div>`;
+        }
+        if (d.field === 'photo') {
+          return `<div><strong>Фото профілю:</strong> ${d.newValue}</div>`;
+        }
+        if (d.field === 'scans') {
+          return `<div><strong>Скан документа:</strong> ${d.newValue || d.oldValue}</div>`;
+        }
+        if (d.field === 'all') {
+          return `<div>${d.newValue}</div>`;
+        }
+        const oldVal = (d.oldValue !== undefined && d.oldValue !== null && d.oldValue !== 'empty' && d.oldValue !== 'none') ? d.oldValue : '';
+        const newVal = (d.newValue !== undefined && d.newValue !== null && d.newValue !== 'empty') ? d.newValue : '';
+
+        const oldPart = oldVal ? `<span style="text-decoration: line-through; color: var(--text-secondary); margin-right: 4px;">${formatDateUa(oldVal) || oldVal}</span>➔ ` : '';
+        const newPart = newVal ? `<strong style="color: var(--accent); margin-left: 4px;">${formatDateUa(newVal) || newVal}</strong>` : '<em style="color: var(--danger-color); margin-left: 4px;">(очищено)</em>';
+        return `<div style="margin: 2px 0;"><span style="font-weight: 600; color: var(--text-primary);">${d.field}:</span> ${oldPart}${newPart}</div>`;
+      }).join('');
+    } else if (typeof log.details === 'string') {
+      detailsHtml = log.details;
+    } else {
+      detailsHtml = '<span style="color: var(--text-secondary); font-style: italic;">Без додаткових деталей</span>';
+    }
+
+    tbody.insertAdjacentHTML('beforeend', `
+      <tr>
+        <td style="white-space: nowrap; font-family: var(--font-mono, monospace); font-size: 11px; color: var(--text-secondary);">
+          <i data-lucide="clock" style="width: 12px; height: 12px; vertical-align: -2px; margin-right: 4px; opacity: 0.7;"></i>
+          ${dateStr}
+        </td>
+        <td>
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="${isSpecialAdmin ? 'shield' : 'user'}" style="width: 13px; height: 13px; color: ${isSpecialAdmin ? 'var(--accent)' : 'var(--text-secondary)'};"></i>
+            <span style="font-weight: 500; word-break: break-all;">${userEmail}</span>
+          </div>
+        </td>
+        <td style="text-align: center;">
+          <span class="status-badge" style="font-size: 11px; padding: 2px 8px; ${cfg.style}">${typeLabel}</span>
+        </td>
+        <td>
+          <div style="font-weight: 600; color: var(--text-primary); display: flex; align-items: center;">
+            <span>${crewTarget}</span>
+            ${crewTypeBadge}
+          </div>
+        </td>
+        <td style="font-size: 12px; line-height: 1.4;">
+          ${detailsHtml}
+        </td>
+      </tr>
+    `);
+  });
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+/**
+ * Exports system audit log to CSV with Ukrainian UTF-8 BOM
+ */
+function exportChangelogCsv() {
+  if (!STATE.changelog || STATE.changelog.length === 0) {
+    showToast(STATE.lang === 'uk' ? 'Журнал змін порожній для експорту' : 'Changelog is empty for export', 'warning');
+    return;
+  }
+
+  const sortedLogs = [...STATE.changelog].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  
+  const headers = ['Дата та час', 'Автор (Email)', 'Тип дії', 'Член екіпажу', 'Тип екіпажу', 'Деталі'];
+  const rows = [headers.join(';')];
+
+  sortedLogs.forEach(log => {
+    const dateObj = new Date(log.timestamp);
+    const dateStr = !isNaN(dateObj.getTime())
+      ? `${dateObj.toLocaleDateString('uk-UA')} ${dateObj.toLocaleTimeString('uk-UA')}`
+      : (log.timestamp || '');
+    
+    const userEmail = (log.userEmail || '').replace(/;/g, ',');
+    const type = (log.type || '').replace(/;/g, ',');
+    const crewMember = (log.crewMember || '').replace(/;/g, ',');
+    const crewType = (log.crewType || '').replace(/;/g, ',');
+
+    let detailsText = '';
+    if (Array.isArray(log.details)) {
+      detailsText = log.details.map(d => {
+        if (!d) return '';
+        if (d.field === 'flight') return 'Політ';
+        return `${d.field}: ${d.oldValue || ''} -> ${d.newValue || ''}`;
+      }).join(' | ');
+    } else if (typeof log.details === 'string') {
+      detailsText = log.details;
+    }
+    detailsText = detailsText.replace(/;/g, ',').replace(/"/g, '""');
+
+    rows.push(`"${dateStr}";"${userEmail}";"${type}";"${crewMember}";"${crewType}";"${detailsText}"`);
+  });
+
+  const csvContent = '\uFEFF' + rows.join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.setAttribute('href', url);
+  const todayStr = new Date().toISOString().split('T')[0];
+  link.setAttribute('download', `system_audit_log_${todayStr}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+
+  showToast(STATE.lang === 'uk' ? 'Журнал аудиту успішно експортовано в CSV' : 'Audit log exported to CSV');
+}
+
+/**
+ * BLANKS VIEW: Renders dynamic forms catalog on the "Бланки" page with Multi-Crew support
+ */
+function renderForms() {
+  const container = document.getElementById('forms-list-container');
+  if (!container) return;
+
+  container.innerHTML = '';
+  if (!STATE.forms || STATE.forms.length === 0) {
+    const emptyMsg = STATE.lang === 'uk' 
+      ? 'Немає налаштованих форм. Натисніть «Конструктор та редактор форм», щоб створити першу форму.'
+      : 'No form templates configured. Click "Forms Generator & Editor" to create your first template.';
+    container.innerHTML = `<div style="text-align: center; color: var(--text-secondary); padding: 30px;">${emptyMsg}</div>`;
+    return;
+  }
+
+  if (!STATE.formSelectedCrew) {
+    STATE.formSelectedCrew = {};
+  }
+
+  STATE.forms.forEach(form => {
+    if (!Array.isArray(STATE.formSelectedCrew[form.id])) {
+      STATE.formSelectedCrew[form.id] = [];
+    }
+    const selectedIds = STATE.formSelectedCrew[form.id];
+
+    const card = document.createElement('div');
+    card.className = 'blank-card-item';
+
+    const crewList = form.crewType === 'Cabin' ? STATE.cabinCrew : STATE.flightCrew;
+    
+    // Build options for crew picker dropdown (exclude already selected)
+    let crewOptions = `<option value="">${TRANSLATIONS[STATE.lang].placeholder_select_crew || '+ Додати члена екіпажу до бланка...'}</option>`;
+    crewList.forEach(m => {
+      const isAlreadyAdded = selectedIds.includes(m.id);
+      const name = STATE.lang === 'uk' ? (m.Full_Name_UA || m.Name_Shrt_UA) : (m.Full_Name_EN || m.Full_Name_UA);
+      crewOptions += `<option value="${m.id}" ${isAlreadyAdded ? 'disabled style="color:var(--text-muted);"' : ''}>${name} [${m.Rank || ''}] ${isAlreadyAdded ? '✓' : ''}</option>`;
+    });
+
+    // Build chips HTML
+    let chipsHtml = '';
+    if (selectedIds.length === 0) {
+      chipsHtml = `<div style="font-size: 12px; color: var(--text-secondary); font-style: italic;">
+        ${TRANSLATIONS[STATE.lang].empty_blank_desc || 'Порожній бланк (для ручного заповнення). Додайте одного або декількох співробітників, щоб сформувати заповнену відомість.'}
+      </div>`;
+    } else {
+      chipsHtml = selectedIds.map(mId => {
+        const m = crewList.find(c => c.id === mId);
+        if (!m) return '';
+        const name = STATE.lang === 'uk' ? (m.Name_Shrt_UA || m.Full_Name_UA) : (m.Full_Name_EN || m.Full_Name_UA);
+        return `
+          <span class="crew-chip">
+            <span><strong>${name}</strong> <span style="color:var(--text-secondary); font-size:11px;">[${m.Rank || ''}]</span></span>
+            <span class="crew-chip-remove" data-form-id="${form.id}" data-member-id="${m.id}" title="${STATE.lang === 'uk' ? 'Видалити з відомості' : 'Remove from roster'}">✕</span>
+          </span>
+        `;
+      }).join('');
+    }
+
+    const printBtnLabel = selectedIds.length > 0 
+      ? (STATE.lang === 'uk' ? `Друк відомості (${selectedIds.length} ос.) / PDF` : `Print Roster (${selectedIds.length}) / PDF`)
+      : (TRANSLATIONS[STATE.lang].btn_print_pdf || 'Друк бланка / PDF');
+
+    card.innerHTML = `
+      <div class="blank-card-header-row">
+        <div class="blank-card-meta">
+          <div style="width: 44px; height: 44px; border-radius: var(--radius-md); background: var(--accent-light); color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <i data-lucide="file-text" style="width: 22px; height: 22px;"></i>
+          </div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <strong style="font-size: 15px; color: var(--text-primary);">${form.name}</strong>
+              <span class="status-badge status-neutral" style="font-size: 10px; font-weight: 700;">${form.code || 'FORM'}</span>
+              <span class="status-badge status-valid" style="font-size: 10px;">${form.crewType === 'Cabin' ? 'CABIN CREW' : 'FLIGHT CREW'}</span>
+              <span class="status-badge status-neutral" style="font-size: 10px;">${form.orientation === 'landscape' ? (STATE.lang === 'uk' ? 'Альбомна (А4)' : 'Landscape (A4)') : (STATE.lang === 'uk' ? 'Книжкова (А4)' : 'Portrait (A4)')}</span>
+            </div>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 3px;">
+              ${form.subtitle || 'Авіакомпанія «Українські вертольоти»'} • ${STATE.lang === 'uk' ? 'Стовпчиків' : 'Columns'}: ${(form.columns || []).length} • ${STATE.lang === 'uk' ? 'Формат дати' : 'Date'}: ${form.dateFormat || 'DD.MM.YYYY'}
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button class="btn btn-primary btn-print-form" data-form-id="${form.id}" style="height: 36px;">
+            <i data-lucide="printer"></i>
+            <span>${printBtnLabel}</span>
+          </button>
+
+          <button class="btn btn-secondary btn-edit-form-direct" data-form-id="${form.id}" style="height: 36px; padding: 0 10px;" title="${TRANSLATIONS[STATE.lang].btn_edit_form || 'Редагувати в генераторі'}">
+            <i data-lucide="settings" style="width: 14px; height: 14px;"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Multi-crew Selection Roster Section -->
+      <div class="blank-crew-section">
+        <div class="blank-crew-picker-row">
+          <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); display: flex; align-items: center; gap: 4px; white-space: nowrap;">
+            <i data-lucide="users" style="width: 14px; height: 14px; color: var(--accent);"></i>
+            <span>${TRANSLATIONS[STATE.lang].label_crew_select_blank || 'Співробітники для бланка:'}</span>
+          </div>
+
+          <select class="form-select form-crew-picker-select" data-form-id="${form.id}" style="height: 32px; font-size: 12px; flex: 1 1 240px; min-width: 180px;">
+            ${crewOptions}
+          </select>
+
+          <button class="btn btn-secondary btn-add-crew-blank" data-form-id="${form.id}" style="height: 32px; font-size: 12px; padding: 0 10px;">
+            <i data-lucide="user-plus" style="width: 13px; height: 13px;"></i>
+            <span>${TRANSLATIONS[STATE.lang].btn_add_to_blank || '+ Додати'}</span>
+          </button>
+
+          <button class="btn btn-secondary btn-select-all-crew" data-form-id="${form.id}" style="height: 32px; font-size: 12px; padding: 0 10px;" title="${STATE.lang === 'uk' ? 'Додати всіх членів екіпажу' : 'Select all crew members'}">
+            <span>${TRANSLATIONS[STATE.lang].btn_select_all_crew || 'Всі'} (${crewList.length})</span>
+          </button>
+
+          <button class="btn btn-secondary btn-clear-crew-blank" data-form-id="${form.id}" style="height: 32px; font-size: 12px; padding: 0 10px;" title="${STATE.lang === 'uk' ? 'Очистити список' : 'Clear selection'}">
+            <span>${TRANSLATIONS[STATE.lang].btn_clear_crew_list || 'Очистити'}</span>
+          </button>
+
+          ${selectedIds.length > 0 ? `<span class="status-badge status-valid" style="font-size: 11px; margin-left: auto;">${TRANSLATIONS[STATE.lang].selected_crew_count || 'Обрано:'} ${selectedIds.length}</span>` : ''}
+        </div>
+
+        <div class="blank-crew-chips-list">
+          ${chipsHtml}
+        </div>
+      </div>
+    `;
+
+    container.appendChild(card);
+  });
+
+  // Event handlers
+  container.querySelectorAll('.btn-add-crew-blank').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const formId = e.currentTarget.getAttribute('data-form-id');
+      const select = container.querySelector(`.form-crew-picker-select[data-form-id="${formId}"]`);
+      const memberId = select?.value;
+      if (!memberId) {
+        showToast(STATE.lang === 'uk' ? 'Виберіть співробітника зі списку' : 'Select a crew member first', 'warning');
+        return;
+      }
+      if (!STATE.formSelectedCrew[formId].includes(memberId)) {
+        STATE.formSelectedCrew[formId].push(memberId);
+        renderForms();
+      }
+    });
+  });
+
+  container.querySelectorAll('.form-crew-picker-select').forEach(sel => {
+    sel.addEventListener('change', (e) => {
+      const formId = e.currentTarget.getAttribute('data-form-id');
+      const memberId = e.currentTarget.value;
+      if (memberId && !STATE.formSelectedCrew[formId].includes(memberId)) {
+        STATE.formSelectedCrew[formId].push(memberId);
+        renderForms();
+      }
+    });
+  });
+
+  container.querySelectorAll('.btn-select-all-crew').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const formId = e.currentTarget.getAttribute('data-form-id');
+      const form = STATE.forms.find(f => f.id === formId);
+      if (!form) return;
+      const crewList = form.crewType === 'Cabin' ? STATE.cabinCrew : STATE.flightCrew;
+      STATE.formSelectedCrew[formId] = crewList.map(m => m.id);
+      renderForms();
+    });
+  });
+
+  container.querySelectorAll('.btn-clear-crew-blank').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const formId = e.currentTarget.getAttribute('data-form-id');
+      STATE.formSelectedCrew[formId] = [];
+      renderForms();
+    });
+  });
+
+  container.querySelectorAll('.crew-chip-remove').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const formId = e.currentTarget.getAttribute('data-form-id');
+      const memberId = e.currentTarget.getAttribute('data-member-id');
+      STATE.formSelectedCrew[formId] = (STATE.formSelectedCrew[formId] || []).filter(id => id !== memberId);
+      renderForms();
+    });
+  });
+
+  container.querySelectorAll('.btn-print-form').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const formId = e.currentTarget.getAttribute('data-form-id');
+      const form = STATE.forms.find(f => f.id === formId);
+      if (form) {
+        const memberIds = STATE.formSelectedCrew[formId] || [];
+        openFormPrintWindow(form, memberIds);
+      }
+    });
+  });
+
+  container.querySelectorAll('.btn-edit-form-direct').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const formId = e.currentTarget.getAttribute('data-form-id');
+      STATE.editingFormId = formId;
+      switchView('settings');
+      activateSettingsTab('forms');
+    });
+  });
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+/**
+ * Returns crew member's short name: Surname and initials (Прізвище та ініціали, напр. Алекса С.М.)
+ */
+function getCrewShortNameWithInitials(member) {
+  if (!member) return '-';
+  if (member.Full_Name_UA && member.Full_Name_UA.trim()) {
+    const parts = member.Full_Name_UA.trim().split(/\s+/);
+    if (parts.length > 1) {
+      const initials = parts.slice(1).map(p => p[0] ? p[0].toUpperCase() + '.' : '').join('');
+      return `${parts[0]} ${initials}`.trim();
+    }
+    return parts[0];
+  }
+  if (member.Name_Shrt_UA && member.Name_Shrt_UA.trim()) {
+    return member.Name_Shrt_UA.trim();
+  }
+  if (member.Full_Name_EN && member.Full_Name_EN.trim()) {
+    const parts = member.Full_Name_EN.trim().split(/\s+/);
+    if (parts.length > 1) {
+      const initials = parts.slice(1).map(p => p[0] ? p[0].toUpperCase() + '.' : '').join('');
+      return `${parts[0]} ${initials}`.trim();
+    }
+    return parts[0];
+  }
+  return '-';
+}
+
+/**
+ * Formats crew member's name as HTML: Surname and atomic initials that wrap only if necessary
+ */
+function formatCrewShortNameHtml(member, col = 'Full_Name_UA') {
+  if (!member) return '-';
+  let surname = '';
+  let initials = '';
+
+  if (col === 'Full_Name_EN' && member.Full_Name_EN && member.Full_Name_EN.trim()) {
+    const parts = member.Full_Name_EN.trim().split(/\s+/);
+    surname = parts[0];
+    if (parts.length > 1) {
+      initials = parts.slice(1).map(p => p[0] ? p[0].toUpperCase() + '.' : '').join('');
+    }
+  } else if (member.Full_Name_UA && member.Full_Name_UA.trim()) {
+    const parts = member.Full_Name_UA.trim().split(/\s+/);
+    surname = parts[0];
+    if (parts.length > 1) {
+      initials = parts.slice(1).map(p => p[0] ? p[0].toUpperCase() + '.' : '').join('');
+    }
+  } else if (member.Name_Shrt_UA && member.Name_Shrt_UA.trim()) {
+    const parts = member.Name_Shrt_UA.trim().split(/\s+/);
+    surname = parts[0];
+    if (parts.length > 1) {
+      initials = parts.slice(1).join('');
+    }
+  } else if (member.Full_Name_EN && member.Full_Name_EN.trim()) {
+    const parts = member.Full_Name_EN.trim().split(/\s+/);
+    surname = parts[0];
+    if (parts.length > 1) {
+      initials = parts.slice(1).map(p => p[0] ? p[0].toUpperCase() + '.' : '').join('');
+    }
+  } else {
+    return '-';
+  }
+
+  if (initials) {
+    return `${surname} <span class="crew-initials" style="white-space: nowrap;">${initials}</span>`;
+  }
+  return surname;
+}
+
+/**
+ * Opens print preview window for a customized blank
+ * Supports single member, multiple members (roster), or empty blank (null / empty array)
+ */
+function openFormPrintWindow(form, memberIds = null) {
+  const newWindow = window.open("", "_blank", "width=960,height=960");
+  if (!newWindow) {
+    showToast("Pop-up заблоковано браузером. Дозвольте спливаючі вікна для друку бланків.", "error");
+    return;
+  }
+
+  // Normalize memberIds into an array
+  let ids = [];
+  if (Array.isArray(memberIds)) {
+    ids = memberIds;
+  } else if (memberIds && typeof memberIds === 'string') {
+    ids = [memberIds];
+  }
+
+  const crewList = form.crewType === 'Cabin' ? STATE.cabinCrew : STATE.flightCrew;
+  const members = ids.map(id => crewList.find(m => m.id === id)).filter(Boolean);
+
+  const selectedCols = form.columns || [];
+  const logoPos = form.logoPos || 'left';
+  let logoHtml = '';
+  if (form.logo && form.logo !== 'none') {
+    logoHtml = `<img src="${form.logo}" alt="Logo" style="max-height: 52px; max-width: 160px; object-fit: contain;">`;
+  }
+
+  let headerFlex = 'justify-content: flex-start;';
+  let headerTextFlex = 'text-align: left;';
+  if (logoPos === 'center') {
+    headerFlex = 'flex-direction: column; justify-content: center; align-items: center; text-align: center; gap: 10px;';
+    headerTextFlex = 'text-align: center;';
+  } else if (logoPos === 'right') {
+    headerFlex = 'flex-direction: row-reverse; justify-content: space-between; align-items: center; text-align: right;';
+    headerTextFlex = 'text-align: right;';
+  } else {
+    headerFlex = 'flex-direction: row; justify-content: flex-start; align-items: center; gap: 20px;';
+  }
+
+  const orientation = form.orientation === 'landscape' ? 'landscape' : 'portrait';
+  const containerMaxWidth = orientation === 'landscape' ? '1060px' : '820px';
+  const pageMargin = orientation === 'landscape' ? '8mm 10mm' : '10mm 12mm';
+  const pageMinHeight = orientation === 'landscape' ? '680px' : '980px';
+
+  const totalCols = selectedCols.length + (form.extraGrade ? 1 : 0) + (form.extraValidity ? 1 : 0) + (form.extraRemarks ? 1 : 0) + 1;
+  let printFontSize = '10pt';
+  
+  // Cell padding resolution: use user-defined form.cellPadding (minimum 1px) or adaptive fallback
+  let padH = form.cellPadding !== undefined ? Math.max(1, form.cellPadding) : (form.fitSingleLine ? 2 : 4);
+  if (form.fitSingleLine && form.cellPadding === undefined) {
+    if (orientation === 'landscape' && totalCols > 12) padH = 1;
+    if (orientation === 'portrait' && totalCols > 9) padH = 1;
+  }
+  let padV = Math.max(1.5, Math.min(6, Math.round(padH * 0.75)));
+  let printPadding = `${padV}px ${padH}px`;
+
+  if (form.fitSingleLine) {
+    if (orientation === 'landscape') {
+      if (totalCols > 14) {
+        printFontSize = '7pt';
+      } else if (totalCols > 10) {
+        printFontSize = '8pt';
+      } else if (totalCols > 7) {
+        printFontSize = '9pt';
+      } else {
+        printFontSize = '10pt';
+      }
+    } else {
+      if (totalCols > 11) {
+        printFontSize = '6.5pt';
+      } else if (totalCols > 8) {
+        printFontSize = '7.5pt';
+      } else if (totalCols > 5) {
+        printFontSize = '8.5pt';
+      } else {
+        printFontSize = '9.5pt';
+      }
+    }
+  }
+
+  // Header font size for "Посада" must be 2 units smaller than other headers
+  const ptVal = parseFloat(printFontSize) || 10;
+  const rankHeaderFontSize = `${Math.max(5, (ptVal - 2)).toFixed(1).replace(/\.0$/, '')}pt`;
+
+  // Build rows HTML
+  let rowsHtml = '';
+  if (members.length > 0) {
+    members.forEach((member, idx) => {
+      rowsHtml += '<tr>';
+      rowsHtml += `<td style="text-align: center; font-weight: bold; width: 26px; padding-left: 1px !important; padding-right: 1px !important;">${idx + 1}</td>`;
+      selectedCols.forEach(col => {
+        let val = member[col] || '-';
+        if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+          val = formatDateCustom(val, form.dateFormat || 'DD.MM.YYYY');
+        }
+        const isRank = (col === 'Rank');
+        const isName = ['Full_Name_UA', 'Full_Name_EN', 'Name_Shrt_UA'].includes(col);
+        if (isRank) {
+          rowsHtml += `<td class="col-rank">${val}</td>`;
+        } else if (isName) {
+          const shortNameHtml = formatCrewShortNameHtml(member, col);
+          rowsHtml += `<td class="col-name"><strong>${shortNameHtml}</strong></td>`;
+        } else {
+          rowsHtml += `<td>${val}</td>`;
+        }
+      });
+      if (form.extraGrade) rowsHtml += `<td style="text-align: center; font-weight: 600; color: #0f766e;">${STATE.lang === 'uk' ? 'Зараховано' : 'Passed'}</td>`;
+      if (form.extraValidity) rowsHtml += '<td style="text-align: center;">____________</td>';
+      if (form.extraRemarks) rowsHtml += `<td>${STATE.lang === 'uk' ? 'Без зауважень' : 'No remarks'}</td>`;
+      rowsHtml += '</tr>';
+    });
+  } else {
+    // Empty blank for handwriting (8 rows)
+    for (let r = 1; r <= 8; r++) {
+      rowsHtml += '<tr>';
+      rowsHtml += `<td style="text-align: center; color: #64748b; width: 26px; padding-left: 1px !important; padding-right: 1px !important;">${r}</td>`;
+      selectedCols.forEach(col => {
+        const isRank = (col === 'Rank');
+        const isName = ['Full_Name_UA', 'Full_Name_EN', 'Name_Shrt_UA'].includes(col);
+        if (isRank) {
+          rowsHtml += '<td class="col-rank">&nbsp;</td>';
+        } else if (isName) {
+          rowsHtml += '<td class="col-name">&nbsp;</td>';
+        } else {
+          rowsHtml += '<td>&nbsp;</td>';
+        }
+      });
+      if (form.extraGrade) rowsHtml += '<td>&nbsp;</td>';
+      if (form.extraValidity) rowsHtml += '<td>&nbsp;</td>';
+      if (form.extraRemarks) rowsHtml += '<td>&nbsp;</td>';
+      rowsHtml += '</tr>';
+    }
+  }
+
+  // Build column headers HTML using SHORT titles ONLY!
+  let colsThHtml = '<th style="width: 26px; text-align: center; padding-left: 1px !important; padding-right: 1px !important;">№</th>';
+  selectedCols.forEach(col => {
+    const shortLabel = getFormColumnShortTitle(col, STATE.lang);
+    const isRank = (col === 'Rank');
+    const isName = ['Full_Name_UA', 'Full_Name_EN', 'Name_Shrt_UA'].includes(col);
+    if (isRank) {
+      colsThHtml += `<th class="col-rank">${shortLabel}</th>`;
+    } else if (isName) {
+      const nameColWidth = totalCols > 12 ? '17%' : (totalCols > 8 ? '21%' : '25%');
+      colsThHtml += `<th class="col-name" style="width: ${nameColWidth}; min-width: 85px;">${shortLabel}</th>`;
+    } else {
+      colsThHtml += `<th>${shortLabel}</th>`;
+    }
+  });
+  if (form.extraGrade) colsThHtml += `<th style="text-align: center; width: 11%;">${STATE.lang === 'uk' ? 'Результат' : 'Result'}</th>`;
+  if (form.extraValidity) colsThHtml += `<th style="text-align: center; width: 13%;">${STATE.lang === 'uk' ? 'Термін дії' : 'Validity'}</th>`;
+  if (form.extraRemarks) colsThHtml += `<th style="width: 14%;">${STATE.lang === 'uk' ? 'Примітка' : 'Remarks'}</th>`;
+
+  // Top info block
+  let memberInfoBlock = '';
+  if (members.length === 1) {
+    const single = members[0];
+    memberInfoBlock = `
+      <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; margin: 12px 0; font-size: 12px; box-sizing: border-box;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+          <div><strong>${STATE.lang === 'uk' ? 'ПІБ:' : 'Name:'}</strong> ${getCrewShortNameWithInitials(single)}</div>
+          <div><strong>${STATE.lang === 'uk' ? 'Посада:' : 'Rank:'}</strong> ${single.Rank || '-'}</div>
+          <div><strong>${STATE.lang === 'uk' ? 'Підрозділ:' : 'Dept:'}</strong> ${single.Department || '-'}</div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 4px; color: #475569; font-size: 11px;">
+          <div><strong>${STATE.lang === 'uk' ? 'Категорія:' : 'Category:'}</strong> ${form.crewType === 'Cabin' ? (STATE.lang === 'uk' ? 'Кабінний склад' : 'Cabin Crew') : (STATE.lang === 'uk' ? 'Льотний склад' : 'Flight Crew')}</div>
+          <div><strong>${STATE.lang === 'uk' ? 'Англ.:' : 'EN Name:'}</strong> ${single.Full_Name_EN || '-'}</div>
+          <div><strong>Email:</strong> ${single.Email || '-'}</div>
+        </div>
+      </div>
+    `;
+  } else if (members.length > 1) {
+    memberInfoBlock = `
+      <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; margin: 12px 0; font-size: 11.5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; box-sizing: border-box;">
+        <div>
+          <strong>${STATE.lang === 'uk' ? 'Склад групи:' : 'Roster group:'}</strong> ${members.length} ${STATE.lang === 'uk' ? 'осіб' : 'crew members'} • 
+          <strong>${STATE.lang === 'uk' ? 'Підрозділ:' : 'Dept:'}</strong> ${form.crewType === 'Cabin' ? 'CABIN CREW' : 'FLIGHT CREW'}
+        </div>
+        <div style="color: #64748b; font-size: 11px;">
+          ${STATE.lang === 'uk' ? 'Дата формування відомості:' : 'Generated on:'} ${new Date().toLocaleDateString(STATE.lang === 'uk' ? 'uk-UA' : 'en-GB')}
+        </div>
+      </div>
+    `;
+  }
+
+  newWindow.document.write(`
+    <!DOCTYPE html>
+    <html lang="${STATE.lang === 'uk' ? 'uk' : 'en'}">
+      <head>
+        <meta charset="UTF-8">
+        <title>${form.code || 'Form'} — ${form.name}</title>
+        <style>
+          @page {
+            size: A4 ${orientation};
+            margin: ${pageMargin};
+          }
+          *, *::before, *::after {
+            box-sizing: border-box !important;
+          }
+          html, body {
+            margin: 0;
+            padding: 20px;
+            background-color: #f1f5f9;
+            color: #0f172a;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            font-size: 12px;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+          }
+          .sheet-container {
+            width: 100% !important;
+            max-width: ${containerMaxWidth} !important;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 28px 32px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            border: 1px solid #e2e8f0;
+            min-height: ${pageMinHeight};
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
+          }
+          .table-wrapper {
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow: hidden !important;
+            box-sizing: border-box !important;
+          }
+          .paper-header {
+            display: flex;
+            ${headerFlex}
+            margin-bottom: 16px;
+            border-bottom: 2px solid #0f172a;
+            padding-bottom: 12px;
+          }
+          .title-area {
+            ${headerTextFlex}
+          }
+          h1 {
+            font-size: 17px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            margin: 0;
+            color: #0f172a;
+          }
+          .doc-code {
+            font-size: 12px;
+            font-weight: 700;
+            color: #475569;
+            margin-top: 3px;
+          }
+          .doc-sub {
+            font-size: 11px;
+            color: #64748b;
+            margin-top: 2px;
+          }
+          table {
+            width: 100% !important;
+            max-width: 100% !important;
+            table-layout: fixed !important;
+            border-collapse: collapse !important;
+            margin-top: ${form.tableSpacing !== undefined ? form.tableSpacing : 20}px !important;
+            margin-bottom: 16px !important;
+            font-size: ${printFontSize};
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+          }
+          th, td {
+            border: 1px solid #94a3b8 !important;
+            padding: ${printPadding} !important;
+            text-align: center;
+            vertical-align: middle;
+            box-sizing: border-box !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            ${form.fitSingleLine ? 'white-space: nowrap !important;' : 'word-break: break-word !important; overflow-wrap: break-word !important;'}
+          }
+          th {
+            background-color: #f1f5f9 !important;
+            font-weight: 700 !important;
+            color: #1e293b !important;
+            text-align: center !important;
+            padding-left: 1px !important;
+            padding-right: 1px !important;
+            white-space: normal !important;
+            word-break: break-word !important;
+            overflow-wrap: break-word !important;
+          }
+          th.col-rank {
+            font-size: ${rankHeaderFontSize} !important;
+            padding-left: 1px !important;
+            padding-right: 1px !important;
+            text-align: center !important;
+            vertical-align: middle !important;
+            white-space: nowrap !important;
+            width: 44px !important;
+            max-width: 48px !important;
+          }
+          td.col-rank {
+            padding-left: 1px !important;
+            padding-right: 1px !important;
+            text-align: center !important;
+            vertical-align: middle !important;
+            white-space: nowrap !important;
+            width: 44px !important;
+            max-width: 48px !important;
+          }
+          th.col-name {
+            text-align: center !important;
+            vertical-align: middle !important;
+            white-space: normal !important;
+            word-break: normal !important;
+            overflow-wrap: break-word !important;
+            line-height: 1.2 !important;
+          }
+          td.col-name {
+            text-align: left !important;
+            vertical-align: middle !important;
+            white-space: normal !important;
+            word-break: normal !important;
+            overflow-wrap: break-word !important;
+            text-overflow: clip !important;
+            overflow: visible !important;
+            line-height: 1.2 !important;
+            padding-left: 5px !important;
+            padding-right: 4px !important;
+          }
+          .footer-section {
+            margin-top: 28px;
+            border-top: 1px solid #cbd5e1;
+            padding-top: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            font-size: 12px;
+          }
+          .sign-area {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+          }
+          .sign-line {
+            display: inline-block;
+            min-width: 160px;
+            border-bottom: 1px solid #0f172a;
+            margin-top: 14px;
+          }
+          .no-print-bar {
+            max-width: ${containerMaxWidth};
+            margin: 0 auto 16px auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          .btn-print {
+            background-color: #4f46e5;
+            color: #ffffff;
+            border: none;
+            padding: 8px 20px;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+          }
+          @media print {
+            .no-print-bar { display: none !important; }
+            html, body {
+              background: #ffffff !important;
+              padding: 0 !important;
+              margin: 0 !important;
+            }
+            .sheet-container {
+              box-shadow: none !important;
+              border: none !important;
+              padding: 0 !important;
+              max-width: 100% !important;
+              width: 100% !important;
+              min-height: auto !important;
+              overflow: hidden !important;
+            }
+            table {
+              width: 100% !important;
+              max-width: 100% !important;
+              table-layout: fixed !important;
+              page-break-inside: auto;
+            }
+            tr {
+              page-break-inside: avoid;
+              page-break-after: auto;
+            }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="no-print-bar">
+          <div style="font-weight: 600; color: #475569;">
+            ${STATE.lang === 'uk' ? 'Попередній перегляд перед друком' : 'Print Preview'} (${form.code || 'Form'})
+          </div>
+          <button class="btn-print" onclick="window.print()">
+            🖨 ${STATE.lang === 'uk' ? 'Друк бланку / Зберегти як PDF' : 'Print Form / Save as PDF'}
+          </button>
+        </div>
+
+        <div class="sheet-container">
+          <div style="width: 100%; max-width: 100%; box-sizing: border-box; overflow: hidden;">
+            <div class="paper-header">
+              ${logoHtml}
+              <div class="title-area">
+                <h1>${form.name}</h1>
+                <div class="doc-code">${form.code || ''}</div>
+                <div class="doc-sub">${form.subtitle || ''}</div>
+              </div>
+            </div>
+
+            ${memberInfoBlock}
+
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>${colsThHtml}</tr>
+                </thead>
+                <tbody>
+                  ${rowsHtml}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="footer-section">
+            <div style="font-weight: 500;">
+              ${form.dateText || (STATE.lang === 'uk' ? 'Дата: «____» ___________ 202___ р.' : 'Date: _____ / _____ / 202___')}
+            </div>
+            <div class="sign-area">
+              <div style="font-weight: 700;">${form.signRank || (STATE.lang === 'uk' ? 'Керівник льотної служби' : 'Chief of Flight Operations')}</div>
+              <div class="sign-line"></div>
+              <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
+                ${form.signName ? `(${form.signName})` : (STATE.lang === 'uk' ? '(підпис / печатка)' : '(signature / stamp)')}
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </body>
+    </html>
+  `);
+  newWindow.document.close();
 }
 
 /**
@@ -2594,7 +5124,7 @@ function renderPersonalPortal() {
   let member = null;
   
   if (STATE.selectedCrewMemberId) {
-    member = allCrew.find(c => c.id === STATE.selectedCrewMemberId);
+    member = allCrew.find(c => String(c.id) === String(STATE.selectedCrewMemberId));
   }
   
   if (!member) {
@@ -2776,6 +5306,13 @@ function renderPersonalPortal() {
       <div><strong>Email:</strong> ${member.Email}</div>
       <div><strong>Phone:</strong> ${member.Phone || '-'}</div>
       ${member.LICENSE ? `<div><strong>License:</strong> <code>${member.LICENSE}</code></div>` : ''}
+      <div style="margin-top: 8px; padding: 10px; background-color: var(--bg-surface-alt); border-radius: var(--radius-md); border: 1px solid var(--border-color); font-size: 12px;">
+        <div style="font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+          <i data-lucide="folder" style="width: 14px; height: 14px; color: var(--accent);"></i>
+          <span>Папка на Google Drive (${member.crewType}):</span>
+        </div>
+        <code style="word-break: break-all; color: var(--text-primary); font-size: 11px;">${getMemberFolderPath(member)}</code>
+      </div>
     `;
     
     // Wire up Edit button click event
@@ -2889,6 +5426,9 @@ function renderPersonalPortal() {
   expiriesGrid.innerHTML = '';
   const crewConfig = CREW_COMPLIANCE_RULES.CREW_TYPES[member.crewType];
   const sysDate = STATE.settings.referenceDate;
+  const canEditDates = (role === ROLES.ADMIN || role === ROLES.INSTRUCTOR || role === ROLES.OFFICE);
+  const editPrompt = STATE.lang === 'uk' ? 'Натисніть на дату для редагування' : 'Click date to edit';
+  const addDateText = STATE.lang === 'uk' ? '+ Вказати дату' : '+ Set date';
   
   Object.keys(crewConfig.columnMapping).forEach(colName => {
     if (['Rank', 'Department', 'Name_Shrt_UA', 'Full_Name_UA', 'Full_Name_EN'].includes(colName)) return;
@@ -2902,10 +5442,16 @@ function renderPersonalPortal() {
       const label = theme.label[STATE.lang];
       
       expiriesGrid.insertAdjacentHTML('beforeend', `
-        <div style="border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: var(--spacing-3); display:flex; flex-direction:column; gap:4px; align-items:center; text-align:center; background-color: var(--bg-surface-alt);">
+        <div class="portal-training-card ${canEditDates ? 'portal-training-card--editable' : ''}"
+             data-col="${colName}" data-rule="${ruleKey}"
+             ${canEditDates ? `title="${editPrompt}"` : ''}
+             style="border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: var(--spacing-3); display:flex; flex-direction:column; gap:4px; align-items:center; text-align:center; background-color: var(--bg-surface-alt);">
           <div style="font-size:12px; font-weight:700; font-family:var(--font-display);">${colName}</div>
           <span class="status-badge ${theme.class}" style="font-size:10px; padding: 2px 6px;">${label}</span>
-          <div style="font-size:13px; font-weight:600; margin-top:2px;">${val ? formatDateUa(val) : '-'}</div>
+          <div style="font-size:13px; font-weight:600; margin-top:2px; display:flex; align-items:center; justify-content:center; gap:4px;">
+            <span>${val ? formatDateUa(val) : (canEditDates ? `<span style="color:var(--accent); font-size:11px; font-weight:500;">${addDateText}</span>` : '-')}</span>
+            ${canEditDates ? '<i data-lucide="edit-3" class="portal-date-edit-icon" style="width:12px; height:12px; opacity:0.5; color:var(--text-secondary);"></i>' : ''}
+          </div>
         </div>
       `);
     }
@@ -2927,20 +5473,39 @@ function renderPersonalPortal() {
       const label = theme.label[STATE.lang];
       
       additionalGrid.insertAdjacentHTML('beforeend', `
-        <div style="border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: var(--spacing-3); display:flex; flex-direction:column; gap:4px; align-items:center; text-align:center; background-color: var(--bg-surface-alt);">
+        <div class="portal-training-card ${canEditDates ? 'portal-training-card--editable' : ''}"
+             data-col="${colName}" data-rule=""
+             ${canEditDates ? `title="${editPrompt}"` : ''}
+             style="border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: var(--spacing-3); display:flex; flex-direction:column; gap:4px; align-items:center; text-align:center; background-color: var(--bg-surface-alt);">
           <div style="font-size:12px; font-weight:700; font-family:var(--font-display);">${colName}</div>
           <span class="status-badge ${theme.class}" style="font-size:10px; padding: 2px 6px;">${label}</span>
-          <div style="font-size:13px; font-weight:600; margin-top:2px;">${val ? formatDateUa(val) : '-'}</div>
+          <div style="font-size:13px; font-weight:600; margin-top:2px; display:flex; align-items:center; justify-content:center; gap:4px;">
+            <span>${val ? formatDateUa(val) : (canEditDates ? `<span style="color:var(--accent); font-size:11px; font-weight:500;">${addDateText}</span>` : '-')}</span>
+            ${canEditDates ? '<i data-lucide="edit-3" class="portal-date-edit-icon" style="width:12px; height:12px; opacity:0.5; color:var(--text-secondary);"></i>' : ''}
+          </div>
         </div>
       `);
     });
   }
   
+  // Wire up click event on editable cards for date modification
+  if (canEditDates) {
+    document.querySelectorAll('.portal-training-card--editable').forEach(card => {
+      card.addEventListener('click', () => {
+        const colName = card.dataset.col;
+        const ruleKey = card.dataset.rule;
+        openPortalDateEditModal(member, colName, ruleKey);
+      });
+    });
+  }
+  
   // Initialize default scans if missing
   if (!member.scans) {
+    const safeNameEn = (member.Full_Name_EN || member.Full_Name_UA || 'Crew').replace(/\s+/g, '_');
+    const safeLastName = (member.Full_Name_EN || member.Full_Name_UA || 'Crew').split(/\s+/)[1] || 'Crew';
     member.scans = [
-      { name: 'OPC 2026', fileName: `${member.Full_Name_EN.replace(/\s+/g, '_')}_OPC_2026.pdf`, dateAdded: '2026-07-15' },
-      { name: 'Medical Certificate', fileName: `Medical_Certificate_${member.Full_Name_EN.split(/\s+/)[1] || 'Crew'}.pdf`, dateAdded: '2026-07-15' }
+      { name: 'OPC 2026', fileName: `${safeNameEn}_OPC_2026.pdf`, dateAdded: '2026-07-15' },
+      { name: 'Medical Certificate', fileName: `Medical_Certificate_${safeLastName}.pdf`, dateAdded: '2026-07-15' }
     ];
   }
 
@@ -3169,6 +5734,85 @@ function renderPersonalPortal() {
 }
 
 /**
+ * Opens modal for editing training date directly from personal portal
+ */
+function openPortalDateEditModal(member, colName, ruleKey) {
+  if (!member || !colName) return;
+
+  const currentVal = member[colName] || '';
+  const crewName = member.Full_Name_UA || member.Full_Name_EN || '';
+  const isExp = ruleKey && isExpiring(ruleKey);
+
+  const crewNameEl = document.getElementById('portal-date-edit-crew-name');
+  if (crewNameEl) crewNameEl.textContent = crewName;
+
+  const trainingNameEl = document.getElementById('portal-date-edit-training-name');
+  if (trainingNameEl) trainingNameEl.textContent = colName;
+
+  const colNameInput = document.getElementById('portal-date-edit-col-name');
+  if (colNameInput) colNameInput.value = colName;
+
+  const ruleKeyInput = document.getElementById('portal-date-edit-rule-key');
+  if (ruleKeyInput) ruleKeyInput.value = ruleKey || '';
+  
+  // Format current value display
+  const currentValEl = document.getElementById('portal-date-edit-current-val');
+  if (currentValEl) {
+    if (currentVal) {
+      currentValEl.textContent = `${formatDateUa(currentVal)} (${currentVal})`;
+    } else {
+      currentValEl.textContent = STATE.lang === 'uk' ? 'не встановлено' : 'not set';
+    }
+  }
+
+  // Set date input value (extract ISO YYYY-MM-DD)
+  const inputEl = document.getElementById('portal-date-edit-input');
+  let isoDate = '';
+  if (currentVal) {
+    const match = String(currentVal).trim().match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+    if (match) {
+      isoDate = `${match[1]}-${match[2].padStart(2, '0')}-${match[3].padStart(2, '0')}`;
+    } else {
+      const d = new Date(currentVal);
+      if (!isNaN(d.getTime())) {
+        isoDate = d.toISOString().split('T')[0];
+      }
+    }
+  }
+  if (inputEl) inputEl.value = isoDate;
+
+  // Type selector visibility
+  const typeWrapper = document.getElementById('portal-date-edit-type-wrapper');
+  const inputLabel = document.getElementById('portal-date-edit-input-label');
+  const expiryRadio = document.querySelector('input[name="portal-date-edit-mode"][value="EXPIRY"]');
+
+  if (typeWrapper) {
+    if (isExp) {
+      typeWrapper.style.display = 'block';
+      if (expiryRadio) expiryRadio.checked = true;
+      if (inputLabel) inputLabel.textContent = STATE.lang === 'uk' ? 'Дата закінчення дії:' : 'Expiration Date:';
+    } else {
+      typeWrapper.style.display = 'none';
+      if (inputLabel) inputLabel.textContent = STATE.lang === 'uk' ? 'Дата проходження:' : 'Completion Date:';
+    }
+  }
+
+  // Store active member reference on the form
+  const form = document.getElementById('portal-date-edit-form');
+  if (form) form.dataset.memberId = member.id;
+
+  // Open modal
+  const modal = document.getElementById('portal-date-edit-modal-backdrop');
+  if (modal) modal.classList.add('active');
+  if (window.lucide) window.lucide.createIcons();
+  
+  if (inputEl) {
+    setTimeout(() => inputEl.focus(), 50);
+  }
+}
+
+
+/**
  * Handles the login form verification
  */
 function handleLoginSubmit(e) {
@@ -3178,22 +5822,40 @@ function handleLoginSubmit(e) {
   const pass = document.getElementById('login-password').value;
   
   if (!email || !pass) return;
-  
-  // 1. Check Hardcoded credentials first for test roles
-  let role = null;
+
+  // Check if account was deleted
+  const deletedUsers = JSON.parse(localStorage.getItem('aerocheck_deleted_users') || '[]');
+  if (deletedUsers.includes(email)) {
+    showToast(STATE.lang === 'uk' ? "Цей обліковий запис було видалено або заблоковано" : "This user account has been deleted", "error");
+    return;
+  }
+
+  const userRoles = JSON.parse(localStorage.getItem('aerocheck_user_roles') || '{}');
+  const customUsers = JSON.parse(localStorage.getItem('aerocheck_custom_users') || '[]');
+  const customUser = customUsers.find(u => u.email.toLowerCase() === email);
+
+  let role = userRoles[email] || null;
+
   if (email === 'admin@ukr-helicopters.ua') {
-    role = ROLES.ADMIN;
+    role = role || ROLES.ADMIN;
   } else if (email === 'instructor@ukr-helicopters.ua') {
-    role = ROLES.INSTRUCTOR;
+    role = role || ROLES.INSTRUCTOR;
   } else if (email === 'office@ukr-helicopters.ua') {
-    role = ROLES.OFFICE;
+    role = role || ROLES.OFFICE;
+  } else if (customUser) {
+    role = role || customUser.role || ROLES.CREW;
+    const savedPass = localStorage.getItem(`aerocheck_pass_${email}`) || '123456';
+    if (savedPass !== pass) {
+      showToast(STATE.lang === 'uk' ? "Невірний пароль для цього облікового запису" : "Invalid password", "error");
+      return;
+    }
   } else {
-    // 2. Check if email exists in database
+    // Check if email exists in database
     const allCrew = [...STATE.flightCrew, ...STATE.cabinCrew];
     const member = allCrew.find(c => c.Email && c.Email.trim().toLowerCase() === email);
     
     if (member) {
-      role = ROLES.CREW;
+      role = role || ROLES.CREW;
       
       // Verify password set in LocalStorage
       const savedPass = localStorage.getItem(`aerocheck_pass_${email}`);
@@ -3448,6 +6110,20 @@ async function bootstrapDatabase() {
       STATE.settings = JSON.parse(localSettings);
       
       let settingsUpdated = false;
+
+      // Migrate Google API & Recommended Settings defaults
+      if (STATE.settings.syncMode === undefined) { STATE.settings.syncMode = 'mock'; settingsUpdated = true; }
+      if (STATE.settings.googleApiKey === undefined) { STATE.settings.googleApiKey = ''; settingsUpdated = true; }
+      if (STATE.settings.googleClientId === undefined) { STATE.settings.googleClientId = ''; settingsUpdated = true; }
+      if (STATE.settings.googleSpreadsheetId === undefined) { STATE.settings.googleSpreadsheetId = ''; settingsUpdated = true; }
+      if (STATE.settings.googleDriveFolderId === undefined) { STATE.settings.googleDriveFolderId = ''; settingsUpdated = true; }
+      if (STATE.settings.syncInterval === undefined) { STATE.settings.syncInterval = '5'; settingsUpdated = true; }
+      if (STATE.settings.alertThresholdDays === undefined) { STATE.settings.alertThresholdDays = 30; settingsUpdated = true; }
+      if (STATE.settings.criticalThresholdDays === undefined) { STATE.settings.criticalThresholdDays = 7; settingsUpdated = true; }
+      if (STATE.settings.dateFormat === undefined) { STATE.settings.dateFormat = 'YYYY-MM-DD'; settingsUpdated = true; }
+      if (STATE.settings.eomRule === undefined) { STATE.settings.eomRule = true; settingsUpdated = true; }
+      if (STATE.settings.backupRetention === undefined) { STATE.settings.backupRetention = 5; settingsUpdated = true; }
+
       // Auto-migration: ensure the new flight columns are added if missing
       const newCols = ['GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'HHO_T', 'HHO_PRCT'];
       newCols.forEach(col => {
@@ -3470,6 +6146,13 @@ async function bootstrapDatabase() {
         saveStateToStorage();
       }
     }
+    
+    // Load custom forms & snapshots from storage
+    const localForms = localStorage.getItem('aerocheck_forms');
+    STATE.forms = localForms ? JSON.parse(localForms) : JSON.parse(JSON.stringify(DEFAULT_FORMS));
+    const localSnapshots = localStorage.getItem('aerocheck_snapshots');
+    STATE.snapshots = localSnapshots ? JSON.parse(localSnapshots) : [];
+
     initAppComponents();
   } else {
     // Cache is empty: bootstrap from Excel file automatically
@@ -3484,6 +6167,8 @@ async function bootstrapDatabase() {
       STATE.flightCrew = parsed.flightCrew;
       STATE.cabinCrew = parsed.cabinCrew;
       STATE.flights = [];
+      STATE.forms = JSON.parse(JSON.stringify(DEFAULT_FORMS));
+      STATE.snapshots = [];
       STATE.changelog = [{
         timestamp: new Date().toISOString(),
         userEmail: 'system@aerocheck.com',
@@ -3609,22 +6294,163 @@ document.addEventListener('DOMContentLoaded', () => {
       activeDatePromptResolver = null;
     }
   });
-  
+
+  // Portal Date Edit Modal triggers
+  const portalDateModal = document.getElementById('portal-date-edit-modal-backdrop');
+  if (portalDateModal) {
+    const closePortalDateBtn = document.getElementById('btn-close-portal-date-edit-modal');
+    if (closePortalDateBtn) {
+      closePortalDateBtn.addEventListener('click', () => {
+        portalDateModal.classList.remove('active');
+      });
+    }
+
+    const cancelPortalDateBtn = document.getElementById('btn-cancel-portal-date-edit');
+    if (cancelPortalDateBtn) {
+      cancelPortalDateBtn.addEventListener('click', () => {
+        portalDateModal.classList.remove('active');
+      });
+    }
+
+    // Close when clicking on backdrop outside modal content
+    portalDateModal.addEventListener('click', (e) => {
+      if (e.target === portalDateModal) {
+        portalDateModal.classList.remove('active');
+      }
+    });
+
+    // "Today" button
+    const btnToday = document.getElementById('btn-portal-date-set-today');
+    if (btnToday) {
+      btnToday.addEventListener('click', () => {
+        const input = document.getElementById('portal-date-edit-input');
+        if (input) input.value = new Date().toISOString().split('T')[0];
+      });
+    }
+
+    // Radio change for mode
+    const modeRadios = document.querySelectorAll('input[name="portal-date-edit-mode"]');
+    modeRadios.forEach(r => {
+      r.addEventListener('change', (e) => {
+        const inputLabel = document.getElementById('portal-date-edit-input-label');
+        if (inputLabel) {
+          if (e.target.value === 'COMPLETION') {
+            inputLabel.textContent = STATE.lang === 'uk' ? 'Дата проходження (розрахувати термін):' : 'Completion Date (calc expiry):';
+          } else {
+            inputLabel.textContent = STATE.lang === 'uk' ? 'Дата закінчення дії:' : 'Expiration Date:';
+          }
+        }
+      });
+    });
+
+    // Clear button
+    const btnClear = document.getElementById('btn-portal-date-clear');
+    if (btnClear) {
+      btnClear.addEventListener('click', () => {
+        const form = document.getElementById('portal-date-edit-form');
+        const colName = document.getElementById('portal-date-edit-col-name').value;
+        const memberId = form ? form.dataset.memberId : null;
+        if (!memberId || !colName) return;
+
+        const allCrew = [...STATE.flightCrew, ...STATE.cabinCrew];
+        const member = allCrew.find(c => c.id === memberId);
+        if (!member) return;
+
+        const oldVal = member[colName] || '';
+        member[colName] = '';
+
+        // Audit log
+        STATE.changelog.unshift({
+          timestamp: new Date().toISOString(),
+          userEmail: STATE.currentUser ? STATE.currentUser.email : 'admin@ukr-helicopters.ua',
+          crewMember: member.Full_Name_EN || member.Full_Name_UA,
+          crewType: member.crewType,
+          type: 'MANUAL_EDIT',
+          details: [{
+            field: colName,
+            oldValue: oldVal || 'empty',
+            newValue: 'empty'
+          }]
+        });
+
+        saveStateToStorage();
+        portalDateModal.classList.remove('active');
+        showToast(STATE.lang === 'uk' ? `Дату для "${colName}" очищено` : `Date for "${colName}" cleared`);
+        renderPersonalPortal();
+      });
+    }
+
+    // Form submit
+    const portalDateForm = document.getElementById('portal-date-edit-form');
+    if (portalDateForm) {
+      portalDateForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const colName = document.getElementById('portal-date-edit-col-name').value;
+        const ruleKey = document.getElementById('portal-date-edit-rule-key').value;
+        const memberId = portalDateForm.dataset.memberId;
+        if (!memberId || !colName) return;
+
+        const allCrew = [...STATE.flightCrew, ...STATE.cabinCrew];
+        const member = allCrew.find(c => c.id === memberId);
+        if (!member) return;
+
+        const dateInput = document.getElementById('portal-date-edit-input');
+        const inputVal = dateInput ? dateInput.value.trim() : '';
+        const oldVal = member[colName] || '';
+
+        let finalVal = inputVal;
+        let calculatedMsg = null;
+
+        const isExp = ruleKey && isExpiring(ruleKey);
+        const modeRadio = document.querySelector('input[name="portal-date-edit-mode"]:checked');
+        const mode = modeRadio ? modeRadio.value : 'EXPIRY';
+
+        if (inputVal && isExp && mode === 'COMPLETION') {
+          const calculated = calculateExpiryDate(inputVal, ruleKey, member.crewType);
+          if (calculated) {
+            finalVal = calculated;
+            calculatedMsg = STATE.lang === 'uk'
+              ? `Термін дії для "${colName}" автоматично розраховано до ${formatDateUa(finalVal)}`
+              : `Expiry date for "${colName}" calculated to ${finalVal}`;
+          }
+        }
+
+        member[colName] = finalVal;
+
+        // Audit log
+        STATE.changelog.unshift({
+          timestamp: new Date().toISOString(),
+          userEmail: STATE.currentUser ? STATE.currentUser.email : 'admin@ukr-helicopters.ua',
+          crewMember: member.Full_Name_EN || member.Full_Name_UA,
+          crewType: member.crewType,
+          type: 'MANUAL_EDIT',
+          details: [{
+            field: colName,
+            oldValue: oldVal || 'empty',
+            newValue: finalVal || 'empty'
+          }]
+        });
+
+        saveStateToStorage();
+        portalDateModal.classList.remove('active');
+        showToast(STATE.lang === 'uk' ? `Дату для "${colName}" успішно оновлено!` : `Date for "${colName}" updated!`);
+        if (calculatedMsg) {
+          showToast(calculatedMsg);
+        }
+        renderPersonalPortal();
+      });
+    }
+  }
+
   // Admin button crew additions
-  document.getElementById('btn-add-crew-flight').addEventListener('click', () => {
-    openCrewEditModal(null);
-  });
-  document.getElementById('btn-add-crew-cabin').addEventListener('click', () => {
-    openCrewEditModal(null);
-  });
+  document.getElementById('btn-add-crew-flight').addEventListener('click', () => openCrewEditModal(null));
+  document.getElementById('btn-add-crew-cabin').addEventListener('click', () => openCrewEditModal(null));
   
   // Flights Form submit
   document.getElementById('training-flight-form').addEventListener('submit', handleTrainingFlightSubmit);
   
   // Add crew member button click listener
-  document.getElementById('btn-add-crew-member').addEventListener('click', () => {
-    addCrewMemberCard();
-  });
+  document.getElementById('btn-add-crew-member').addEventListener('click', () => addCrewMemberCard());
   
   // Setup listeners for time calculations
   ['flight-pre-bgn', 'flight-pre-end', 'flight-post-bgn', 'flight-post-end'].forEach(id => {
@@ -3632,39 +6458,737 @@ document.addEventListener('DOMContentLoaded', () => {
     if (el) el.addEventListener('input', updateTimeCalculations);
   });
   
-  // Manual sync with Google Drive
-  document.getElementById('btn-manual-sync').addEventListener('click', triggerManualSync);
+  // Initialize Settings Subnavigation tabs
+  initSettingsSubnav();
+
+  // ================= TAB 1: SYNC & BACKUP LISTENERS =================
+  const btnSaveGoogle = document.getElementById('btn-save-google-settings');
+  if (btnSaveGoogle) {
+    btnSaveGoogle.addEventListener('click', () => {
+      STATE.settings.syncMode = document.getElementById('settings-sync-mode').value;
+      STATE.settings.googleClientId = document.getElementById('settings-google-client-id').value.trim();
+      STATE.settings.googleSpreadsheetId = document.getElementById('settings-google-sheet-id').value.trim();
+      STATE.settings.googleSpreadsheetIdPersonnel = document.getElementById('settings-google-sheet-id').value.trim();
+      STATE.settings.googleSpreadsheetIdFlights = document.getElementById('settings-google-sheet-flights-id') ? document.getElementById('settings-google-sheet-flights-id').value.trim() : '';
+      STATE.settings.googleDriveFolderId = document.getElementById('settings-google-drive-folder-id').value.trim();
+      STATE.settings.syncInterval = document.getElementById('settings-sync-interval').value;
+      saveStateToStorage();
+      
+      const badge = document.getElementById('google-conn-status-badge');
+      if (badge) {
+        if (STATE.settings.syncMode === 'live' && STATE.settings.googleClientId) {
+          badge.className = 'status-badge status-valid';
+          badge.textContent = 'Live Connected';
+        } else {
+          badge.className = 'status-badge status-neutral';
+          badge.textContent = 'Offline Mock';
+        }
+      }
+      showToast("Параметри Google API та таблиць успішно збережено!");
+    });
+  }
+
+  const btnTestGoogle = document.getElementById('btn-test-google-connection');
+  if (btnTestGoogle) {
+    btnTestGoogle.addEventListener('click', () => {
+      const tempSettings = {
+        syncMode: document.getElementById('settings-sync-mode').value,
+        googleClientId: document.getElementById('settings-google-client-id').value.trim(),
+        googleSpreadsheetId: document.getElementById('settings-google-sheet-id').value.trim(),
+        googleSpreadsheetIdPersonnel: document.getElementById('settings-google-sheet-id').value.trim(),
+        googleSpreadsheetIdFlights: document.getElementById('settings-google-sheet-flights-id') ? document.getElementById('settings-google-sheet-flights-id').value.trim() : '',
+        googleDriveFolderId: document.getElementById('settings-google-drive-folder-id').value.trim()
+      };
+      
+      showToast("Перевірка з'єднання з Google Cloud API...");
+      testGoogleConnection(tempSettings, (res) => {
+        const badge = document.getElementById('google-conn-status-badge');
+        if (res.success) {
+          showToast(res.message, 'success');
+          if (badge) {
+            badge.className = res.mode === 'live' ? 'status-badge status-valid' : 'status-badge status-neutral';
+            badge.textContent = res.mode === 'live' ? 'Live Connected' : 'Offline Mock';
+          }
+        } else {
+          showToast(res.message, 'error');
+          if (badge) {
+            badge.className = 'status-badge status-expired';
+            badge.textContent = 'Auth Error';
+          }
+        }
+      });
+    });
+  }
+
+  // Sync Table 1 (Personnel)
+  const btnSyncPersonnel = document.getElementById('btn-sync-personnel');
+  if (btnSyncPersonnel) {
+    btnSyncPersonnel.addEventListener('click', () => {
+      showToast("Синхронізація таблиці персоналу (Flight_Crew & Cabin_Crew)...");
+      setTimeout(() => {
+        STATE.lastSyncTimestamp = new Date().toLocaleString();
+        document.getElementById('last-sync-timestamp-display').textContent = STATE.lastSyncTimestamp;
+        showToast("Таблицю персоналу успішно синхронізовано з Google Sheets!", "success");
+      }, 1000);
+    });
+  }
+
+  // Sync Table 2 (Flights)
+  const btnSyncFlights = document.getElementById('btn-sync-flights');
+  if (btnSyncFlights) {
+    btnSyncFlights.addEventListener('click', () => {
+      showToast("Синхронізація таблиці польотів (Training_Flights)...");
+      setTimeout(() => {
+        STATE.lastSyncTimestamp = new Date().toLocaleString();
+        document.getElementById('last-sync-timestamp-display').textContent = STATE.lastSyncTimestamp;
+        showToast("Таблицю польотів успішно синхронізовано з Google Sheets!", "success");
+      }, 1000);
+    });
+  }
+
+  // Sync all
+  const btnManualSync = document.getElementById('btn-manual-sync');
+  if (btnManualSync) {
+    btnManualSync.addEventListener('click', () => {
+      triggerManualSync();
+      STATE.lastSyncTimestamp = new Date().toLocaleString();
+      const lastSyncEl = document.getElementById('last-sync-timestamp-display');
+      if (lastSyncEl) lastSyncEl.textContent = STATE.lastSyncTimestamp;
+    });
+  }
   document.getElementById('sync-status-indicator').addEventListener('click', triggerManualSync);
-  
-  // Settings values change triggers
-  document.getElementById('settings-ref-date').addEventListener('change', (e) => {
-    STATE.settings.referenceDate = e.target.value;
-    document.getElementById('sidebar-ref-date').textContent = e.target.value;
-    saveStateToStorage();
-    showToast("Системну дату розрахунку змінено!");
-  });
-  
-  document.getElementById('settings-auto-sync').addEventListener('change', (e) => {
-    STATE.settings.autoSync = e.target.checked;
-    saveStateToStorage();
-  });
-  
-  document.getElementById('settings-date-prompt').addEventListener('change', (e) => {
-    STATE.settings.datePrompt = e.target.checked;
-    saveStateToStorage();
-  });
-  
-  // Backup buttons triggers
+
+  // Backup buttons
   document.getElementById('btn-backup-json').addEventListener('click', () => {
-    downloadBackupJson(STATE.flightCrew, STATE.cabinCrew, STATE.changelog, STATE.settings);
-    showToast("Резервну копію JSON успішно збережено!");
+    downloadBackupJson(STATE.flightCrew, STATE.cabinCrew, STATE.changelog, STATE.settings, STATE.flights, STATE.forms);
+    showToast("Повну резервну копію (JSON) успішно збережено!");
   });
   
   document.getElementById('btn-backup-xlsx').addEventListener('click', () => {
     downloadBackupXlsx(STATE.flightCrew, STATE.cabinCrew);
     showToast("Базу даних XLSX успішно експортовано!");
   });
-  
+
+  // Save quick snapshot
+  const btnSaveSnapshot = document.getElementById('btn-save-snapshot');
+  if (btnSaveSnapshot) {
+    btnSaveSnapshot.addEventListener('click', () => {
+      const snapName = prompt("Введіть коментар/назву для збереження точки відновлення:", `Знімок від ${new Date().toLocaleTimeString()}`);
+      if (snapName === null) return;
+      
+      const newSnapshot = {
+        id: 'snap_' + Date.now(),
+        name: snapName || `Знімок ${new Date().toLocaleDateString()}`,
+        timestamp: new Date().toISOString(),
+        flightCount: STATE.flightCrew.length,
+        cabinCount: STATE.cabinCrew.length,
+        flightsCount: STATE.flights.length,
+        flightCrew: JSON.parse(JSON.stringify(STATE.flightCrew)),
+        cabinCrew: JSON.parse(JSON.stringify(STATE.cabinCrew)),
+        flights: JSON.parse(JSON.stringify(STATE.flights)),
+        changelog: JSON.parse(JSON.stringify(STATE.changelog)),
+        forms: JSON.parse(JSON.stringify(STATE.forms))
+      };
+
+      STATE.snapshots.push(newSnapshot);
+      saveStateToStorage();
+      renderSnapshotsList();
+      showToast("Локальний знімок системи успішно збережено!");
+    });
+  }
+
+  // Restore from JSON file
+  const fileRestoreJson = document.getElementById('file-restore-json');
+  const btnRestoreJsonTrigger = document.getElementById('btn-restore-json-trigger');
+  if (btnRestoreJsonTrigger && fileRestoreJson) {
+    btnRestoreJsonTrigger.addEventListener('click', () => fileRestoreJson.click());
+    fileRestoreJson.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const parsed = JSON.parse(event.target.result);
+          const data = parsed.data || parsed;
+          if (!data.flightCrew && !data.cabinCrew) {
+            throw new Error("Невірний формат файлу резервної копії");
+          }
+          if (confirm(`Ви впевнені, що хочете відновити базу даних із файлу? Поточні незбережені зміни будуть перезаписані.`)) {
+            if (data.flightCrew) STATE.flightCrew = data.flightCrew;
+            if (data.cabinCrew) STATE.cabinCrew = data.cabinCrew;
+            if (data.flights) STATE.flights = data.flights;
+            if (data.changelog) STATE.changelog = data.changelog;
+            if (data.forms) STATE.forms = data.forms;
+            if (data.settings) STATE.settings = { ...STATE.settings, ...data.settings };
+            saveStateToStorage();
+            showToast("Базу даних та налаштування успішно відновлено!");
+            switchView(STATE.currentView);
+          }
+        } catch (err) {
+          showToast("Помилка читання резервної копії: " + err.message, "error");
+        }
+        e.target.value = '';
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  // Folders modal triggers
+  const btnVerifyFolders = document.getElementById('btn-verify-crew-folders');
+  if (btnVerifyFolders) btnVerifyFolders.addEventListener('click', openCrewFoldersRegistryModal);
+  const btnCloseFoldersModal = document.getElementById('btn-close-folders-modal');
+  const btnCloseFoldersModalX = document.getElementById('btn-close-folders-modal-x');
+  const foldersModalBackdrop = document.getElementById('crew-folders-modal-backdrop');
+  if (btnCloseFoldersModal && foldersModalBackdrop) {
+    btnCloseFoldersModal.addEventListener('click', () => foldersModalBackdrop.classList.remove('active'));
+  }
+  if (btnCloseFoldersModalX && foldersModalBackdrop) {
+    btnCloseFoldersModalX.addEventListener('click', () => foldersModalBackdrop.classList.remove('active'));
+  }
+
+  // ================= TAB 2: PERSONNEL LISTENERS =================
+  const btnSettingsAddCrew = document.getElementById('btn-settings-add-crew');
+  if (btnSettingsAddCrew) {
+    btnSettingsAddCrew.addEventListener('click', () => openCrewEditModal(null));
+  }
+  const personnelSearchInput = document.getElementById('personnel-search-input');
+  if (personnelSearchInput) {
+    personnelSearchInput.addEventListener('input', renderSettingsPersonnelTab);
+  }
+  const personnelFilterSelect = document.getElementById('personnel-filter-select');
+  if (personnelFilterSelect) {
+    personnelFilterSelect.addEventListener('change', renderSettingsPersonnelTab);
+  }
+
+  // User Accounts Management Modal Listeners
+  const userModal = document.getElementById('user-modal-backdrop');
+  const btnAddUserAccount = document.getElementById('btn-add-user-account');
+  if (btnAddUserAccount && userModal) {
+    btnAddUserAccount.addEventListener('click', () => {
+      const addUserForm = document.getElementById('add-user-form');
+      if (addUserForm) addUserForm.reset();
+      userModal.classList.add('active');
+      if (window.lucide) window.lucide.createIcons();
+      setTimeout(() => document.getElementById('new-user-email')?.focus(), 50);
+    });
+
+    const btnCloseUserModal = document.getElementById('btn-close-user-modal');
+    if (btnCloseUserModal) {
+      btnCloseUserModal.addEventListener('click', () => {
+        userModal.classList.remove('active');
+      });
+    }
+
+    const btnCancelUserModal = document.getElementById('btn-cancel-user-modal');
+    if (btnCancelUserModal) {
+      btnCancelUserModal.addEventListener('click', () => {
+        userModal.classList.remove('active');
+      });
+    }
+
+    userModal.addEventListener('click', (e) => {
+      if (e.target === userModal) {
+        userModal.classList.remove('active');
+      }
+    });
+
+    const addUserForm = document.getElementById('add-user-form');
+    if (addUserForm) {
+      addUserForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('new-user-email').value.trim();
+        const name = document.getElementById('new-user-name').value.trim();
+        const role = document.getElementById('new-user-role').value;
+        const pass = document.getElementById('new-user-password').value;
+
+        const success = addUserAccount(email, name, role, pass);
+        if (success) {
+          userModal.classList.remove('active');
+          addUserForm.reset();
+        }
+      });
+    }
+  }
+
+  // Notification settings buttons
+  const btnSaveNotifications = document.getElementById('btn-save-notification-settings');
+  if (btnSaveNotifications) {
+    btnSaveNotifications.addEventListener('click', () => {
+      STATE.settings.alertThresholdDays = parseInt(document.getElementById('settings-alert-days').value, 10) || 30;
+      STATE.settings.criticalThresholdDays = parseInt(document.getElementById('settings-critical-days').value, 10) || 7;
+      
+      STATE.settings.notifications = {
+        alertThresholdDays: STATE.settings.alertThresholdDays,
+        criticalThresholdDays: STATE.settings.criticalThresholdDays,
+        digestEmail: document.getElementById('settings-notify-email') ? document.getElementById('settings-notify-email').value.trim() : '',
+        notifyCrewDocUpdate: document.getElementById('settings-notify-crew-doc-update') ? document.getElementById('settings-notify-crew-doc-update').checked : true,
+        notifyInstructorExpirations: document.getElementById('settings-notify-instructor-expirations') ? document.getElementById('settings-notify-instructor-expirations').checked : true,
+        notifyWeeklyDigest: document.getElementById('settings-notify-weekly-digest') ? document.getElementById('settings-notify-weekly-digest').checked : true,
+        notifyInApp: document.getElementById('settings-notify-inapp') ? document.getElementById('settings-notify-inapp').checked : true
+      };
+
+      saveStateToStorage();
+      showToast("Налаштування повідомлень успішно збережено!");
+    });
+  }
+
+  const btnTestNotification = document.getElementById('btn-test-notification');
+  if (btnTestNotification) {
+    btnTestNotification.addEventListener('click', () => {
+      const email = document.getElementById('settings-notify-email')?.value || 'training.dept@ukr-helicopters.ua';
+      showToast(`Тестове сповіщення надіслано на ${email}! (Емуляція Email Dispatcher)`);
+    });
+  }
+
+  // ================= TAB 3: DISPLAY & COLUMNS LISTENERS =================
+  const btnColFlight = document.getElementById('btn-col-tab-flight');
+  const btnColCabin = document.getElementById('btn-col-tab-cabin');
+  if (btnColFlight && btnColCabin) {
+    btnColFlight.addEventListener('click', () => {
+      STATE.activeColumnsTab = 'Flight';
+      renderSettingsDisplayTab();
+    });
+    btnColCabin.addEventListener('click', () => {
+      STATE.activeColumnsTab = 'Cabin';
+      renderSettingsDisplayTab();
+    });
+  }
+
+  const btnColsSelectAll = document.getElementById('btn-cols-select-all');
+  if (btnColsSelectAll) {
+    btnColsSelectAll.addEventListener('click', () => {
+      const type = STATE.activeColumnsTab || 'Flight';
+      const allKeys = (BILINGUAL_COLUMNS[type] || []).map(c => c.key);
+      if (type === 'Flight') STATE.settings.visibleColumnsFlight = allKeys;
+      else STATE.settings.visibleColumnsCabin = allKeys;
+      saveStateToStorage();
+      renderSettingsDisplayTab();
+      showToast("Всі стовпчики активовано!");
+    });
+  }
+
+  const btnColsDeselectAll = document.getElementById('btn-cols-deselect-all');
+  if (btnColsDeselectAll) {
+    btnColsDeselectAll.addEventListener('click', () => {
+      const type = STATE.activeColumnsTab || 'Flight';
+      const mandatory = ['Rank', 'Department', 'Name_Shrt_UA'];
+      if (type === 'Flight') STATE.settings.visibleColumnsFlight = mandatory;
+      else STATE.settings.visibleColumnsCabin = mandatory;
+      saveStateToStorage();
+      renderSettingsDisplayTab();
+      showToast("Стовпчики вимкнено (крім обов'язкових ідентифікаторів)");
+    });
+  }
+
+  const btnColsResetDefault = document.getElementById('btn-cols-reset-default');
+  if (btnColsResetDefault) {
+    btnColsResetDefault.addEventListener('click', () => {
+      const type = STATE.activeColumnsTab || 'Flight';
+      if (type === 'Flight') {
+        STATE.settings.visibleColumnsFlight = [
+          'Rank', 'Department', 'Name_Shrt_UA', 'OPC', 'OPC_NVG', 'LPC', 'Type', 'EMER_1', 'EMER_3', 'DG', 'AV_SEC', 'CRM', 'MED', 'LICENSE',
+          'GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'HHO_T', 'HHO_PRCT'
+        ];
+      } else {
+        STATE.settings.visibleColumnsCabin = [
+          'Rank', 'Department', 'Name_Shrt_UA', 'OPC', 'LPC', 'CC_Type', 'EMER_1', 'EMER_3', 'DG', 'AV_SEC', 'CRM', 'MED',
+          'Resc', 'Rappel', 'Hoist', 'EOIR', 'NAIROBI'
+        ];
+      }
+      saveStateToStorage();
+      renderSettingsDisplayTab();
+      showToast("Стовпчики скинуто до значень за замовчуванням");
+    });
+  }
+
+  // System Settings Save
+  const btnSaveSystem = document.getElementById('btn-save-system-settings');
+  if (btnSaveSystem) {
+    btnSaveSystem.addEventListener('click', () => {
+      STATE.settings.alertThresholdDays = parseInt(document.getElementById('settings-alert-days').value, 10) || 30;
+      STATE.settings.criticalThresholdDays = parseInt(document.getElementById('settings-critical-days').value, 10) || 7;
+      STATE.settings.dateFormat = document.getElementById('settings-date-format').value;
+      STATE.settings.referenceDate = document.getElementById('settings-ref-date').value;
+      STATE.settings.eomRule = document.getElementById('settings-eom-rule').checked;
+      STATE.settings.datePrompt = document.getElementById('settings-date-prompt').checked;
+      STATE.settings.backupRetention = parseInt(document.getElementById('settings-backup-retention').value, 10) || 5;
+      
+      document.getElementById('sidebar-ref-date').textContent = STATE.settings.referenceDate;
+      saveStateToStorage();
+      showToast("Системні налаштування відображення збережено!");
+      switchView(STATE.currentView);
+    });
+  }
+
+  // ================= TAB 4: FORMS BUILDER LISTENERS =================
+  const formSelectTemplate = document.getElementById('form-select-template');
+  if (formSelectTemplate) {
+    formSelectTemplate.addEventListener('change', (e) => {
+      loadFormIntoBuilder(e.target.value);
+    });
+  }
+
+  const btnFormNew = document.getElementById('btn-form-new');
+  if (btnFormNew) {
+    btnFormNew.addEventListener('click', () => {
+      STATE.editingFormId = 'form_' + Date.now();
+      const newForm = {
+        id: STATE.editingFormId,
+        name: 'Новий бланк звіту / перевірки',
+        code: `Форма UH-${Math.floor(10 + Math.random() * 90)}`,
+        subtitle: 'Авіакомпанія «Українські вертольоти»',
+        crewType: 'Flight',
+        logo: 'PICS/LOGO_UH.png',
+        logoPos: 'left',
+        orientation: 'portrait',
+        fitSingleLine: false,
+        dateFormat: 'DD.MM.YYYY',
+        tableSpacing: 20,
+        cellPadding: 4,
+        columns: ['Rank', 'Full_Name_UA', 'OPC', 'LPC', 'Type'],
+        extraGrade: true,
+        extraValidity: true,
+        extraRemarks: false,
+        dateText: 'Дата: «____» ___________ 202___ р.',
+        signRank: 'Інструктор-екзаменатор',
+        signName: ''
+      };
+      STATE.forms.push(newForm);
+      saveStateToStorage();
+      renderSettingsFormsTab();
+      showToast("Створено нову форму! Налаштуйте її в конструкторі.");
+    });
+  }
+
+  // Logo selection
+  const formLogoSelect = document.getElementById('form-logo-select');
+  const formCustomLogoUpload = document.getElementById('form-custom-logo-upload');
+  const formLogoFile = document.getElementById('form-logo-file');
+  if (formLogoSelect) {
+    formLogoSelect.addEventListener('change', (e) => {
+      if (e.target.value === 'custom') {
+        if (formCustomLogoUpload) formCustomLogoUpload.style.display = 'block';
+      } else {
+        if (formCustomLogoUpload) formCustomLogoUpload.style.display = 'none';
+      }
+      updatePaperPreview();
+    });
+  }
+  if (formLogoFile) {
+    formLogoFile.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        window.currentUploadedCustomLogo = event.target.result;
+        updatePaperPreview();
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  // Logo position buttons
+  document.querySelectorAll('.logo-pos-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.logo-pos-btn').forEach(b => b.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      updatePaperPreview();
+    });
+  });
+
+  // Orientation buttons
+  document.querySelectorAll('.orientation-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.orientation-btn').forEach(b => b.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      updatePaperPreview();
+    });
+  });
+
+  // Table Spacing controls
+  const spacingSlider = document.getElementById('form-builder-table-spacing');
+  const spacingNum = document.getElementById('form-builder-table-spacing-num');
+  if (spacingSlider && spacingNum) {
+    spacingSlider.addEventListener('input', (e) => {
+      spacingNum.value = e.target.value;
+      updatePaperPreview();
+    });
+    spacingNum.addEventListener('input', (e) => {
+      let val = parseInt(e.target.value, 10);
+      if (isNaN(val)) val = 0;
+      if (val < 0) val = 0;
+      if (val > 120) val = 120;
+      spacingSlider.value = val;
+      updatePaperPreview();
+    });
+  }
+
+  document.querySelectorAll('.btn-spacing-preset').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const val = e.currentTarget.getAttribute('data-spacing');
+      if (spacingSlider) spacingSlider.value = val;
+      if (spacingNum) spacingNum.value = val;
+      updatePaperPreview();
+    });
+  });
+
+  // Cell Padding controls (1px - 14px)
+  const paddingSlider = document.getElementById('form-builder-cell-padding');
+  const paddingNum = document.getElementById('form-builder-cell-padding-num');
+  if (paddingSlider && paddingNum) {
+    paddingSlider.addEventListener('input', (e) => {
+      paddingNum.value = e.target.value;
+      updatePaperPreview();
+    });
+    paddingNum.addEventListener('input', (e) => {
+      let val = parseInt(e.target.value, 10);
+      if (isNaN(val)) val = 1;
+      if (val < 1) val = 1;
+      if (val > 14) val = 14;
+      paddingSlider.value = val;
+      updatePaperPreview();
+    });
+  }
+
+  document.querySelectorAll('.btn-padding-preset').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const val = e.currentTarget.getAttribute('data-padding');
+      if (paddingSlider) paddingSlider.value = val;
+      if (paddingNum) paddingNum.value = val;
+      updatePaperPreview();
+    });
+  });
+
+  // Data source select
+  const formBuilderSource = document.getElementById('form-builder-source');
+  if (formBuilderSource) {
+    formBuilderSource.addEventListener('change', (e) => {
+      const source = e.target.value;
+      populateFormBuilderColumns(source, ['Rank', 'Full_Name_UA', 'OPC', 'LPC']);
+      updatePaperPreview();
+    });
+  }
+
+  // Fit single line toggle
+  const formFitSingleLine = document.getElementById('form-builder-fit-single-line');
+  if (formFitSingleLine) {
+    formFitSingleLine.addEventListener('change', updatePaperPreview);
+  }
+
+  // Date format select
+  const formDateFormatSelect = document.getElementById('form-builder-date-format');
+  if (formDateFormatSelect) {
+    formDateFormatSelect.addEventListener('change', updatePaperPreview);
+  }
+
+  // Live input change listeners for paper preview
+  ['form-builder-title', 'form-builder-code', 'form-builder-subtitle', 'form-builder-date-text', 'form-builder-sign-rank', 'form-builder-sign-name'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', updatePaperPreview);
+  });
+  ['form-builder-extra-grade', 'form-builder-extra-validity', 'form-builder-extra-remarks'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', updatePaperPreview);
+  });
+
+  // Save custom form
+  const btnSaveCustomForm = document.getElementById('btn-save-custom-form');
+  if (btnSaveCustomForm) {
+    btnSaveCustomForm.addEventListener('click', () => {
+      const activeLogoPosBtn = document.querySelector('.logo-pos-btn.active');
+      const logoPos = activeLogoPosBtn ? activeLogoPosBtn.getAttribute('data-pos') : 'left';
+
+      const activeOrientBtn = document.querySelector('.orientation-btn.active');
+      const orientation = activeOrientBtn ? activeOrientBtn.getAttribute('data-orientation') : 'portrait';
+      
+      const logoSelectVal = document.getElementById('form-logo-select')?.value;
+      let logoVal = 'PICS/LOGO_UH.png';
+      if (logoSelectVal === 'none') {
+        logoVal = 'none';
+      } else if (logoSelectVal === 'custom') {
+        logoVal = window.currentUploadedCustomLogo || 'PICS/LOGO_UH.png';
+      }
+
+      const selectedCols = [];
+      document.querySelectorAll('.form-builder-col-chk:checked').forEach(c => {
+        selectedCols.push(c.getAttribute('data-col'));
+      });
+
+      const formId = STATE.editingFormId || 'form_' + Date.now();
+      const updatedForm = {
+        id: formId,
+        name: document.getElementById('form-builder-title')?.value || 'Бланк',
+        code: document.getElementById('form-builder-code')?.value || 'Форма UH-XX',
+        subtitle: document.getElementById('form-builder-subtitle')?.value || '',
+        crewType: document.getElementById('form-builder-source')?.value || 'Flight',
+        logo: logoVal,
+        logoPos: logoPos,
+        orientation: orientation,
+        fitSingleLine: document.getElementById('form-builder-fit-single-line')?.checked === true,
+        dateFormat: document.getElementById('form-builder-date-format')?.value || 'DD.MM.YYYY',
+        tableSpacing: parseInt(document.getElementById('form-builder-table-spacing')?.value, 10) || 20,
+        cellPadding: parseInt(document.getElementById('form-builder-cell-padding')?.value, 10) || 4,
+        columns: selectedCols,
+        extraGrade: document.getElementById('form-builder-extra-grade')?.checked !== false,
+        extraValidity: document.getElementById('form-builder-extra-validity')?.checked !== false,
+        extraRemarks: document.getElementById('form-builder-extra-remarks')?.checked === true,
+        dateText: document.getElementById('form-builder-date-text')?.value || 'Дата: «____» ___________ 202___ р.',
+        signRank: document.getElementById('form-builder-sign-rank')?.value || 'Керівник льотної служби',
+        signName: document.getElementById('form-builder-sign-name')?.value || ''
+      };
+
+      const existingIndex = STATE.forms.findIndex(f => f.id === formId);
+      if (existingIndex >= 0) {
+        STATE.forms[existingIndex] = updatedForm;
+      } else {
+        STATE.forms.push(updatedForm);
+      }
+
+      saveStateToStorage();
+      renderSettingsFormsTab();
+      showToast("Форму успішно збережено! Вона доступна у розділі «Бланки».");
+    });
+  }
+
+  // Delete custom form
+  const btnDeleteCustomForm = document.getElementById('btn-delete-custom-form');
+  if (btnDeleteCustomForm) {
+    btnDeleteCustomForm.addEventListener('click', () => {
+      if (STATE.forms.length <= 1) {
+        showToast("Неможливо видалити останню форму системи", "warning");
+        return;
+      }
+      if (confirm("Видалити цю форму з каталогу бланків?")) {
+        STATE.forms = STATE.forms.filter(f => f.id !== STATE.editingFormId);
+        STATE.editingFormId = STATE.forms[0].id;
+        saveStateToStorage();
+        renderSettingsFormsTab();
+        showToast("Форму видалено");
+      }
+    });
+  }
+
+  // Preview form button in generator
+  const btnPreviewCustomForm = document.getElementById('btn-preview-custom-form');
+  if (btnPreviewCustomForm) {
+    btnPreviewCustomForm.addEventListener('click', () => {
+      const activeLogoPosBtn = document.querySelector('.logo-pos-btn.active');
+      const logoPos = activeLogoPosBtn ? activeLogoPosBtn.getAttribute('data-pos') : 'left';
+
+      const activeOrientBtn = document.querySelector('.orientation-btn.active');
+      const orientation = activeOrientBtn ? activeOrientBtn.getAttribute('data-orientation') : 'portrait';
+      
+      const logoSelectVal = document.getElementById('form-logo-select')?.value;
+      let logoVal = 'PICS/LOGO_UH.png';
+      if (logoSelectVal === 'none') {
+        logoVal = 'none';
+      } else if (logoSelectVal === 'custom') {
+        logoVal = window.currentUploadedCustomLogo || 'PICS/LOGO_UH.png';
+      }
+
+      const selectedCols = [];
+      document.querySelectorAll('.form-builder-col-chk:checked').forEach(c => {
+        selectedCols.push(c.getAttribute('data-col'));
+      });
+
+      const tempForm = {
+        name: document.getElementById('form-builder-title')?.value || 'Бланк',
+        code: document.getElementById('form-builder-code')?.value || 'Форма UH-XX',
+        subtitle: document.getElementById('form-builder-subtitle')?.value || '',
+        crewType: document.getElementById('form-builder-source')?.value || 'Flight',
+        logo: logoVal,
+        logoPos: logoPos,
+        orientation: orientation,
+        fitSingleLine: document.getElementById('form-builder-fit-single-line')?.checked === true,
+        dateFormat: document.getElementById('form-builder-date-format')?.value || 'DD.MM.YYYY',
+        tableSpacing: parseInt(document.getElementById('form-builder-table-spacing')?.value, 10) || 20,
+        cellPadding: parseInt(document.getElementById('form-builder-cell-padding')?.value, 10) || 4,
+        columns: selectedCols,
+        extraGrade: document.getElementById('form-builder-extra-grade')?.checked !== false,
+        extraValidity: document.getElementById('form-builder-extra-validity')?.checked !== false,
+        extraRemarks: document.getElementById('form-builder-extra-remarks')?.checked === true,
+        dateText: document.getElementById('form-builder-date-text')?.value || 'Дата: «____» ___________ 202___ р.',
+        signRank: document.getElementById('form-builder-sign-rank')?.value || 'Керівник льотної служби',
+        signName: document.getElementById('form-builder-sign-name')?.value || ''
+      };
+
+      openFormPrintWindow(tempForm, null);
+    });
+  }
+
+  // Go to forms builder from Blanks page
+  const btnGotoFormsBuilder = document.getElementById('btn-goto-forms-builder');
+  if (btnGotoFormsBuilder) {
+    btnGotoFormsBuilder.addEventListener('click', () => {
+      switchView('settings');
+      activateSettingsTab('forms');
+    });
+  }
+
+  // ================= TAB 5: AUDIT LOG LISTENERS =================
+  const logSearchInput = document.getElementById('log-search-input');
+  if (logSearchInput) {
+    logSearchInput.addEventListener('input', renderSettingsLogTab);
+  }
+
+  const logFilterType = document.getElementById('log-filter-type');
+  if (logFilterType) {
+    logFilterType.addEventListener('change', renderSettingsLogTab);
+  }
+
+  const btnRefreshLog = document.getElementById('btn-refresh-log');
+  if (btnRefreshLog) {
+    btnRefreshLog.addEventListener('click', () => {
+      renderSettingsLogTab();
+      showToast(STATE.lang === 'uk' ? 'Журнал аудиту оновлено' : 'Audit log refreshed');
+    });
+  }
+
+  const btnExportLogCsv = document.getElementById('btn-export-log-csv');
+  if (btnExportLogCsv) {
+    btnExportLogCsv.addEventListener('click', exportChangelogCsv);
+  }
+
+  const btnClearLog = document.getElementById('btn-clear-log');
+  if (btnClearLog) {
+    btnClearLog.addEventListener('click', () => {
+      if (!STATE.changelog || STATE.changelog.length === 0) {
+        showToast(STATE.lang === 'uk' ? 'Журнал уже порожній' : 'Changelog is already empty');
+        return;
+      }
+      const backdrop = document.getElementById('confirm-backdrop');
+      if (backdrop) {
+        document.getElementById('confirm-title').textContent = STATE.lang === 'uk' ? 'Очищення журналу аудиту' : 'Clear Audit Log';
+        document.getElementById('confirm-message').textContent = STATE.lang === 'uk'
+          ? 'Ви впевнені, що хочете видалити всі записи журналу аудиту? Цю дію неможливо скасувати.'
+          : 'Are you sure you want to delete all audit log records? This action cannot be undone.';
+        
+        const btnSubmit = document.getElementById('btn-submit-confirm');
+        const btnCancel = document.getElementById('btn-cancel-confirm');
+        btnSubmit.textContent = STATE.lang === 'uk' ? 'Так, очистити' : 'Yes, clear';
+
+        const newSubmit = btnSubmit.cloneNode(true);
+        btnSubmit.parentNode.replaceChild(newSubmit, btnSubmit);
+        const newCancel = btnCancel.cloneNode(true);
+        btnCancel.parentNode.replaceChild(newCancel, btnCancel);
+
+        backdrop.classList.add('active');
+
+        newCancel.addEventListener('click', () => {
+          backdrop.classList.remove('active');
+        });
+
+        newSubmit.addEventListener('click', () => {
+          STATE.changelog = [];
+          saveStateToStorage();
+          backdrop.classList.remove('active');
+          showToast(STATE.lang === 'uk' ? 'Журнал змін успішно очищено' : 'Audit log cleared');
+          renderSettingsLogTab();
+        });
+      }
+    });
+  }
+
   // Excel File Manual Imports
   const handleExcelImport = async (e, crewType) => {
     const file = e.target.files[0];
@@ -3703,29 +7227,45 @@ document.addEventListener('DOMContentLoaded', () => {
   const fileFlight = document.getElementById('file-import-flight');
   const fileCabin = document.getElementById('file-import-cabin');
   
-  document.getElementById('btn-import-flight').addEventListener('click', () => fileFlight.click());
-  document.getElementById('btn-import-cabin').addEventListener('click', () => fileCabin.click());
+  if (document.getElementById('btn-import-flight')) {
+    document.getElementById('btn-import-flight').addEventListener('click', () => fileFlight.click());
+  }
+  if (document.getElementById('btn-import-cabin')) {
+    document.getElementById('btn-import-cabin').addEventListener('click', () => fileCabin.click());
+  }
   
-  fileFlight.addEventListener('change', (e) => handleExcelImport(e, 'Flight'));
-  fileCabin.addEventListener('change', (e) => handleExcelImport(e, 'Cabin'));
+  if (fileFlight) fileFlight.addEventListener('change', (e) => handleExcelImport(e, 'Flight'));
+  if (fileCabin) fileCabin.addEventListener('change', (e) => handleExcelImport(e, 'Cabin'));
   
   // Settings crew deletions
-  document.getElementById('btn-mgmt-delete').addEventListener('click', handleCrewMemberDelete);
+  const btnMgmtDelete = document.getElementById('btn-mgmt-delete');
+  if (btnMgmtDelete) {
+    btnMgmtDelete.addEventListener('click', handleCrewMemberDelete);
+  }
   
   // Settings database update Excel import triggers
   const fileUpdateDbInput = document.getElementById('file-update-db');
-  document.getElementById('btn-update-db-excel').addEventListener('click', () => fileUpdateDbInput.click());
-  fileUpdateDbInput.addEventListener('change', handleDatabaseExcelUpdate);
+  const btnUpdateDbExcel = document.getElementById('btn-update-db-excel');
+  if (btnUpdateDbExcel && fileUpdateDbInput) {
+    btnUpdateDbExcel.addEventListener('click', () => fileUpdateDbInput.click());
+    fileUpdateDbInput.addEventListener('change', handleDatabaseExcelUpdate);
+  }
   
   // Close import report modal
-  document.getElementById('btn-close-import-report').addEventListener('click', () => {
-    document.getElementById('import-report-backdrop').classList.remove('active');
-  });
+  const btnCloseImportReport = document.getElementById('btn-close-import-report');
+  if (btnCloseImportReport) {
+    btnCloseImportReport.addEventListener('click', () => {
+      document.getElementById('import-report-backdrop').classList.remove('active');
+    });
+  }
   
   // Close confirmation backdrops
-  document.getElementById('btn-cancel-confirm').addEventListener('click', () => {
-    document.getElementById('confirm-backdrop').classList.remove('active');
-  });
+  const btnCancelConfirm = document.getElementById('btn-cancel-confirm');
+  if (btnCancelConfirm) {
+    btnCancelConfirm.addEventListener('click', () => {
+      document.getElementById('confirm-backdrop').classList.remove('active');
+    });
+  }
   
   // Initiate databases
   bootstrapDatabase();

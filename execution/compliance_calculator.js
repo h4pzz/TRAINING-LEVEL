@@ -77,7 +77,7 @@ export function calculateExpiryDate(completionDateStr, prepKey, crewType) {
  * @param {string} prepKey - Preparation key (e.g. 'OPC', 'HESLO_PRCT')
  * @returns {string} One of the status keys matching STATUS_THEME keys
  */
-export function determineStatus(dateStr, systemDateStr, prepKey) {
+export function determineStatus(dateStr, systemDateStr, prepKey, warningThreshold = 30, criticalThreshold = 7) {
   if (!dateStr || dateStr === '-' || dateStr.trim() === '') {
     return 'MISSING';
   }
@@ -106,10 +106,10 @@ export function determineStatus(dateStr, systemDateStr, prepKey) {
   const diffTime = expiry.getTime() - system.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   
-  if (diffDays <= 30) {
+  if (diffDays <= criticalThreshold) {
     return 'WARNING_ORANGE';
   }
-  if (diffDays <= 90) {
+  if (diffDays <= warningThreshold) {
     return 'WARNING_YELLOW';
   }
   

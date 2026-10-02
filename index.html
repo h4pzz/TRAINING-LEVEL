@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AeroCheck Crew Training Dashboard</title>
+  <title>UH Training Level Dashboard v0.2</title>
   
   <!-- CSS Stylesheets -->
   <link rel="stylesheet" href="css/variables.css">
@@ -72,6 +72,7 @@
     <aside class="sidebar">
       <div class="logo-container">
         <img src="PICS/LOGO_UH.png" alt="Ukrainian Helicopters">
+        <span class="status-badge status-neutral" style="font-size: 10px; font-weight: 700; padding: 2px 6px; margin-top: 4px; letter-spacing: 0.5px;">v0.2</span>
       </div>
       
       <nav class="nav-links">
@@ -508,183 +509,963 @@
           </div>
         </div>
 
-        <!-- 5. FORMS VIEW -->
+        <!-- 5. FORMS VIEW (БЛАНКИ) -->
         <div class="view-panel" id="view-forms">
           <div class="card">
-            <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600;" data-i18n="forms_list_title">Бланки для заповнення та друку</h3>
-            <div style="display: flex; flex-direction: column; gap: var(--spacing-3);" id="forms-list-container">
-              <!-- Lists of forms -->
-              <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-4); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
-                <div style="display: flex; align-items: center; gap: var(--spacing-3);">
-                  <i data-lucide="file" style="color: var(--accent);"></i>
-                  <div>
-                    <div style="font-weight: 600; font-size: 14px;">Подання на присвоєння кваліфікації (Льотний склад)</div>
-                    <div style="font-size: 12px; color: var(--text-secondary);">Форма UH-F-22 • PDF</div>
-                  </div>
-                </div>
-                <button class="btn btn-secondary" onclick="alert('Скачування бланку...')">
-                  <i data-lucide="download"></i>
-                </button>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-4); margin-bottom: var(--spacing-4);">
+              <div>
+                <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 0;" data-i18n="forms_list_title">Бланки для заповнення та друку</h3>
+                <p style="font-size: 13px; color: var(--text-secondary); margin: 4px 0 0 0;" data-i18n="forms_list_desc">
+                  Виберіть бланк, вкажіть співробітника та відкрийте для друку або експорту в PDF. Налаштувати шаблони можна в Генераторі форм.
+                </p>
               </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-4); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
-                <div style="display: flex; align-items: center; gap: var(--spacing-3);">
-                  <i data-lucide="file" style="color: var(--accent);"></i>
-                  <div>
-                    <div style="font-weight: 600; font-size: 14px;">Звіт про перевірку в польоті БП (Кабінний склад)</div>
-                    <div style="font-size: 12px; color: var(--text-secondary);">Форма UH-C-09 • PDF</div>
-                  </div>
-                </div>
-                <button class="btn btn-secondary" onclick="alert('Скачування бланку...')">
-                  <i data-lucide="download"></i>
-                </button>
-              </div>
+              <button class="btn btn-secondary" id="btn-goto-forms-builder">
+                <i data-lucide="sliders"></i>
+                <span data-i18n="btn_manage_forms">Конструктор та редактор форм</span>
+              </button>
+            </div>
+            
+            <div id="forms-list-container" style="display: flex; flex-direction: column; gap: var(--spacing-3);">
+              <!-- Rendered dynamically by renderForms() -->
             </div>
           </div>
         </div>
 
-        <!-- 6. SETTINGS VIEW -->
+        <!-- 6. SETTINGS VIEW (НАЛАШТУВАННЯ) -->
         <div class="view-panel" id="view-settings">
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-6);">
-            
-            <div style="display: flex; flex-direction: column; gap: var(--spacing-6);">
-              <!-- Sync & Backup Panel -->
-              <div class="card">
-                <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600;" data-i18n="set_sync_backup">Синхронізація та Бекап</h3>
+          
+          <!-- SUB-NAVIGATION TABS -->
+          <div class="settings-subnav-container">
+            <button class="settings-tab-btn active" data-settings-tab="sync">
+              <i data-lucide="refresh-cw"></i>
+              <span data-i18n="tab_sync">Резервне копіювання та Синхронізація</span>
+            </button>
+            <button class="settings-tab-btn" data-settings-tab="personnel">
+              <i data-lucide="users"></i>
+              <span data-i18n="tab_personnel">Персонал та Доступ</span>
+            </button>
+            <button class="settings-tab-btn" data-settings-tab="display">
+              <i data-lucide="columns"></i>
+              <span data-i18n="tab_display">Відображення</span>
+            </button>
+            <button class="settings-tab-btn" data-settings-tab="forms">
+              <i data-lucide="file-text"></i>
+              <span data-i18n="tab_forms">Форми</span>
+            </button>
+            <button class="settings-tab-btn" data-settings-tab="log" id="settings-tab-btn-log">
+              <i data-lucide="history"></i>
+              <span data-i18n="tab_log">Лог</span>
+            </button>
+          </div>
+
+          <!-- TAB 1: РЕЗЕРВНЕ КОПІЮВАННЯ ТА СИНХРОНІЗАЦІЯ -->
+          <div class="settings-tab-panel active" id="settings-panel-sync">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-6);">
+              
+              <!-- Left: Google Sheets & Drive API Settings -->
+              <div style="display: flex; flex-direction: column; gap: var(--spacing-6);">
                 
-                <div style="display: flex; flex-direction: column; gap: var(--spacing-4);">
-                  <!-- Sync settings stubs -->
+                <!-- Google Cloud API Config -->
+                <div class="card">
                   <div style="display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                      <div style="font-weight: 600; font-size: 13px;">Автоматична синхронізація Google Drive</div>
-                      <div style="font-size: 11px; color: var(--text-secondary);">Кожні 5 хвилин у фоновому режимі</div>
-                    </div>
-                    <input type="checkbox" id="settings-auto-sync" style="width: 18px; height: 18px; cursor: pointer;">
+                    <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; margin: 0;">
+                      <i data-lucide="cloud" style="color: var(--accent);"></i>
+                      <span data-i18n="set_google_sync">Google Drive & Sheets API</span>
+                    </h3>
+                    <span id="google-conn-status-badge" class="status-badge status-neutral" style="font-size: 11px;">Offline Mock</span>
                   </div>
                   
+                  <div style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+                    <div class="form-group">
+                      <label for="settings-sync-mode" data-i18n="label_sync_mode" style="font-weight: 600; font-size: 13px;">Режим роботи API</label>
+                      <select id="settings-sync-mode" class="form-select">
+                        <option value="mock">Офлайн / Імітація (Simulation Mode)</option>
+                        <option value="live">Google Cloud Live API (Drive v3 + Sheets v4)</option>
+                      </select>
+                    </div>
+                    
+                    <div class="form-group">
+                      <label for="settings-google-client-id" data-i18n="label_google_client_id" style="font-weight: 600; font-size: 13px;">OAuth 2.0 Client ID / API Key</label>
+                      <input type="text" id="settings-google-client-id" class="form-input" placeholder="7823489234-xyz.apps.googleusercontent.com" style="font-family: monospace; font-size: 12px;">
+                    </div>
+                    
+                    <div class="form-group">
+                      <label for="settings-google-drive-folder-id" data-i18n="label_google_drive_folder_id" style="font-weight: 600; font-size: 13px;">Google Drive Root Folder ID</label>
+                      <input type="text" id="settings-google-drive-folder-id" class="form-input" placeholder="1a2b3c4d5e6f7g8h9i0j_AeroCheckDocs" style="font-family: monospace; font-size: 12px;">
+                      <div style="margin-top: 4px; font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">
+                        <i data-lucide="folder-check" style="width: 13px; height: 13px; color: var(--accent);"></i>
+                        <span>Структура: <code>Google Drive / [FLIGHT | CABIN] / [NAME_EN]</code></span>
+                      </div>
+                    </div>
+
+                    <div style="display: flex; gap: var(--spacing-2); flex-wrap: wrap;">
+                      <button class="btn btn-primary" id="btn-save-google-settings" style="flex: 1 1 140px;">
+                        <i data-lucide="save"></i>
+                        <span data-i18n="btn_save_sync_settings">Зберегти API</span>
+                      </button>
+                      <button class="btn btn-secondary" id="btn-test-google-connection" style="flex: 1 1 140px;">
+                        <i data-lucide="wifi"></i>
+                        <span data-i18n="btn_test_connection">Тест з'єднання</span>
+                      </button>
+                    </div>
+                    
+                    <button class="btn btn-secondary" id="btn-verify-crew-folders" style="border-color: var(--accent); color: var(--accent); width: 100%;">
+                      <i data-lucide="folder-tree"></i>
+                      <span data-i18n="btn_verify_crew_folders">Перевірити папки екіпажу на Drive</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Sync Frequency / Interval -->
+                <div class="card">
+                  <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; margin: 0;">
+                    <i data-lucide="clock" style="color: var(--accent);"></i>
+                    <span data-i18n="label_sync_interval_card">Періодичність синхронізації</span>
+                  </h3>
+                  
+                  <div style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+                    <div class="form-group">
+                      <label for="settings-sync-interval" data-i18n="label_sync_interval" style="font-weight: 600; font-size: 13px;">Автоматична синхронізація</label>
+                      <select id="settings-sync-interval" class="form-select">
+                        <option value="manual">Тільки вручну (Manual)</option>
+                        <option value="5">Кожні 5 хвилин</option>
+                        <option value="15">Кожні 15 хвилин</option>
+                        <option value="30">Кожні 30 хвилин</option>
+                        <option value="60">Щогодини (60 хв)</option>
+                        <option value="1440">Щодня (раз на добу)</option>
+                      </select>
+                    </div>
+
+                    <div style="background-color: var(--bg-surface-alt); padding: var(--spacing-3); border-radius: var(--radius-md); font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
+                      <span style="color: var(--text-secondary);" data-i18n="label_last_sync">Остання синхронізація:</span>
+                      <strong id="last-sync-timestamp-display">Ще не виконувалась</strong>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+
+              <!-- Right: Multiple Tables Config & Backup / Restore -->
+              <div style="display: flex; flex-direction: column; gap: var(--spacing-6);">
+                
+                <!-- Multiple Tables for Synchronization -->
+                <div class="card">
+                  <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; margin: 0;">
+                    <i data-lucide="sheet" style="color: var(--accent);"></i>
+                    <span data-i18n="set_sync_tables_title">Таблиці Google Sheets для синхронізації</span>
+                  </h3>
+                  <div style="font-size: 12px; color: var(--text-secondary);" data-i18n="set_sync_tables_desc">
+                    Окремі таблиці для обліку персоналу та реєстрації польотів:
+                  </div>
+
+                  <div style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+                    <!-- Table 1: Personnel -->
+                    <div style="border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: var(--spacing-3);">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <strong style="font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                          <i data-lucide="users" style="width: 14px; height: 14px; color: var(--accent);"></i>
+                          <span data-i18n="label_sheet_personnel">1. Таблиця персоналу (Flight & Cabin Crew)</span>
+                        </strong>
+                        <span class="status-badge status-neutral" style="font-size: 10px;" data-i18n="badge_sheets_personnel">Аркуші: Flight_Crew, Cabin_Crew</span>
+                      </div>
+                      <div class="form-group">
+                        <input type="text" id="settings-google-sheet-id" class="form-input" placeholder="Google Sheet ID персоналу (напр. 1BxiMVs0XRA5...)" style="font-family: monospace; font-size: 12px;" data-i18n-placeholder="placeholder_sheet_personnel">
+                      </div>
+                      <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+                        <button class="btn btn-secondary" id="btn-sync-personnel" style="height: 32px; font-size: 12px;">
+                          <i data-lucide="refresh-cw" style="width: 13px; height: 13px;"></i>
+                          <span data-i18n="btn_sync_personnel">Синхронізувати персонал</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Table 2: Flights -->
+                    <div style="border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: var(--spacing-3);">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <strong style="font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                          <i data-lucide="plane" style="width: 14px; height: 14px; color: var(--accent);"></i>
+                          <span data-i18n="label_sheet_flights">2. Таблиця польотів (Training Flights)</span>
+                        </strong>
+                        <span class="status-badge status-neutral" style="font-size: 10px;" data-i18n="badge_sheets_flights">Аркуш: Training_Flights</span>
+                      </div>
+                      <div class="form-group">
+                        <input type="text" id="settings-google-sheet-flights-id" class="form-input" placeholder="Google Sheet ID польотів (напр. 1gHkl924Ksd...)" style="font-family: monospace; font-size: 12px;" data-i18n-placeholder="placeholder_sheet_flights">
+                      </div>
+                      <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+                        <button class="btn btn-secondary" id="btn-sync-flights" style="height: 32px; font-size: 12px;">
+                          <i data-lucide="refresh-cw" style="width: 13px; height: 13px;"></i>
+                          <span data-i18n="btn_sync_flights">Синхронізувати польоти</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <button class="btn btn-primary" id="btn-manual-sync" style="width: 100%;">
+                      <i data-lucide="refresh-cw"></i>
+                      <span data-i18n="btn_sync_all_now">Синхронізувати всі таблиці зараз</span>
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Backup & Recovery Card -->
+                <div class="card">
+                  <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; margin: 0;">
+                    <i data-lucide="database" style="color: var(--accent);"></i>
+                    <span data-i18n="set_backup_restore_title">Резервне копіювання та Відновлення</span>
+                  </h3>
+                  
+                  <div style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+                    
+                    <!-- Create Backup Section -->
+                    <div>
+                      <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);" data-i18n="label_backup_section_1">
+                        1. Зробити резервну копію:
+                      </div>
+                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-2);">
+                        <button class="btn btn-secondary" id="btn-backup-json">
+                          <i data-lucide="download"></i>
+                          <span>JSON Backup</span>
+                        </button>
+                        <button class="btn btn-secondary" id="btn-backup-xlsx">
+                          <i data-lucide="file-spreadsheet"></i>
+                          <span>XLSX Backup</span>
+                        </button>
+                      </div>
+                      <button class="btn btn-secondary" id="btn-save-snapshot" style="width: 100%; margin-top: var(--spacing-2);">
+                        <i data-lucide="camera"></i>
+                        <span data-i18n="btn_backup_snapshot">Зберегти швидкий знімок (Snapshot)</span>
+                      </button>
+                    </div>
+
+                    <!-- Restore from Backup Section -->
+                    <div style="border-top: 1px solid var(--border-color); padding-top: var(--spacing-3);">
+                      <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);" data-i18n="label_backup_section_2">
+                        2. Відновити за допомогою резервної копії:
+                      </div>
+                      
+                      <div style="display: flex; gap: var(--spacing-2); flex-direction: column;">
+                        <input type="file" id="file-restore-json" accept=".json" style="display: none;">
+                        <button class="btn btn-secondary" id="btn-restore-json-trigger" style="width: 100%;">
+                          <i data-lucide="upload"></i>
+                          <span data-i18n="btn_restore_json">Відновити стан з JSON файлу</span>
+                        </button>
+
+                        <input type="file" id="file-update-db" accept=".xlsx" style="display: none;">
+                        <button class="btn btn-secondary" id="btn-update-db-excel" style="width: 100%;">
+                          <i data-lucide="refresh-cw"></i>
+                          <span data-i18n="btn_restore_excel">Оновити базу з Excel (Smart Merge)</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <!-- Local Snapshots Table -->
+                    <div style="border-top: 1px solid var(--border-color); padding-top: var(--spacing-3);">
+                      <div style="font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary);" data-i18n="label_saved_snapshots">
+                        Збережені локальні знімки:
+                      </div>
+                      <div id="snapshots-list-container" style="max-height: 140px; overflow-y: auto; font-size: 12px;">
+                        <!-- Rendered in JS -->
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+          <!-- TAB 2: ПЕРСОНАЛ ТА ДОСТУП -->
+          <div class="settings-tab-panel" id="settings-panel-personnel">
+            
+            <!-- Personnel Management Header & Actions -->
+            <div class="card">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-3);">
+                <div>
+                  <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="users" style="color: var(--accent);"></i>
+                    <span data-i18n="personnel_mgmt_title">Керування персоналом (Додати / Видалити)</span>
+                  </h3>
+                  <p style="font-size: 12px; color: var(--text-secondary); margin: 2px 0 0 0;" data-i18n="personnel_mgmt_subtitle">
+                    Загальний реєстр співробітників льотного та кабінного складу
+                  </p>
+                </div>
+                
+                <div style="display: flex; gap: var(--spacing-2); flex-wrap: wrap;">
+                  <button class="btn btn-primary" id="btn-settings-add-crew">
+                    <i data-lucide="user-plus"></i>
+                    <span data-i18n="btn_add_personnel_modal">+ Додати персонал</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Filter & Search row -->
+              <div style="display: flex; gap: var(--spacing-3); margin-top: var(--spacing-2); flex-wrap: wrap;">
+                <input type="text" id="personnel-search-input" class="form-input" placeholder="Пошук співробітника (ПІБ, посада, email)..." style="flex: 2 1 200px;" data-i18n-placeholder="search_personnel_placeholder">
+                <select id="personnel-filter-select" class="form-select" style="flex: 1 1 150px;">
+                  <option value="ALL" data-i18n="filter_all_categories">Всі категорії</option>
+                  <option value="Flight" data-i18n="filter_flight_crew">Льотний склад</option>
+                  <option value="Cabin" data-i18n="filter_cabin_crew">Кабінний склад</option>
+                </select>
+              </div>
+
+              <!-- Personnel Table -->
+              <div class="scroll-table-wrapper" style="max-height: 320px; overflow-y: auto; margin-top: var(--spacing-3); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 90px;" data-i18n="th_pers_type">Тип</th>
+                      <th data-i18n="th_pers_name_ua">ПІБ (Укр.)</th>
+                      <th data-i18n="th_pers_name_en">ПІБ (Англ.)</th>
+                      <th data-i18n="th_pers_rank_dept">Посада / Підрозділ</th>
+                      <th data-i18n="th_pers_email">Email</th>
+                      <th style="width: 100px;" data-i18n="th_pers_role">Роль</th>
+                      <th style="width: 80px; text-align: center;" data-i18n="th_pers_actions">Дії</th>
+                    </tr>
+                  </thead>
+                  <tbody id="settings-personnel-table-body">
+                    <!-- Populated dynamically -->
+                  </tbody>
+                </table>
+              </div>
+
+              <!-- Quick Delete section -->
+              <div style="margin-top: var(--spacing-4); border-top: 1px solid var(--border-color); padding-top: var(--spacing-3); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--spacing-3);">
+                <div style="display: flex; align-items: center; gap: var(--spacing-2); flex: 1 1 300px;">
+                  <span style="font-size: 13px; font-weight: 600; color: var(--text-secondary); white-space: nowrap;" data-i18n="label_quick_delete">Швидке видалення:</span>
+                  <select id="mgmt-delete-select" class="form-select" style="height: 36px; font-size: 13px;">
+                    <!-- Loaded dynamically -->
+                  </select>
+                </div>
+                <button class="btn btn-danger" id="btn-mgmt-delete" style="height: 36px;">
+                  <i data-lucide="trash-2"></i>
+                  <span data-i18n="btn_quick_delete">Видалити вибраного співробітника</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Access Control & Permissions & Notifications Grid -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-6);">
+              
+              <!-- Access Control / Roles -->
+              <div class="card">
+                <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; margin: 0;">
+                  <i data-lucide="shield" style="color: var(--accent);"></i>
+                  <span data-i18n="permissions_title">Налаштування прав доступу</span>
+                </h3>
+
+                <div style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+                  <!-- Roles Summary Matrix -->
+                  <div style="background-color: var(--bg-surface-alt); border-radius: var(--radius-md); padding: var(--spacing-3); font-size: 12px;">
+                    <div style="font-weight: 700; margin-bottom: 6px; color: var(--text-primary);" data-i18n="roles_matrix_title">Матриця ролей системи:</div>
+                    <ul style="margin: 0; padding-left: 18px; line-height: 1.6; color: var(--text-secondary);">
+                      <li data-i18n="role_admin_desc"><strong>ADMIN</strong> — Повний доступ: налаштування, бекапи, персонал, бланки.</li>
+                      <li data-i18n="role_instructor_desc"><strong>INSTRUCTOR</strong> — Внесення польотів, редагування тренувань персоналу.</li>
+                      <li data-i18n="role_office_desc"><strong>OFFICE</strong> — Перегляд списків екіпажу, завантаження та друк бланків.</li>
+                      <li data-i18n="role_crew_desc"><strong>CREW</strong> — Особистий кабінет: перегляд власних сертифікатів.</li>
+                    </ul>
+                  </div>
+
+                  <!-- System User Accounts list -->
+                  <div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                      <div style="font-size: 13px; font-weight: 600;" data-i18n="user_accounts_title">Облікові записи та призначення ролей:</div>
+                      <button class="btn btn-primary" id="btn-add-user-account" style="height: 30px; font-size: 12px; padding: 0 10px; display: inline-flex; align-items: center; gap: 4px;">
+                        <i data-lucide="user-plus" style="width: 14px; height: 14px;"></i>
+                        <span data-i18n="btn_add_user">+ Додати користувача</span>
+                      </button>
+                    </div>
+                    <div class="scroll-table-wrapper" style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+                      <table class="data-table" style="font-size: 12px;">
+                        <thead>
+                          <tr>
+                            <th data-i18n="th_acc_email">Email / Користувач</th>
+                            <th style="width: 110px;" data-i18n="th_acc_role">Поточна роль</th>
+                            <th style="width: 140px;" data-i18n="th_acc_change_role">Змінити роль</th>
+                            <th style="width: 60px; text-align: center;" data-i18n="th_acc_actions">Дії</th>
+                          </tr>
+                        </thead>
+                        <tbody id="user-accounts-table-body">
+                          <!-- Populated dynamically -->
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Notifications Settings -->
+              <div class="card">
+                <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; margin: 0;">
+                  <i data-lucide="bell" style="color: var(--accent);"></i>
+                  <span data-i18n="notifications_title">Налаштування повідомлень</span>
+                </h3>
+                <div style="font-size: 12px; color: var(--text-secondary);" data-i18n="notifications_desc">
+                  Автоматичні сповіщення про вихід термінів дії документів та оновлення кваліфікацій:
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: var(--spacing-3);">
+                  
+                  <div class="form-row grid-2cols">
+                    <div class="form-group">
+                      <label for="settings-alert-days" style="font-size: 12px; font-weight: 600;" data-i18n="label_alert_days_input">Попередження (жовтий рівень, днів)</label>
+                      <input type="number" id="settings-alert-days" class="form-input" min="1" max="180" value="30">
+                    </div>
+                    <div class="form-group">
+                      <label for="settings-critical-days" style="font-size: 12px; font-weight: 600;" data-i18n="label_critical_days_input">Критичний термін (червоний, днів)</label>
+                      <input type="number" id="settings-critical-days" class="form-input" min="1" max="90" value="7">
+                    </div>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="settings-notify-email" style="font-size: 12px; font-weight: 600;" data-i18n="label_notify_email_input">Email для зведених звітів</label>
+                    <input type="email" id="settings-notify-email" class="form-input" placeholder="training.dept@ukr-helicopters.ua">
+                  </div>
+
+                  <!-- Toggles -->
+                  <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+                      <input type="checkbox" id="settings-notify-crew-doc-update" checked>
+                      <span data-i18n="notify_opt_crew_update">Сповіщати співробітника на Email при оновленні його документів</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+                      <input type="checkbox" id="settings-notify-instructor-expirations" checked>
+                      <span data-i18n="notify_opt_instructor_exp">Сповіщати відповідального інструктора при настанні критичного терміну</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+                      <input type="checkbox" id="settings-notify-weekly-digest" checked>
+                      <span data-i18n="notify_opt_weekly_digest">Надсилати щотижневий звіт про закінчення термінів підготовок</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+                      <input type="checkbox" id="settings-notify-inapp" checked>
+                      <span data-i18n="notify_opt_inapp">Показувати спливаючі повідомлення в системі (In-App)</span>
+                    </label>
+                  </div>
+
+                  <div style="display: flex; gap: var(--spacing-2); margin-top: var(--spacing-2);">
+                    <button class="btn btn-secondary" id="btn-test-notification" style="flex: 1;">
+                      <i data-lucide="send"></i>
+                      <span data-i18n="btn_test_notification">Тест сповіщення</span>
+                    </button>
+                    <button class="btn btn-primary" id="btn-save-notification-settings" style="flex: 1;">
+                      <i data-lucide="check"></i>
+                      <span data-i18n="btn_save_notifications">Зберегти</span>
+                    </button>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+
+          <!-- TAB 3: ВІДОБРАЖЕННЯ -->
+          <div class="settings-tab-panel" id="settings-panel-display">
+            <div style="display: grid; grid-template-columns: 1.3fr 0.7fr; gap: var(--spacing-6);">
+              
+              <!-- Column Visibility Card (Bilingual UA / EN) -->
+              <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-2);">
+                  <div>
+                    <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; margin: 0;">
+                      <i data-lucide="columns" style="color: var(--accent);"></i>
+                      <span data-i18n="columns_disp_title">Відображення стовпчиків у таблицях</span>
+                    </h3>
+                    <p style="font-size: 12px; color: var(--text-secondary); margin: 2px 0 0 0;" data-i18n="columns_disp_desc">
+                      Двомовна версія налаштування: виберіть, які графи показувати в основних таблицях
+                    </p>
+                  </div>
+
+                  <!-- Quick Action Buttons -->
+                  <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                    <button class="btn btn-secondary" id="btn-cols-select-all" style="height: 30px; font-size: 11px; padding: 0 10px;" data-i18n="btn_cols_select_all">
+                      Вибрати всі
+                    </button>
+                    <button class="btn btn-secondary" id="btn-cols-deselect-all" style="height: 30px; font-size: 11px; padding: 0 10px;" data-i18n="btn_cols_deselect_all">
+                      Зняти всі
+                    </button>
+                    <button class="btn btn-secondary" id="btn-cols-reset-default" style="height: 30px; font-size: 11px; padding: 0 10px;" data-i18n="btn_cols_reset_default">
+                      За замовчуванням
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Column Category Switcher (Flight vs Cabin) -->
+                <div style="display: flex; gap: var(--spacing-2); border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-top: var(--spacing-2);">
+                  <button class="btn btn-secondary active" id="btn-col-tab-flight" style="height: 34px; font-size: 12px;">
+                    <i data-lucide="plane"></i>
+                    <span data-i18n="tab_crew_flight">Льотний склад (Flight Crew)</span>
+                  </button>
+                  <button class="btn btn-secondary" id="btn-col-tab-cabin" style="height: 34px; font-size: 12px;">
+                    <i data-lucide="users"></i>
+                    <span data-i18n="tab_crew_cabin">Кабінний склад (Cabin Crew)</span>
+                  </button>
+                </div>
+
+                <!-- Columns Checklist Container -->
+                <div id="columns-visibility-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-3); max-height: 480px; overflow-y: auto; padding-right: 4px; margin-top: var(--spacing-2);">
+                  <!-- Generated dynamically in JS with 2-language labels -->
+                </div>
+              </div>
+
+              <!-- Operational & Formatting Recommendations Card -->
+              <div class="card">
+                <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; margin: 0;">
+                  <i data-lucide="sliders" style="color: var(--accent);"></i>
+                  <span data-i18n="rules_title">Форматування та Розрахункові правила</span>
+                </h3>
+
+                <div style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+                  <div class="form-group">
+                    <label for="settings-date-format" style="font-weight: 600; font-size: 13px;" data-i18n="label_date_format_select">Формат відображення дати</label>
+                    <select id="settings-date-format" class="form-select">
+                      <option value="DD.MM.YY">DD.MM.YY (Скорочений)</option>
+                      <option value="YYYY-MM-DD">YYYY-MM-DD (ISO)</option>
+                      <option value="DD.MM.YYYY">DD.MM.YYYY (European)</option>
+                      <option value="DD MMM YYYY">DD MMM YYYY (Aviation)</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label for="settings-ref-date" style="font-weight: 600; font-size: 13px;" data-i18n="label_ref_date_calc">Розрахункова системна дата</label>
+                    <input type="date" id="settings-ref-date" class="form-input" value="2026-07-12">
+                  </div>
+
                   <div style="display: flex; justify-content: space-between; align-items: center;">
                     <div>
-                      <div style="font-weight: 600; font-size: 13px;">Уточнювати тип дати при внесенні</div>
-                      <div style="font-size: 11px; color: var(--text-secondary);">Промпт "Completion vs Expiry"</div>
+                      <div style="font-weight: 600; font-size: 13px;" data-i18n="rule_eom_title">Правило останнього дня місяця (End of Month)</div>
+                      <div style="font-size: 11px; color: var(--text-secondary);" data-i18n="rule_eom_desc">Для Flight Crew та перевірок OPC</div>
+                    </div>
+                    <input type="checkbox" id="settings-eom-rule" checked style="width: 18px; height: 18px; cursor: pointer;">
+                  </div>
+
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                      <div style="font-weight: 600; font-size: 13px;" data-i18n="rule_date_prompt_title">Уточнювати тип дати при внесенні</div>
+                      <div style="font-size: 11px; color: var(--text-secondary);" data-i18n="rule_date_prompt_desc">Діалог "Completion vs Expiry Date"</div>
                     </div>
                     <input type="checkbox" id="settings-date-prompt" checked style="width: 18px; height: 18px; cursor: pointer;">
                   </div>
-                  
+
                   <div class="form-group">
-                    <label for="settings-ref-date" data-i18n="label_reference_date">Розрахункова дата системи</label>
-                    <input type="date" id="settings-ref-date" class="form-input" value="2026-07-12">
+                    <label for="settings-backup-retention" style="font-weight: 600; font-size: 13px;" data-i18n="label_backup_retention_count">Кількість резервних ревізій у пам'яті</label>
+                    <input type="number" id="settings-backup-retention" class="form-input" min="1" max="50" value="5">
                   </div>
-                  
-                  <button class="btn btn-primary" id="btn-manual-sync">
-                    <i data-lucide="refresh-cw"></i>
-                    <span data-i18n="btn_manual_sync_drive">Синхронізувати з Drive</span>
-                  </button>
-                  
-                  <div style="border-top: 1px solid var(--border-color); padding-top: var(--spacing-4); display: flex; gap: var(--spacing-3);">
-                    <button class="btn btn-secondary" id="btn-backup-json" style="flex-grow: 1;">
-                      <i data-lucide="download"></i>
-                      <span>JSON Backup</span>
-                    </button>
-                    <button class="btn btn-secondary" id="btn-backup-xlsx" style="flex-grow: 1;">
-                      <i data-lucide="file-spreadsheet"></i>
-                      <span>XLSX Backup</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
 
-              <!-- Excel Database Update Card -->
-              <div class="card">
-                <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600;">Оновлення бази даних (Excel)</h3>
-                <div style="display: flex; flex-direction: column; gap: var(--spacing-4);">
-                  <div style="font-size: 11px; color: var(--text-secondary);">
-                    Виберіть початковий файл Excel (з листами Flight_Crew та Cabin_Crew). Система оновить лише змінені та новіші дати, після чого відобразить звіт про зміни.
-                  </div>
-                  <input type="file" id="file-update-db" accept=".xlsx" style="display: none;">
-                  <button class="btn btn-primary" id="btn-update-db-excel" style="width: 100%;">
-                    <i data-lucide="upload"></i>
-                    <span>Оновити базу з Excel</span>
+                  <button class="btn btn-primary" id="btn-save-system-settings" style="width: 100%;">
+                    <i data-lucide="check"></i>
+                    <span data-i18n="btn_save_disp_settings">Зберегти параметри відображення</span>
                   </button>
                 </div>
               </div>
 
-              <!-- Column Visibility settings -->
-              <div class="card">
-                <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600;" data-i18n="set_columns">Відображення стовпчиків</h3>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-3);" id="columns-visibility-container">
-                  <!-- Generated dynamically based on configuration -->
+            </div>
+          </div>
+
+          <!-- TAB 4: ФОРМИ (ГЕНЕРАТОР ТА РЕДАКТОР ФОРМ) -->
+          <div class="settings-tab-panel" id="settings-panel-forms">
+            
+            <!-- List of existing forms & Create New Button -->
+            <div class="card">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-3);">
+                <div>
+                  <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="file-text" style="color: var(--accent);"></i>
+                    <span data-i18n="forms_builder_title">Генератор та редактор форм (Бланків)</span>
+                  </h3>
+                  <p style="font-size: 12px; color: var(--text-secondary); margin: 2px 0 0 0;" data-i18n="forms_builder_subtitle">
+                    Налаштуйте структуру та поля бланків, які відображатимуться у розділі «Бланки»
+                  </p>
                 </div>
+
+                <div style="display: flex; gap: var(--spacing-2);">
+                  <button class="btn btn-primary" id="btn-form-new">
+                    <i data-lucide="plus"></i>
+                    <span data-i18n="btn_form_new">+ Створити нову форму</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Available forms chips / selector -->
+              <div style="display: flex; align-items: center; gap: var(--spacing-3); margin-top: var(--spacing-2); flex-wrap: wrap;">
+                <span style="font-size: 13px; font-weight: 600; color: var(--text-secondary);" data-i18n="label_select_template">Виберіть форму для редагування:</span>
+                <select id="form-select-template" class="form-select" style="max-width: 380px; height: 38px; font-size: 13px;">
+                  <!-- Loaded dynamically -->
+                </select>
               </div>
             </div>
-            
-            <div style="display: flex; flex-direction: column; gap: var(--spacing-6);">
-              <!-- Permissions configuration table -->
-              <div class="card">
-                <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600;" data-i18n="set_permissions">Матриця прав доступу</h3>
-                <div class="scroll-table-wrapper">
-                  <table class="data-table" style="font-size: 12px;">
-                    <thead>
-                      <tr>
-                        <th>Роль</th>
-                        <th>Бази даних</th>
-                        <th>Редагування</th>
-                        <th>Польоти</th>
-                        <th>Налаштування</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr>
-                        <td><strong>ADMIN</strong></td>
-                        <td>READ / WRITE</td>
-                        <td>FULL</td>
-                        <td>WRITE</td>
-                        <td>FULL</td>
-                      </tr>
-                      <tr>
-                        <td><strong>INSTRUCTOR</strong></td>
-                        <td>READ</td>
-                        <td>DATES ONLY</td>
-                        <td>WRITE</td>
-                        <td>NONE</td>
-                      </tr>
-                      <tr>
-                        <td><strong>OFFICE</strong></td>
-                        <td>READ</td>
-                        <td>NONE</td>
-                        <td>NONE</td>
-                        <td>NONE</td>
-                      </tr>
-                      <tr>
-                        <td><strong>CREW</strong></td>
-                        <td>PORTAL ONLY</td>
-                        <td>NONE</td>
-                        <td>NONE</td>
-                        <td>NONE</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
 
-              <!-- Crew Member Management (Add/Delete) -->
-              <div class="card" style="flex-grow: 1;">
-                <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600;" data-i18n="set_crew_mgmt">Керування персоналом</h3>
-                <div style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+            <!-- Form Builder Layout: Editor on Left, Live Paper Preview on Right -->
+            <div class="form-builder-layout">
+              
+              <!-- Left: Form Editor Controls -->
+              <div class="card" style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+                
+                <!-- 1. Logo Configuration -->
+                <div style="border-bottom: 1px solid var(--border-color); padding-bottom: var(--spacing-4);">
+                  <label style="font-weight: 700; font-size: 14px; margin-bottom: 8px; display: block; color: var(--text-primary);" data-i18n="form_step_1_logo">
+                    1. Логотип та його позиція
+                  </label>
+                  
+                  <div style="display: flex; gap: var(--spacing-3); flex-wrap: wrap; align-items: center;">
+                    <div class="form-group" style="flex: 1 1 200px;">
+                      <label style="font-size: 12px; font-weight: 600;" data-i18n="label_logo_source">Джерело логотипу:</label>
+                      <select id="form-logo-select" class="form-select">
+                        <option value="PICS/LOGO_UH.png" data-i18n="opt_logo_standard">Стандартний логотип (UH)</option>
+                        <option value="custom" data-i18n="opt_logo_custom">Завантажити власний файл...</option>
+                        <option value="none" data-i18n="opt_logo_none">Без логотипу</option>
+                      </select>
+                    </div>
+
+                    <div id="form-custom-logo-upload" style="display: none; flex: 1 1 200px;">
+                      <label style="font-size: 12px; font-weight: 600;">Файл зображення:</label>
+                      <input type="file" id="form-logo-file" accept="image/*" class="form-input" style="padding-top: 6px;">
+                    </div>
+                  </div>
+
+                  <div style="margin-top: 10px;">
+                    <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 6px;" data-i18n="label_logo_pos">Позиція логотипу на бланку:</label>
+                    <div class="logo-position-selector">
+                      <button type="button" class="logo-pos-btn active" data-pos="left">
+                        <i data-lucide="align-left"></i>
+                        <span data-i18n="logo_pos_left">Зліва</span>
+                      </button>
+                      <button type="button" class="logo-pos-btn" data-pos="center">
+                        <i data-lucide="align-center"></i>
+                        <span data-i18n="logo_pos_center">По центру</span>
+                      </button>
+                      <button type="button" class="logo-pos-btn" data-pos="right">
+                        <i data-lucide="align-right"></i>
+                        <span data-i18n="logo_pos_right">Справа</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 2. Form Name and Header Details -->
+                <div style="border-bottom: 1px solid var(--border-color); padding-bottom: var(--spacing-4);">
+                  <label style="font-weight: 700; font-size: 14px; margin-bottom: 8px; display: block; color: var(--text-primary);" data-i18n="form_step_2_details">
+                    2. Назва форми та реквізити
+                  </label>
+                  
+                  <div class="form-row grid-2cols">
+                    <div class="form-group">
+                      <label for="form-builder-title" style="font-size: 12px; font-weight: 600;" data-i18n="label_form_title">Назва форми (Заголовок)</label>
+                      <input type="text" id="form-builder-title" class="form-input" placeholder="Подання на присвоєння кваліфікації">
+                    </div>
+                    <div class="form-group">
+                      <label for="form-builder-code" style="font-size: 12px; font-weight: 600;" data-i18n="label_form_code">Номер / Код форми</label>
+                      <input type="text" id="form-builder-code" class="form-input" placeholder="Форма UH-F-22">
+                    </div>
+                  </div>
+
+                  <div class="form-group" style="margin-top: var(--spacing-2);">
+                    <label for="form-builder-subtitle" style="font-size: 12px; font-weight: 600;" data-i18n="label_form_subtitle">Підзаголовок або інструкція (опціонально)</label>
+                    <input type="text" id="form-builder-subtitle" class="form-input" placeholder="Авіакомпанія «Українські вертольоти» • Льотна служба">
+                  </div>
+
+                  <!-- Page Orientation Selector -->
+                  <div class="form-group" style="margin-top: var(--spacing-2);">
+                    <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 6px; color: var(--text-primary);" data-i18n="label_form_orientation">
+                      Орієнтація аркуша (А4):
+                    </label>
+                    <div class="orientation-selector">
+                      <button type="button" class="orientation-btn active" data-orientation="portrait" id="btn-orient-portrait">
+                        <i data-lucide="file-text" style="width: 15px; height: 15px;"></i>
+                        <span data-i18n="orient_portrait">Книжкова (Портрет)</span>
+                      </button>
+                      <button type="button" class="orientation-btn" data-orientation="landscape" id="btn-orient-landscape">
+                        <i data-lucide="file" style="width: 15px; height: 15px; transform: rotate(90deg);"></i>
+                        <span data-i18n="orient_landscape">Альбомна (Ландшафт)</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <!-- Spacing between Title and Table Data -->
+                  <div class="form-group" style="margin-top: var(--spacing-3); background: var(--bg-surface-alt); padding: var(--spacing-3); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <label for="form-builder-table-spacing" style="font-size: 12px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="move-vertical" style="width: 14px; height: 14px; color: var(--accent);"></i>
+                        <span data-i18n="label_table_spacing">Відступ між назвою та даними таблиці:</span>
+                      </label>
+                      <span id="form-builder-spacing-val" style="font-weight: 700; font-family: var(--font-mono); font-size: 12px; color: var(--accent);">20 px</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: var(--spacing-3);">
+                      <input type="range" id="form-builder-table-spacing" min="0" max="80" value="20" step="2" style="flex: 1; cursor: pointer;">
+                      <input type="number" id="form-builder-table-spacing-num" min="0" max="80" value="20" class="form-input" style="width: 70px; height: 32px; padding: 0 6px; text-align: center; font-size: 12px;">
+                    </div>
+                    <div style="display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap;">
+                      <button type="button" class="btn btn-secondary btn-spacing-preset" data-spacing="6" style="height: 24px; padding: 0 8px; font-size: 10.5px;">6px (Мінімальний)</button>
+                      <button type="button" class="btn btn-secondary btn-spacing-preset" data-spacing="16" style="height: 24px; padding: 0 8px; font-size: 10.5px;">16px (Стандарт)</button>
+                      <button type="button" class="btn btn-secondary btn-spacing-preset" data-spacing="32" style="height: 24px; padding: 0 8px; font-size: 10.5px;">32px (Помірний)</button>
+                      <button type="button" class="btn btn-secondary btn-spacing-preset" data-spacing="50" style="height: 24px; padding: 0 8px; font-size: 10.5px;">50px (Великий)</button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 3. Data Source and Columns Selection -->
+                <div style="border-bottom: 1px solid var(--border-color); padding-bottom: var(--spacing-4);">
+                  <label style="font-weight: 700; font-size: 14px; margin-bottom: 8px; display: block; color: var(--text-primary);" data-i18n="form_step_3_data">
+                    3. Дані (вибір таблиці та колонок)
+                  </label>
+
                   <div class="form-group">
-                    <label for="mgmt-delete-select" data-i18n="label_delete_crew">Видалити члена екіпажу</label>
-                    <select id="mgmt-delete-select" class="form-select">
-                      <!-- Loaded dynamically -->
+                    <label for="form-builder-source" style="font-size: 12px; font-weight: 600;" data-i18n="label_crew_source">Джерело даних екіпажу:</label>
+                    <select id="form-builder-source" class="form-select">
+                      <option value="Flight" data-i18n="opt_source_flight">Льотний склад (FLIGHT_CREW)</option>
+                      <option value="Cabin" data-i18n="opt_source_cabin">Кабінний склад (CABIN_CREW)</option>
                     </select>
                   </div>
-                  <button class="btn btn-danger" id="btn-mgmt-delete" style="width: 100%;">
+
+                  <div style="margin-top: 10px;">
+                    <label style="font-size: 12px; font-weight: 600; display: block; margin-bottom: 6px;" data-i18n="label_select_cols">
+                      Виберіть стовпчики для включення у бланк:
+                    </label>
+                    <div id="form-builder-columns" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; max-height: 180px; overflow-y: auto; padding: 8px; border: 1px solid var(--border-color); border-radius: var(--radius-md); background: var(--bg-surface-alt);">
+                      <!-- Checkboxes populated dynamically based on source -->
+                    </div>
+                  </div>
+
+                  <!-- Fit to Single Line Checkbox -->
+                  <div style="background: var(--bg-surface-alt); padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color); margin-top: 10px;">
+                    <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 12.5px; cursor: pointer; font-weight: 600; color: var(--text-primary);">
+                      <input type="checkbox" id="form-builder-fit-single-line" style="margin-top: 2px;">
+                      <div>
+                        <div data-i18n="label_fit_single_line">Вмістити інформацію в один рядок</div>
+                        <div style="font-size: 11px; font-weight: 400; color: var(--text-secondary); margin-top: 2px;" data-i18n="desc_fit_single_line">
+                          Масштабує розмір шрифту та відступи комірок, щоб уникнути переносу тексту і не виходити за межі документу
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+
+                  <!-- Cell Padding Slider Control -->
+                  <div class="form-group" style="margin-top: 10px; background: var(--bg-surface-alt); padding: var(--spacing-3); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <label for="form-builder-cell-padding" style="font-size: 12px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                        <i data-lucide="move-horizontal" style="width: 14px; height: 14px; color: var(--accent);"></i>
+                        <span data-i18n="label_cell_padding">Відступ всередині комірок (Cell Padding):</span>
+                      </label>
+                      <span id="form-builder-padding-val" style="font-weight: 700; font-family: var(--font-mono); font-size: 12px; color: var(--accent);">4 px</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: var(--spacing-3);">
+                      <input type="range" id="form-builder-cell-padding" min="1" max="14" value="4" step="1" style="flex: 1; cursor: pointer;">
+                      <input type="number" id="form-builder-cell-padding-num" min="1" max="14" value="4" class="form-input" style="width: 65px; height: 32px; padding: 0 6px; text-align: center; font-size: 12px;">
+                    </div>
+                    <div style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;">
+                      <button type="button" class="btn btn-secondary btn-padding-preset" data-padding="1" style="height: 24px; font-size: 11px; padding: 0 8px;" data-i18n="preset_padding_min">1 px (Мін)</button>
+                      <button type="button" class="btn btn-secondary btn-padding-preset" data-padding="3" style="height: 24px; font-size: 11px; padding: 0 8px;" data-i18n="preset_padding_compact">3 px (Компактний)</button>
+                      <button type="button" class="btn btn-secondary btn-padding-preset" data-padding="5" style="height: 24px; font-size: 11px; padding: 0 8px;" data-i18n="preset_padding_standard">5 px (Стандарт)</button>
+                      <button type="button" class="btn btn-secondary btn-padding-preset" data-padding="8" style="height: 24px; font-size: 11px; padding: 0 8px;" data-i18n="preset_padding_spacious">8 px (Просторий)</button>
+                    </div>
+                  </div>
+
+                  <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;">
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+                      <input type="checkbox" id="form-builder-extra-grade" checked>
+                      <span data-i18n="label_extra_grade">Додати графу «Результат перевірки / Оцінка»</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+                      <input type="checkbox" id="form-builder-extra-validity" checked>
+                      <span data-i18n="label_extra_validity">Додати графу «Термін дії нового свідоцтва»</span>
+                    </label>
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+                      <input type="checkbox" id="form-builder-extra-remarks">
+                      <span data-i18n="label_extra_remarks">Додати графу «Зауваження інструктора»</span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- 4. Bottom Block: Date, Position, Signature -->
+                <div>
+                  <label style="font-weight: 700; font-size: 14px; margin-bottom: 8px; display: block; color: var(--text-primary);" data-i18n="form_step_4_footer">
+                    4. Дата, посада та підпис (Нижній колонтитул)
+                  </label>
+
+                  <!-- Date Format Selector -->
+                  <div class="form-group" style="margin-bottom: var(--spacing-3);">
+                    <label for="form-builder-date-format" style="font-size: 12px; font-weight: 600;" data-i18n="label_date_format_form">
+                      Формат відображення дат у бланку:
+                    </label>
+                    <select id="form-builder-date-format" class="form-select">
+                      <option value="DD.MM.YY">DD.MM.YY — Скорочений (напр. 31.12.26)</option>
+                      <option value="DD.MM.YYYY">DD.MM.YYYY — Стандартний (напр. 31.12.2026)</option>
+                      <option value="YYYY-MM-DD">YYYY-MM-DD — Міжнародний ISO (напр. 2026-12-31)</option>
+                      <option value="DD/MM/YYYY">DD/MM/YYYY — Дробовий (напр. 31/12/2026)</option>
+                      <option value="DD MMM YYYY">DD MMM YYYY — Авіаційний (напр. 31 ГРУ 2026)</option>
+                      <option value="WORDS">«DD» MMMM YYYY р. — Офіційний прописом (напр. «31» грудня 2026 р.)</option>
+                    </select>
+                  </div>
+
+                  <div class="form-row grid-2cols">
+                    <div class="form-group">
+                      <label for="form-builder-date-text" style="font-size: 12px; font-weight: 600;" data-i18n="label_date_left">Поле дати (зліва):</label>
+                      <input type="text" id="form-builder-date-text" class="form-input" value="Дата: «____» ___________ 202___ р.">
+                    </div>
+                    <div class="form-group">
+                      <label for="form-builder-sign-rank" style="font-size: 12px; font-weight: 600;" data-i18n="label_sign_rank">Посада підписанта:</label>
+                      <input type="text" id="form-builder-sign-rank" class="form-input" placeholder="Керівник льотної служби">
+                    </div>
+                  </div>
+
+                  <div class="form-row grid-2cols" style="margin-top: var(--spacing-2);">
+                    <div class="form-group">
+                      <label for="form-builder-sign-name" style="font-size: 12px; font-weight: 600;" data-i18n="label_sign_name">ПІБ підписанта:</label>
+                      <input type="text" id="form-builder-sign-name" class="form-input" placeholder="Іванов І.І.">
+                    </div>
+                    <div class="form-group">
+                      <label style="font-size: 12px; font-weight: 600;" data-i18n="label_sign_line">Рядок для підпису:</label>
+                      <input type="text" class="form-input" value="____________ (підпис)" readonly style="background-color: var(--bg-surface-alt); color: var(--text-secondary);">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Form Builder Buttons -->
+                <div style="display: flex; gap: var(--spacing-2); flex-wrap: wrap; margin-top: var(--spacing-3); border-top: 1px solid var(--border-color); padding-top: var(--spacing-3);">
+                  <button class="btn btn-primary" id="btn-save-custom-form" style="flex: 2 1 180px;">
+                    <i data-lucide="save"></i>
+                    <span data-i18n="btn_save_custom_form">Зберегти налаштування форми</span>
+                  </button>
+                  <button class="btn btn-secondary" id="btn-preview-custom-form" style="flex: 1 1 120px;">
+                    <i data-lucide="printer"></i>
+                    <span data-i18n="btn_preview_custom_form">Друк / Preview</span>
+                  </button>
+                  <button class="btn btn-danger" id="btn-delete-custom-form" style="display: none;">
                     <i data-lucide="trash-2"></i>
-                    <span data-i18n="btn_delete_crew_member">Видалити співробітника</span>
+                  </button>
+                </div>
+
+              </div>
+
+              <!-- Right: Live Paper Sheet Preview -->
+              <div class="paper-preview-container">
+                <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                  <span style="font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;" data-i18n="preview_title_live">
+                    Попередній перегляд бланка (А4)
+                  </span>
+                  <span class="status-badge status-neutral" style="font-size: 10px;" data-i18n="badge_live_preview">Живе оновлення</span>
+                </div>
+
+                <div class="paper-sheet" id="form-paper-preview">
+                  <!-- Header with Logo and Title -->
+                  <div>
+                    <div class="paper-header pos-left" id="paper-preview-header">
+                      <img src="PICS/LOGO_UH.png" alt="Logo" class="paper-logo" id="paper-preview-logo">
+                      <div class="paper-title-block" id="paper-preview-title-block">
+                        <h4 class="paper-title" id="paper-preview-title">Подання на присвоєння кваліфікації</h4>
+                        <div class="paper-code" id="paper-preview-code">Форма UH-F-22</div>
+                        <div style="font-size: 10px; color: #64748b; margin-top: 2px;" id="paper-preview-subtitle">Авіакомпанія «Українські вертольоти»</div>
+                      </div>
+                    </div>
+
+                    <!-- Table Preview -->
+                    <table class="paper-table" id="paper-preview-table">
+                      <thead>
+                        <tr id="paper-preview-thead-tr">
+                          <!-- Columns populated dynamically -->
+                        </tr>
+                      </thead>
+                      <tbody id="paper-preview-tbody">
+                        <!-- Sample row populated dynamically -->
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <!-- Footer: Date (Left), Position & Signature (Right) -->
+                  <div class="paper-footer">
+                    <div class="paper-footer-left" id="paper-preview-footer-date">
+                      Дата: «____» ___________ 202___ р.
+                    </div>
+                    <div class="paper-footer-right">
+                      <div id="paper-preview-footer-rank" style="font-weight: 600;">Керівник льотної служби</div>
+                      <div class="paper-sign-line"></div>
+                      <div id="paper-preview-footer-name" style="font-size: 10px; color: #64748b;">(підпис, ПІБ)</div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- TAB 5: ЛОГ (СИСТЕМНИЙ АУДИТ) -->
+          <div class="settings-tab-panel" id="settings-panel-log">
+            <div class="card">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-3); margin-bottom: var(--spacing-4);">
+                <div>
+                  <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="history" style="color: var(--accent);"></i>
+                    <span data-i18n="log_title">Журнал змін та аудит сайту</span>
+                  </h3>
+                  <p style="font-size: 12px; color: var(--text-secondary); margin: 2px 0 0 0;" data-i18n="log_subtitle">
+                    Повна історія дій користувачів, внесених змін та синхронізацій із зазначенням автора
+                  </p>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: var(--spacing-2); flex-wrap: wrap;">
+                  <button class="btn btn-secondary" id="btn-refresh-log" style="height: 36px; font-size: 12px;">
+                    <i data-lucide="refresh-cw" style="width: 14px; height: 14px; margin-right: 4px;"></i>
+                    <span data-i18n="btn_refresh">Оновити</span>
+                  </button>
+                  <button class="btn btn-secondary" id="btn-export-log-csv" style="height: 36px; font-size: 12px;">
+                    <i data-lucide="download" style="width: 14px; height: 14px; margin-right: 4px;"></i>
+                    <span>Експорт CSV</span>
+                  </button>
+                  <button class="btn btn-secondary" id="btn-clear-log" style="height: 36px; font-size: 12px; color: var(--danger-color); border-color: rgba(239, 68, 68, 0.3);">
+                    <i data-lucide="trash-2" style="width: 14px; height: 14px; margin-right: 4px;"></i>
+                    <span>Очистити лог</span>
                   </button>
                 </div>
               </div>
+
+              <!-- Search and Filter Bar -->
+              <div style="display: flex; gap: var(--spacing-3); align-items: center; flex-wrap: wrap; padding: 12px; background-color: var(--bg-surface-alt); border: 1px solid var(--border-color); border-radius: var(--radius-md); margin-bottom: var(--spacing-4);">
+                <div style="flex: 1; min-width: 220px; position: relative;">
+                  <i data-lucide="search" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); width: 14px; height: 14px; color: var(--text-secondary);"></i>
+                  <input type="text" id="log-search-input" class="form-input" style="padding-left: 32px; height: 36px; font-size: 13px;" placeholder="Пошук за автором (email), екіпажем, полем..." />
+                </div>
+                
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <label for="log-filter-type" style="font-size: 12px; font-weight: 600; color: var(--text-secondary); white-space: nowrap;">Тип дії:</label>
+                  <select id="log-filter-type" class="form-input" style="height: 36px; font-size: 13px; width: 190px;">
+                    <option value="ALL">Всі події (All)</option>
+                    <option value="MANUAL_EDIT">Ручні зміни дат / даних</option>
+                    <option value="FLIGHT_LOG">Тренувальні польоти</option>
+                    <option value="CREW_ADD">Додавання співробітників</option>
+                    <option value="CREW_DELETE">Видалення співробітників</option>
+                    <option value="MERGE_IMPORT">Імпорт з Excel</option>
+                  </select>
+                </div>
+
+                <div style="font-size: 12px; color: var(--text-secondary); margin-left: auto;">
+                  <span id="log-counter-badge" class="status-badge status-neutral" style="font-size: 11px;">Всього записів: 0</span>
+                </div>
+              </div>
+
+              <!-- Log Table -->
+              <div class="scroll-table-wrapper" style="max-height: 580px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+                <table class="data-table" id="settings-log-table" style="font-size: 12px;">
+                  <thead>
+                    <tr>
+                      <th style="width: 150px;">Дата і час</th>
+                      <th style="width: 220px;">Хто змінив (Email / Користувач)</th>
+                      <th style="width: 140px; text-align: center;">Тип дії</th>
+                      <th style="width: 180px;">Член екіпажу</th>
+                      <th>Деталі внесених змін</th>
+                    </tr>
+                  </thead>
+                  <tbody id="settings-log-tbody">
+                    <!-- Dynamic entries rendered by JS -->
+                  </tbody>
+                </table>
+              </div>
             </div>
-            
           </div>
+
         </div>
+
 
         <!-- 7. PERSONAL PORTAL VIEW (CREW VIEW) -->
         <div class="view-panel" id="view-personal-portal">
@@ -875,6 +1656,129 @@
     </div>
   </div>
 
+  <!-- ================= ADD USER MODAL ================= -->
+  <div id="user-modal-backdrop" class="modal-backdrop">
+    <div class="modal-content" style="width: 440px;">
+      <div class="modal-header">
+        <h2 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="user-plus" style="width: 20px; height: 20px; color: var(--accent);"></i>
+          <span data-i18n="modal_add_user_title">Додати користувача</span>
+        </h2>
+        <button class="modal-close-btn" id="btn-close-user-modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <form id="add-user-form" style="display: flex; flex-direction: column; gap: var(--spacing-3);">
+        <div class="form-group">
+          <label for="new-user-email" style="font-weight: 600; font-size: 13px;">Email <span style="color: var(--danger-color);">*</span>:</label>
+          <input type="email" id="new-user-email" class="form-input" placeholder="user@ukr-helicopters.ua" required>
+        </div>
+
+        <div class="form-group">
+          <label for="new-user-name" style="font-weight: 600; font-size: 13px;">Прізвище та ім'я / Full Name:</label>
+          <input type="text" id="new-user-name" class="form-input" placeholder="Петренко Іван / Ivan Petrenko">
+        </div>
+
+        <div class="form-group">
+          <label for="new-user-role" style="font-weight: 600; font-size: 13px;">Роль у системі / Role <span style="color: var(--danger-color);">*</span>:</label>
+          <select id="new-user-role" class="form-input" required>
+            <option value="CREW">CREW — Особистий кабінет (перегляд)</option>
+            <option value="OFFICE">OFFICE — Друк бланків, перегляд списків</option>
+            <option value="INSTRUCTOR">INSTRUCTOR — Внесення польотів, редагування дат</option>
+            <option value="ADMIN">ADMIN — Повний доступ до всіх налаштувань</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="new-user-password" style="font-weight: 600; font-size: 13px;">Пароль (за замовчуванням: 123456):</label>
+          <input type="password" id="new-user-password" class="form-input" placeholder="Залиште порожнім для пароля 123456">
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: var(--spacing-2); border-top: 1px solid var(--border-color); padding-top: var(--spacing-3); margin-top: var(--spacing-2);">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-user-modal">Скасувати</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-add-user">
+            <i data-lucide="check" style="width: 14px; height: 14px; margin-right: 4px;"></i>
+            <span>Зберегти</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= PORTAL DATE EDIT MODAL ================= -->
+  <div id="portal-date-edit-modal-backdrop" class="modal-backdrop">
+    <div class="modal-content" style="width: 440px;">
+      <div class="modal-header">
+        <h2 id="portal-date-edit-modal-title" style="font-family: var(--font-display); font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="calendar" style="width: 20px; height: 20px; color: var(--accent);"></i>
+          <span>Редагування дати / Edit Date</span>
+        </h2>
+        <button class="modal-close-btn" id="btn-close-portal-date-edit-modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <div style="background-color: var(--bg-surface-alt); border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: var(--spacing-3); font-size: 13px;">
+        <div style="color: var(--text-secondary); font-size: 11px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px;">Член екіпажу / Crew Member</div>
+        <div id="portal-date-edit-crew-name" style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">-</div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; border-top: 1px dashed var(--border-color); padding-top: 4px;">
+          <span style="color: var(--text-secondary); font-size: 12px;">Вид підготовки / Training:</span>
+          <span id="portal-date-edit-training-name" style="font-weight: 700; color: var(--accent); font-size: 13px;">-</span>
+        </div>
+      </div>
+
+      <form id="portal-date-edit-form" style="display: flex; flex-direction: column; gap: var(--spacing-3);">
+        <input type="hidden" id="portal-date-edit-col-name" value="" />
+        <input type="hidden" id="portal-date-edit-rule-key" value="" />
+
+        <div id="portal-date-edit-type-wrapper" class="form-group" style="display: none;">
+          <label style="font-weight: 600; font-size: 13px; margin-bottom: 6px; display: block;">Тип введеної дати / Date Type:</label>
+          <div style="display: flex; flex-direction: column; gap: 8px; background-color: var(--bg-surface-alt); padding: 10px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+            <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 13px; cursor: pointer;">
+              <input type="radio" name="portal-date-edit-mode" value="EXPIRY" checked style="margin-top: 2px;">
+              <div>
+                <strong>Дата закінчення дії</strong> (Expiration Date)
+                <div style="font-size: 11px; color: var(--text-secondary);">Встановити зазначену дату як кінцевий строк чинності</div>
+              </div>
+            </label>
+            <label style="display: flex; align-items: flex-start; gap: 8px; font-size: 13px; cursor: pointer;">
+              <input type="radio" name="portal-date-edit-mode" value="COMPLETION" style="margin-top: 2px;">
+              <div>
+                <strong>Дата проходження</strong> (Completion Date)
+                <div style="font-size: 11px; color: var(--text-secondary);">Автоматично розрахувати термін дії за правилами періодичності</div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="portal-date-edit-input" style="font-weight: 600; font-size: 13px;" id="portal-date-edit-input-label">Дата закінчення дії:</label>
+          <input type="date" id="portal-date-edit-input" class="form-input" style="font-size: 14px; padding: 8px 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px; font-size: 11px; color: var(--text-secondary);">
+            <span>Поточне значення: <strong id="portal-date-edit-current-val" style="color: var(--text-primary);">-</strong></span>
+            <button type="button" id="btn-portal-date-set-today" class="btn btn-secondary" style="height: 22px; padding: 0 8px; font-size: 11px;">Сьогодні</button>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: var(--spacing-3); margin-top: var(--spacing-2);">
+          <button type="button" class="btn btn-secondary" id="btn-portal-date-clear" style="color: var(--danger-color); border-color: rgba(239, 68, 68, 0.3); font-size: 12px; height: 36px; padding: 0 10px;">
+            <i data-lucide="trash-2" style="width: 14px; height: 14px; margin-right: 4px;"></i>
+            Очистити
+          </button>
+          
+          <div style="display: flex; gap: var(--spacing-2);">
+            <button type="button" class="btn btn-secondary" id="btn-cancel-portal-date-edit" style="height: 36px; font-size: 13px;">Скасувати</button>
+            <button type="submit" class="btn btn-primary" id="btn-save-portal-date" style="height: 36px; font-size: 13px;">
+              <i data-lucide="check" style="width: 14px; height: 14px; margin-right: 4px;"></i>
+              Зберегти
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ================= CONFIRM DIALOG ================= -->
   <div id="confirm-backdrop" class="modal-backdrop">
     <div class="modal-content" style="width: 400px;">
@@ -902,6 +1806,60 @@
       </div>
       <div style="display: flex; justify-content: flex-end; gap: var(--spacing-3); border-top: 1px solid var(--border-color); padding-top: var(--spacing-4); margin-top: auto;">
         <button class="btn btn-primary" id="btn-close-import-report">Добре</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= CREW FOLDERS REGISTRY MODAL ================= -->
+  <div id="crew-folders-modal-backdrop" class="modal-backdrop">
+    <div class="modal-content" style="width: 800px; max-width: 95%; max-height: 85vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: var(--spacing-3);">
+        <h2 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px; margin: 0;">
+          <i data-lucide="folder-tree" style="color: var(--accent);"></i>
+          <span data-i18n="modal_folders_title">Реєстр особистих папок екіпажу (NAME_EN)</span>
+        </h2>
+        <button class="btn btn-secondary" id="btn-close-folders-modal-x" style="padding: 4px 8px; height: auto;">
+          <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+        </button>
+      </div>
+      
+      <div style="font-size: 13px; color: var(--text-secondary); margin: var(--spacing-3) 0 var(--spacing-2) 0;">
+        Кожен член льотного (FLIGHT) та кабінного (CABIN) складу має власну папку з назвою <strong>NAME_EN</strong> на Google Drive для збереження сканів документів та фото:
+      </div>
+      
+      <div style="display: flex; gap: var(--spacing-3); margin-bottom: var(--spacing-3); align-items: center; justify-content: space-between; flex-wrap: wrap;">
+        <div style="display: flex; gap: var(--spacing-2);">
+          <button class="btn btn-secondary btn-folders-filter active" data-filter="all" style="font-size: 12px; padding: 4px 12px; height: 32px;">Всі (<span id="folders-count-all">0</span>)</button>
+          <button class="btn btn-secondary btn-folders-filter" data-filter="FLIGHT" style="font-size: 12px; padding: 4px 12px; height: 32px;">FLIGHT (<span id="folders-count-flight">0</span>)</button>
+          <button class="btn btn-secondary btn-folders-filter" data-filter="CABIN" style="font-size: 12px; padding: 4px 12px; height: 32px;">CABIN (<span id="folders-count-cabin">0</span>)</button>
+        </div>
+        <div class="search-box" style="height: 32px; padding: 0 var(--spacing-2);">
+          <i data-lucide="search" style="width: 14px; height: 14px;"></i>
+          <input type="text" id="folders-search-input" placeholder="Пошук за NAME_EN..." style="font-size: 12px; background: transparent; border: none; outline: none; color: var(--text-primary); width: 180px;">
+        </div>
+      </div>
+      
+      <div class="scroll-table-wrapper" style="max-height: 420px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+        <table class="data-table" id="folders-registry-table" style="font-size: 12px;">
+          <thead>
+            <tr>
+              <th style="width: 85px;">Склад</th>
+              <th>NAME_EN (Папка)</th>
+              <th>Повний шлях Google Drive</th>
+              <th style="width: 110px; text-align: center;">Статус</th>
+            </tr>
+          </thead>
+          <tbody id="folders-registry-tbody">
+            <!-- Dynamic rows populated in JS -->
+          </tbody>
+        </table>
+      </div>
+      
+      <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: var(--spacing-4); margin-top: var(--spacing-3);">
+        <div style="font-size: 12px; color: var(--text-secondary);" id="folders-last-verified-text">
+          Перевірено: щойно
+        </div>
+        <button class="btn btn-primary" id="btn-close-folders-modal">Закрити</button>
       </div>
     </div>
   </div>

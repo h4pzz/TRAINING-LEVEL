@@ -653,3 +653,475 @@
   color: var(--accent-hover);
 }
 
+/* ================= SETTINGS SUB-NAVIGATION TABS ================= */
+.settings-subnav-container {
+  display: flex;
+  gap: var(--spacing-2);
+  border-bottom: 2px solid var(--border-color);
+  padding-bottom: var(--spacing-2);
+  margin-bottom: var(--spacing-6);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.settings-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: 10px 18px;
+  border-radius: var(--radius-md);
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.settings-tab-btn:hover {
+  background-color: var(--bg-surface-alt);
+  color: var(--text-primary);
+}
+
+.settings-tab-btn.active {
+  background-color: var(--accent);
+  color: var(--text-on-accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.settings-tab-btn svg {
+  width: 17px;
+  height: 17px;
+}
+
+/* Settings Panels */
+.settings-tab-panel {
+  display: none;
+  animation: fadeIn 200ms ease;
+}
+
+.settings-tab-panel.active {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+}
+
+/* ================= FORMS GENERATOR & EDITOR ================= */
+.form-builder-layout {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: var(--spacing-6);
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .form-builder-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.logo-position-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-2);
+}
+
+.logo-pos-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-surface-alt);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.logo-pos-btn:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.logo-pos-btn.active {
+  border-color: var(--accent);
+  background-color: var(--accent-light);
+  color: var(--accent);
+}
+
+/* Orientation Selector */
+.orientation-selector {
+  display: flex;
+  gap: var(--spacing-2);
+}
+
+.orientation-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background-color: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.orientation-btn:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.orientation-btn.active {
+  border-color: var(--accent);
+  background-color: var(--accent-light);
+  color: var(--accent);
+}
+
+/* Live Paper Preview for Forms */
+.paper-preview-container {
+  background-color: var(--bg-surface-alt);
+  border: 1px dashed var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-6);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-x: auto;
+}
+
+.paper-sheet {
+  background: #ffffff;
+  color: #0f172a;
+  width: 100%;
+  max-width: 520px;
+  min-height: 600px;
+  padding: 28px 24px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  box-sizing: border-box;
+  transition: max-width var(--transition-normal), min-height var(--transition-normal);
+}
+
+.paper-sheet.orientation-landscape {
+  max-width: 720px;
+  min-height: 480px;
+}
+
+.paper-sheet.orientation-portrait {
+  max-width: 520px;
+  min-height: 600px;
+}
+
+.paper-table.fit-single-line th,
+.paper-table.fit-single-line td {
+  white-space: nowrap !important;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  padding-left: var(--cell-pad-h, 1px) !important;
+  padding-right: var(--cell-pad-h, 1px) !important;
+}
+
+[data-theme="dark"] .paper-sheet {
+  /* Paper remains white like standard print paper */
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.paper-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.paper-header.pos-left {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 16px;
+}
+
+.paper-header.pos-center {
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+}
+
+.paper-header.pos-right {
+  flex-direction: row-reverse;
+  justify-content: flex-start;
+  gap: 16px;
+  text-align: right;
+}
+
+.paper-logo {
+  max-height: 48px;
+  max-width: 140px;
+  object-fit: contain;
+}
+
+.paper-title-block {
+  flex: 1;
+}
+
+.paper-title {
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin: 0;
+  color: #1e293b;
+  letter-spacing: 0.02em;
+}
+
+.paper-code {
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+  margin-top: 2px;
+}
+
+.paper-table {
+  width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  font-size: 11px;
+  margin: 14px 0;
+  box-sizing: border-box;
+}
+
+.paper-table th, .paper-table td {
+  border: 1px solid #cbd5e1;
+  padding: var(--cell-pad-v, 5px) var(--cell-pad-h, 7px);
+  text-align: left;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.paper-table th {
+  background-color: #f1f5f9;
+  font-weight: 700;
+  color: #334155;
+  font-size: 10.5px;
+  text-align: center;
+  padding-left: 1px !important;
+  padding-right: 1px !important;
+  white-space: normal !important;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  vertical-align: middle;
+}
+
+.paper-table th.col-rank {
+  font-size: calc(1em - 2px) !important;
+  padding-left: 1px !important;
+  padding-right: 1px !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+  white-space: nowrap !important;
+  width: 44px !important;
+  max-width: 48px !important;
+}
+
+.paper-table td.col-rank {
+  padding-left: 1px !important;
+  padding-right: 1px !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+  white-space: nowrap !important;
+  width: 44px !important;
+  max-width: 48px !important;
+}
+
+.paper-table th.col-name {
+  text-align: center !important;
+  vertical-align: middle !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  line-height: 1.2 !important;
+  width: 22%;
+  min-width: 85px;
+}
+
+.paper-table td.col-name {
+  text-align: left !important;
+  vertical-align: middle !important;
+  white-space: normal !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  text-overflow: clip !important;
+  overflow: visible !important;
+  line-height: 1.2 !important;
+  padding-left: 5px !important;
+  padding-right: 4px !important;
+}
+
+.paper-footer {
+  margin-top: 24px;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  font-size: 11px;
+}
+
+.paper-footer-left {
+  color: #475569;
+}
+
+.paper-footer-right {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.paper-sign-line {
+  display: inline-block;
+  min-width: 140px;
+  border-bottom: 1px solid #0f172a;
+  margin-top: 12px;
+}
+
+/* Form card on Blanks page */
+.blank-card-item {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: var(--spacing-4);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  gap: var(--spacing-3);
+}
+
+.blank-card-item:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.blank-card-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+}
+
+.blank-card-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  flex: 1 1 300px;
+}
+
+.blank-crew-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background-color: var(--bg-surface-alt);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+}
+
+.blank-crew-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.blank-crew-chips-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 24px;
+  align-items: center;
+}
+
+.crew-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  padding: 3px 8px 3px 10px;
+  border-radius: 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.crew-chip-remove {
+  cursor: pointer;
+  color: var(--text-muted);
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  transition: all var(--transition-fast);
+}
+
+.crew-chip-remove:hover {
+  background-color: #fee2e2;
+  color: #dc2626;
+}
+
+/* Personal Portal Editable Training Cards */
+.portal-training-card {
+  position: relative;
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.portal-training-card--editable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.portal-training-card--editable:hover {
+  border-color: var(--accent) !important;
+  box-shadow: 0 4px 12px rgba(0, 102, 204, 0.12);
+  transform: translateY(-2px);
+  background-color: var(--bg-surface) !important;
+}
+
+.portal-training-card--editable:hover .portal-date-edit-icon {
+  opacity: 1 !important;
+  color: var(--accent) !important;
+}
+
+.portal-training-card--editable:active {
+  transform: translateY(0);
+}
+
+
+
