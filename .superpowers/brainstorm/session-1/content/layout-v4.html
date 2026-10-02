@@ -1,0 +1,1971 @@
+<style>
+  /* Local styles for the high-fidelity interactive mockup - V4 */
+  .preview-section {
+    margin-bottom: 2rem;
+  }
+  .controls-panel {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    align-items: center;
+  }
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .control-group label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: 0.05em;
+  }
+  .btn-group {
+    display: flex;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    padding: 0.25rem;
+    gap: 0.25rem;
+  }
+  .btn-group button {
+    background: transparent;
+    border: none;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    transition: all 0.15s ease;
+  }
+  .btn-group button.active {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+  }
+  .btn-group button:hover:not(.active) {
+    color: var(--text-primary);
+  }
+
+  /* Mockup Browser Window styling */
+  .browser-mock {
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    height: 720px;
+    transition: all 0.3s ease;
+  }
+
+  /* Themes within mockup */
+  .browser-mock.app-theme-light {
+    --app-bg: #f8fafc;
+    --app-card-bg: #ffffff;
+    --app-border: #e2e8f0;
+    --app-text: #0f172a;
+    --app-text-muted: #64748b;
+    --app-sidebar-bg: #ffffff;
+    --app-sidebar-text: #334155;
+    --app-sidebar-active: #f1f5f9;
+    --app-accent: #0f172a; /* Sleek Minimalist Dark Accent */
+    --app-accent-rgb: 15, 23, 42;
+    --app-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);
+  }
+  
+  .browser-mock.app-theme-dark {
+    --app-bg: #0b0f19;
+    --app-card-bg: #111827;
+    --app-border: #1f2937;
+    --app-text: #f9fafb;
+    --app-text-muted: #9ca3af;
+    --app-sidebar-bg: #111827;
+    --app-sidebar-text: #9ca3af;
+    --app-sidebar-active: #1f2937;
+    --app-accent: #3b82f6; /* Modern Blue Accent */
+    --app-accent-rgb: 59, 130, 246;
+    --app-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.3);
+  }
+
+  .browser-header {
+    background: var(--app-card-bg);
+    border-bottom: 1px solid var(--app-border);
+    padding: 0.75rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+  .dot-red { background: #ef4444; }
+  .dot-yellow { background: #f59e0b; }
+  .dot-green { background: #10b981; }
+  
+  .browser-bar {
+    background: var(--app-bg);
+    border-radius: 6px;
+    flex: 1;
+    margin: 0 1rem;
+    padding: 0.25rem 1rem;
+    font-size: 0.75rem;
+    color: var(--app-text-muted);
+    border: 1px solid var(--app-border);
+    text-align: center;
+    user-select: none;
+  }
+
+  .browser-body {
+    display: flex;
+    flex: 1;
+    height: calc(100% - 41px);
+    background: var(--app-bg);
+    color: var(--app-text);
+  }
+
+  /* App Sidebar with responsive hiding */
+  .app-sidebar {
+    width: 250px;
+    background: var(--app-sidebar-bg);
+    border-right: 1px solid var(--app-border);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 1.25rem;
+    flex-shrink: 0;
+    transition: all 0.3s ease;
+  }
+  
+  /* Mobile Simulation breakpoint inside the mockup container */
+  @media (max-width: 650px) {
+    .app-sidebar {
+      width: 60px;
+      padding: 0.75rem 0.25rem;
+      align-items: center;
+    }
+    .app-sidebar .app-logo span,
+    .app-sidebar .nav-text,
+    .app-sidebar .sidebar-bottom .toggle-row span,
+    .app-sidebar .sidebar-bottom div {
+      display: none;
+    }
+    .app-sidebar .sidebar-bottom {
+      align-items: center;
+    }
+    .app-sidebar .toggle-switch {
+      flex-direction: column;
+    }
+    .app-sidebar .app-logo {
+      padding: 0;
+      margin-bottom: 2rem;
+    }
+  }
+
+  .app-logo {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--app-text);
+    padding: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .app-logo svg {
+    width: 24px;
+    height: 24px;
+    fill: var(--app-accent);
+  }
+  .app-menu {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    width: 100%;
+  }
+  .menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    color: var(--app-sidebar-text);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  @media (max-width: 650px) {
+    .menu-item {
+      justify-content: center;
+      padding: 0.75rem 0;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+    }
+  }
+  .menu-item:hover {
+    background: var(--app-sidebar-active);
+    color: var(--app-text);
+  }
+  .menu-item.active {
+    background: var(--app-accent);
+    color: #ffffff !important;
+  }
+  
+  .sidebar-bottom {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    border-top: 1px solid var(--app-border);
+    padding-top: 0.75rem;
+    width: 100%;
+  }
+  .toggle-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.8rem;
+    color: var(--app-text-muted);
+  }
+  .toggle-switch {
+    display: flex;
+    background: var(--app-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 6px;
+    padding: 0.15rem;
+    gap: 0.15rem;
+  }
+  .toggle-switch button {
+    background: transparent;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--app-text-muted);
+    font-weight: 600;
+  }
+  .toggle-switch button.active {
+    background: var(--app-accent);
+    color: #ffffff;
+  }
+
+  /* App Main Layout */
+  .app-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .app-header {
+    background: var(--app-card-bg);
+    border-bottom: 1px solid var(--app-border);
+    padding: 1rem 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  @media (max-width: 600px) {
+    .app-header {
+      padding: 0.75rem 1rem;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.5rem;
+    }
+    .app-header-right {
+      width: 100%;
+      justify-content: flex-end;
+    }
+  }
+  .app-header-title h1 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--app-text);
+  }
+  .app-header-title p {
+    font-size: 0.75rem;
+    color: var(--app-text-muted);
+    margin-top: 0.15rem;
+  }
+  
+  .app-header-right {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  .user-badge {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--app-bg);
+    border: 1px solid var(--app-border);
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    font-size: 0.8rem;
+  }
+  .user-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--app-accent);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.7rem;
+  }
+
+  .app-content {
+    flex: 1;
+    padding: 1.5rem;
+    overflow-y: auto;
+    background: var(--app-bg);
+  }
+  @media (max-width: 600px) {
+    .app-content {
+      padding: 1rem;
+    }
+  }
+
+  /* Login Screen Mockup */
+  .login-screen {
+    max-width: 360px;
+    margin: 2rem auto;
+    background: var(--app-card-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+    padding: 2rem;
+    box-shadow: var(--app-shadow);
+  }
+  .login-title {
+    text-align: center;
+    margin-bottom: 1.5rem;
+  }
+  .login-title h2 {
+    font-size: 1.4rem;
+    margin-bottom: 0.25rem;
+  }
+  .login-title p {
+    font-size: 0.8rem;
+    color: var(--app-text-muted);
+  }
+  .form-field {
+    margin-bottom: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .form-field label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+  .form-input {
+    background: var(--app-bg);
+    border: 1px solid var(--app-border);
+    padding: 0.6rem 0.8rem;
+    border-radius: 8px;
+    color: var(--app-text);
+    font-size: 0.9rem;
+    outline: none;
+    width: 100%;
+  }
+  .form-input:focus {
+    border-color: var(--app-accent);
+  }
+  .form-input:disabled {
+    background: var(--app-border);
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  .login-btn {
+    background: var(--app-accent);
+    color: white;
+    border: none;
+    padding: 0.7rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 0.5rem;
+    transition: background 0.15s ease;
+  }
+  .login-btn:hover {
+    opacity: 0.9;
+  }
+
+  /* KPI Grid */
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .kpi-card {
+    background: var(--app-card-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    box-shadow: var(--app-shadow);
+  }
+  .kpi-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    color: var(--app-text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  .kpi-icon {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-size: 0.8rem;
+  }
+  .kpi-val {
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+
+  /* Custom Colors for KPIs */
+  .kpi-icon-blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+  .kpi-icon-purple { background: rgba(147, 51, 234, 0.1); color: #a855f7; }
+  .kpi-icon-red { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
+  .kpi-icon-orange { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+
+  /* Dashboard Split View */
+  .dash-layout {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  .dash-layout-bottom {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr;
+    gap: 1rem;
+  }
+  @media (max-width: 800px) {
+    .dash-layout, .dash-layout-bottom { grid-template-columns: 1fr; }
+  }
+  
+  .content-panel {
+    background: var(--app-card-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: var(--app-shadow);
+  }
+  .panel-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--app-border);
+    padding-bottom: 0.5rem;
+  }
+
+  /* List & Table styles */
+  .dept-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  .dept-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .dept-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+  }
+  .dept-bar-bg {
+    height: 8px;
+    background: var(--app-bg);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .dept-bar-fill {
+    height: 100%;
+    background: var(--app-accent);
+    border-radius: 4px;
+  }
+  
+  .crew-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .crew-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    border-radius: 6px;
+    background: var(--app-bg);
+    font-size: 0.8rem;
+    border: 1px solid var(--app-border);
+  }
+
+  /* Badges */
+  .badge {
+    padding: 0.15rem 0.4rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+  .badge-red { background: rgba(239, 68, 68, 0.15); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); }
+  .badge-orange { background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2); }
+  .badge-green { background: rgba(16, 185, 129, 0.15); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.2); }
+  .badge-gray { background: rgba(107, 114, 128, 0.15); color: #6b7280; border: 1px solid rgba(107, 114, 128, 0.2); }
+
+  /* Forms and Inputs */
+  .grid-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  @media (max-width: 600px) {
+    .grid-form { grid-template-columns: 1fr; }
+  }
+
+  /* Personal Screen (Crew) - Responsive Grid */
+  .personal-welcome {
+    background: var(--app-accent);
+    color: #ffffff;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+  .personal-meta-left {
+    min-width: 250px;
+  }
+  .personal-meta-right {
+    font-size: 0.8rem;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 0.75rem 1rem;
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+  .personal-welcome h2 {
+    font-size: 1.4rem;
+    margin-bottom: 0.25rem;
+  }
+  .personal-welcome p {
+    opacity: 0.9;
+    font-size: 0.85rem;
+  }
+  
+  .prep-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+  }
+  @media (max-width: 600px) {
+    .prep-grid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  .prep-card {
+    background: var(--app-card-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 10px;
+    padding: 0.75rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 90px;
+    box-shadow: var(--app-shadow);
+  }
+  .prep-name {
+    font-weight: 700;
+    font-size: 0.85rem;
+  }
+  .prep-dates {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+  .prep-date-label {
+    font-size: 0.6rem;
+    color: var(--app-text-muted);
+  }
+  .prep-date-val {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  /* Scanned files container */
+  .files-section {
+    background: var(--app-card-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: var(--app-shadow);
+  }
+  .files-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+  }
+  .file-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: var(--app-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 8px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .file-item:hover {
+    border-color: var(--app-accent);
+    background: var(--app-sidebar-active);
+  }
+  .file-icon {
+    font-size: 1.5rem;
+  }
+  .file-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+  }
+  .file-name {
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .file-size {
+    font-size: 0.65rem;
+    color: var(--app-text-muted);
+  }
+
+  /* Table styling */
+  .data-table-wrapper {
+    overflow-x: auto;
+  }
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+    text-align: left;
+  }
+  .data-table th {
+    background: var(--app-bg);
+    padding: 0.75rem;
+    font-weight: 600;
+    border-bottom: 2px solid var(--app-border);
+    color: var(--app-text-muted);
+  }
+  .data-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--app-border);
+  }
+  .data-table tr:hover {
+    background: var(--app-sidebar-active);
+  }
+
+  /* Settings Layout styles */
+  .settings-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+  }
+  @media (max-width: 800px) {
+    .settings-grid { grid-template-columns: 1fr; }
+  }
+  .settings-card {
+    background: var(--app-card-bg);
+    border: 1px solid var(--app-border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    box-shadow: var(--app-shadow);
+    margin-bottom: 1rem;
+  }
+  .settings-card-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    border-bottom: 1px solid var(--app-border);
+    padding-bottom: 0.5rem;
+  }
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+  }
+  .checkbox-row input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--app-accent);
+  }
+  .column-toggle-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+
+  /* Interactive Modal/Form for Editing Crew details */
+  .edit-modal-backdrop {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    z-index: 100;
+  }
+  .edit-modal-content {
+    background: var(--app-card-bg);
+    color: var(--app-text);
+    border: 1px solid var(--app-border);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 600px;
+    max-height: 90%;
+    overflow-y: auto;
+    box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1);
+    display: flex;
+    flex-direction: column;
+  }
+  .edit-modal-header {
+    padding: 1.25rem;
+    border-bottom: 1px solid var(--app-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .edit-modal-header h3 {
+    margin: 0;
+  }
+  .edit-modal-body {
+    padding: 1.25rem;
+  }
+  .edit-modal-footer {
+    padding: 1.25rem;
+    border-top: 1px solid var(--app-border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.75rem;
+  }
+
+  /* Warning banner for restricted fields */
+  .restricted-banner {
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #d97706;
+    padding: 0.5rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* Hidden utilities */
+  .hidden {
+    display: none !important;
+  }
+</style>
+
+<h2>Інтерактивний макет AeroCheck — Версія 4</h2>
+<p class="subtitle">Впроваджено обмеження редагування для ролі INSTRUCTOR (персональні дані заблоковано, доступно лише дати підготовки).</p>
+
+<!-- Control Bar outside the mockup for prototype testing -->
+<div class="controls-panel">
+  <div class="control-group">
+    <label>Емуляція входу (Роль)</label>
+    <div class="btn-group" id="roleSwitcher">
+      <button onclick="setRole('guest')" id="btn-role-guest">Не увійшов</button>
+      <button onclick="setRole('admin')" id="btn-role-admin" class="active">ADMIN</button>
+      <button onclick="setRole('crew')" id="btn-role-crew">CREW</button>
+      <button onclick="setRole('instructor')" id="btn-role-instructor">INSTRUCTOR</button>
+      <button onclick="setRole('office')" id="btn-role-office">OFFICE</button>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <label>Тема макета</label>
+    <div class="btn-group" id="themeSwitcher">
+      <button onclick="setMockTheme('light')" id="btn-theme-light" class="active">Світла (Опція 2)</button>
+      <button onclick="setMockTheme('dark')" id="btn-theme-dark">Темна (Скриншот)</button>
+    </div>
+  </div>
+
+  <div class="control-group">
+    <label>Мова макета</label>
+    <div class="btn-group" id="langSwitcher">
+      <button onclick="setMockLang('uk')" id="btn-lang-uk" class="active">UA</button>
+      <button onclick="setMockLang('en')" id="btn-lang-en">EN</button>
+    </div>
+  </div>
+</div>
+
+<!-- Interactive Browser Mockup -->
+<div class="browser-mock app-theme-light" id="browserMock">
+  <div class="browser-header">
+    <div class="dot dot-red"></div>
+    <div class="dot dot-yellow"></div>
+    <div class="dot dot-green"></div>
+    <div class="browser-bar" id="browserUrl">http://aerocheck.crew.local/dashboard</div>
+  </div>
+
+  <div class="browser-body" style="position: relative;">
+    <!-- Sidebar -->
+    <div class="app-sidebar" id="sidebarContainer">
+      <div class="sidebar-top">
+        <div class="app-logo">
+          <svg viewBox="0 0 24 24">
+            <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L14 19v-5.5L21 16z"/>
+          </svg>
+          <span>AeroCheck</span>
+        </div>
+
+        <div class="app-menu" id="appMenu">
+          <div class="menu-item active" id="menu-dashboard" onclick="switchTab('dashboard')">
+            <span class="icon">📊</span> <span class="nav-text" data-ua="Дашборд" data-en="Dashboard">Дашборд</span>
+          </div>
+          <div class="menu-item" id="menu-flight" onclick="switchTab('flight')">
+            <span class="icon">✈️</span> <span class="nav-text" data-ua="Льотний склад" data-en="Flight Crew">Льотний склад</span>
+          </div>
+          <div class="menu-item" id="menu-cabin" onclick="switchTab('cabin')">
+            <span class="icon">👥</span> <span class="nav-text" data-ua="Кабінний склад" data-en="Cabin Crew">Кабінний склад</span>
+          </div>
+          <div class="menu-item" id="menu-flights" onclick="switchTab('flights')">
+            <span class="icon">📝</span> <span class="nav-text" data-ua="Запис польоту" data-en="Training Flights">Запис польоту</span>
+          </div>
+          <div class="menu-item" id="menu-forms" onclick="switchTab('forms')">
+            <span class="icon">📄</span> <span class="nav-text" data-ua="Бланки / Форми" data-en="Forms">Бланки / Форми</span>
+          </div>
+          <div class="menu-item" id="menu-settings" onclick="switchTab('settings')">
+            <span class="icon">⚙️</span> <span class="nav-text" data-ua="Налаштування" data-en="Settings">Налаштування</span>
+          </div>
+          <div class="menu-item hidden" id="menu-personal" onclick="switchTab('personal')">
+            <span class="icon">👤</span> <span class="nav-text" data-ua="Особистий статус" data-en="My Training Status">Особистий статус</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar-bottom">
+        <div class="toggle-row">
+          <span data-ua="Тема" data-en="Theme">Тема</span>
+          <div class="toggle-switch">
+            <button class="active" id="btn-in-light" onclick="setMockTheme('light')">☀️</button>
+            <button id="btn-in-dark" onclick="setMockTheme('dark')">🌙</button>
+          </div>
+        </div>
+        <div class="toggle-row">
+          <span data-ua="Мова" data-en="Language">Мова</span>
+          <div class="toggle-switch">
+            <button class="active" id="btn-in-uk" onclick="setMockLang('uk')">UA</button>
+            <button id="btn-in-en" onclick="setMockLang('en')">EN</button>
+          </div>
+        </div>
+        <div style="font-size: 0.65rem; color: var(--app-text-muted); text-align: center;">
+          <span data-ua="Дата системи: 12.07.2026" data-en="System Date: 2026-07-12">Дата системи: 12.07.2026</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="app-main">
+      <div class="app-header" id="appHeader">
+        <div class="app-header-title">
+          <h1 id="viewTitle" data-ua="Панель відповідності" data-en="Compliance Dashboard">Панель відповідності</h1>
+          <p id="viewSubtitle" data-ua="Огляд статусу підготовки та термінів дії документів" data-en="Overview of crew qualification levels and document expiries">Огляд статусу підготовки та термінів дії документів</p>
+        </div>
+        <div class="app-header-right">
+          <div class="user-badge">
+            <div class="user-avatar" id="userAvatar">A</div>
+            <div>
+              <div style="font-weight: 600;" id="userProfileName">Operations Admin</div>
+              <div style="font-size: 0.65rem; color: var(--app-text-muted);" id="userProfileRole">Administrator</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- App Scrollable Content Area -->
+      <div class="app-content" id="appContent">
+
+        <!-- ================= GUEST VIEW (LOGIN SCREEN) ================= -->
+        <div id="view-guest" class="hidden">
+          <div class="login-screen">
+            <div class="login-title">
+              <h2 data-ua="Вхід у систему" data-en="AeroCheck Sign In">Вхід у систему</h2>
+              <p data-ua="Введіть ваш Email для доступу до системи" data-en="Enter your email to sign in">Введіть ваш Email для доступу до системи</p>
+            </div>
+            <div class="form-field">
+              <label>Email Address</label>
+              <input type="email" class="form-input" placeholder="admin@aerocheck.com, crew@aerocheck.com..." id="loginEmail">
+            </div>
+            <div class="form-field">
+              <label data-ua="Пароль" data-en="Password">Пароль</label>
+              <input type="password" class="form-input" placeholder="••••••••" value="password">
+            </div>
+            <button class="login-btn" onclick="submitLogin()" data-ua="Увійти" data-en="Sign In">Увійти</button>
+            <div style="font-size:0.7rem; color:var(--app-text-muted); margin-top:1rem; text-align:center;">
+              <span data-ua="Для тестів використовуйте:" data-en="For testing use:">Для тестів використовуйте:</span><br>
+              <strong>admin@aerocheck.com</strong> (Admin)<br>
+              <strong>crew@aerocheck.com</strong> (Crew)<br>
+              <strong>instructor@aerocheck.com</strong> (Instructor)
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= DASHBOARD VIEW ================= -->
+        <div id="view-dashboard">
+          <!-- KPI Row -->
+          <div class="kpi-grid">
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span data-ua="Рівень відповідності" data-en="Compliance Rate">Рівень відповідності</span>
+                <span class="kpi-icon kpi-icon-blue">🛡️</span>
+              </div>
+              <div class="kpi-val">22.2%</div>
+              <div class="kpi-desc" data-ua="Екіпаж повністю допущений" data-en="Crew fully compliant">Екіпаж повністю допущений</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span data-ua="Всього персоналу" data-en="Total Personnel">Всього персоналу</span>
+                <span class="kpi-icon kpi-icon-purple">👥</span>
+              </div>
+              <div class="kpi-val">196</div>
+              <div class="kpi-desc">149 Flight | 47 Cabin</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span data-ua="Прострочено документів" data-en="Expired Documents">Прострочено документів</span>
+                <span class="kpi-icon kpi-icon-red font-bold">⚠️</span>
+              </div>
+              <div class="kpi-val" style="color: #ef4444;">635</div>
+              <div class="kpi-desc" style="color: #ef4444;" data-ua="Негайні дії" data-en="Immediate action required">Негайні дії</div>
+            </div>
+            <div class="kpi-card">
+              <div class="kpi-header">
+                <span data-ua="Закінчуються (30д)" data-en="Expiring Soon (30d)">Закінчуються (30д)</span>
+                <span class="kpi-icon kpi-icon-orange">⏳</span>
+              </div>
+              <div class="kpi-val">87</div>
+              <div class="kpi-desc" data-ua="Заплановано оновлення" data-en="Pending renewal schedule">Заплановано оновлення</div>
+            </div>
+          </div>
+
+          <!-- Statistics & Attention split -->
+          <div class="dash-layout">
+            <div class="content-panel">
+              <div class="panel-title" data-ua="Статистика по Департаментах" data-en="Department Statistics">Статистика по Департаментах</div>
+              <div class="dept-list">
+                <div class="dept-row">
+                  <div class="dept-meta">
+                    <span class="font-bold">ПРВ (114 crew)</span>
+                    <span>26%</span>
+                  </div>
+                  <div class="dept-bar-bg"><div class="dept-bar-fill" style="width: 26%;"></div></div>
+                </div>
+                <div class="dept-row">
+                  <div class="dept-meta">
+                    <span class="font-bold">ВТЦ (7 crew)</span>
+                    <span>29%</span>
+                  </div>
+                  <div class="dept-bar-bg"><div class="dept-bar-fill" style="width: 29%;"></div></div>
+                </div>
+                <div class="dept-row">
+                  <div class="dept-meta">
+                    <span class="font-bold">ТВ (69 crew)</span>
+                    <span>20%</span>
+                  </div>
+                  <div class="dept-bar-bg"><div class="dept-bar-fill" style="width: 20%;"></div></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="content-panel">
+              <div class="panel-title" data-ua="Потребують уваги" data-en="Attention Needed">Потребують уваги</div>
+              <div class="crew-list">
+                <div class="crew-item">
+                  <div>
+                    <div class="crew-item-name">Земляний А.О.</div>
+                    <div class="crew-item-dept">ІБ | Dept: ПРВ | Flight Crew</div>
+                  </div>
+                  <span class="badge badge-red">11 expired</span>
+                </div>
+                <div class="crew-item">
+                  <div>
+                    <div class="crew-item-name">Литвин К.М.</div>
+                    <div class="crew-item-dept">ІБ | Dept: ПРВ | Flight Crew</div>
+                  </div>
+                  <span class="badge badge-red">11 expired</span>
+                </div>
+                <div class="crew-item">
+                  <div>
+                    <div class="crew-item-name">Музика С.М.</div>
+                    <div class="crew-item-dept">КПС | Dept: ПРВ | Flight Crew</div>
+                  </div>
+                  <span class="badge badge-red">10 expired</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Flight & Changelog info split -->
+          <div class="dash-layout-bottom">
+            <!-- Last logged flight widget -->
+            <div class="content-panel">
+              <div class="panel-title">
+                <span data-ua="✈️ Останній внесений політ" data-en="✈️ Last Logged Flight">✈️ Останній внесений політ</span>
+              </div>
+              <div style="background:var(--app-bg); border-radius:8px; padding:1rem; border:1px solid var(--app-border);">
+                <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem; font-weight:600; font-size:0.85rem;">
+                  <span id="lastFlightCrew">Алекса С.М.</span>
+                  <span style="color:var(--app-accent);" id="lastFlightDate">12.07.2026</span>
+                </div>
+                <div style="font-size:0.8rem; color:var(--app-text-muted); display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+                  <div><strong data-ua="Тип ПС:" data-en="Aircraft Type:">Тип ПС:</strong> <span id="lastFlightType">Mi-8</span></div>
+                  <div><strong data-ua="Тривалість:" data-en="Duration:">Тривалість:</strong> <span id="lastFlightDur">45 хв</span></div>
+                  <div style="grid-column:span 2; margin-top:0.25rem;">
+                    <strong data-ua="Вправи:" data-en="Exercises:">Вправи:</strong> <span id="lastFlightEx">Періодичне тренування в повному обсязі вправ.</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Audit Trail / Recent changes log widget -->
+            <div class="content-panel">
+              <div class="panel-title">
+                <span data-ua="📜 Останні зміни в системі" data-en="📜 Recent Database Changes">📜 Останні зміни в системі</span>
+              </div>
+              <div style="display:flex; flex-direction:column; gap:0.5rem; max-height:180px; overflow-y:auto; font-size:0.75rem;">
+                <div style="border-left:3px solid #10b981; padding-left:0.5rem; margin-bottom:0.25rem;">
+                  <div style="display:flex; justify-content:space-between; font-weight:600; color:var(--app-text);">
+                    <span data-ua="МЕРДЖІНГ: Імпорт Excel" data-en="MERGE_IMPORT: Excel Upload">МЕРДЖІНГ: Імпорт Excel</span>
+                    <span style="color:var(--app-text-muted);">23:30</span>
+                  </div>
+                  <div style="color:var(--app-text-muted); font-size:0.7rem;">
+                    by <span class="font-bold" id="changelogUser1">admin@aerocheck.com</span> | <span data-ua="Оновлено 149 записів льотного складу." data-en="Merged 149 Flight Crew entries.">Оновлено 149 записів льотного складу.</span>
+                  </div>
+                </div>
+                
+                <div style="border-left:3px solid #f59e0b; padding-left:0.5rem; margin-bottom:0.25rem;">
+                  <div style="display:flex; justify-content:space-between; font-weight:600; color:var(--app-text);">
+                    <span data-ua="РЕДАГУВАННЯ: Дані екіпажу" data-en="MANUAL_EDIT: Crew Data">РЕДАГУВАННЯ: Дані екіпажу</span>
+                    <span style="color:var(--app-text-muted);">23:45</span>
+                  </div>
+                  <div style="color:var(--app-text-muted); font-size:0.7rem;">
+                    by <span class="font-bold" id="changelogUser2">admin@aerocheck.com</span> | <span id="changelogDetails2" data-ua="Змінено контакти/допуски члена екіпажу" data-en="Updated contact/qualification data for crew member">Змінено контакти/допуски члена екіпажу</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= FLIGHT CREW VIEW ================= -->
+        <div id="view-flight" class="hidden">
+          <div class="content-panel">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+              <input type="text" class="form-input" style="max-width:300px;" placeholder="Пошук за Name_Shrt_UA..." data-ua-placeholder="Пошук за Name_Shrt_UA..." data-en-placeholder="Search by Full_Name_EN...">
+              <button class="mock-button" id="btn-import-flight" style="display:inline-block;" data-ua="Імпорт Excel" data-en="Import Excel">Імпорт Excel</button>
+            </div>
+            <div class="data-table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr id="flightTableHeader">
+                    <th>#</th>
+                    <th data-ua="Ім'я" data-en="Name">Ім'я</th>
+                    <th>Rank</th>
+                    <th>Dept</th>
+                    <th data-ua="Телефон" data-en="Phone">Телефон</th>
+                    <th data-ua="Номер свідоцтва" data-en="License №">Номер свідоцтва</th>
+                    <th class="col-opc">OPC</th>
+                    <th class="col-lpc">LPC</th>
+                    <th class="col-type">Type</th>
+                    <th class="col-crm">CRM</th>
+                    <th class="col-med">MED</th>
+                    <th class="col-license">LICENSE</th>
+                    <th data-ua="Дії" data-en="Actions">Дії</th>
+                  </tr>
+                </thead>
+                <tbody id="flightTableBody">
+                  <!-- Row 1 -->
+                  <tr id="crew-row-1">
+                    <td>1</td>
+                    <td class="font-bold crew-name-cell">Земляний А.О.</td>
+                    <td>ІБ</td>
+                    <td>ПРВ</td>
+                    <td class="crew-phone-cell">+380 50 123-4567</td>
+                    <td class="crew-lic-cell">FL-77291</td>
+                    <td class="col-opc"><span class="badge badge-red date-opc">31 лип. 26</span></td>
+                    <td class="col-lpc"><span class="badge badge-red date-lpc">31 лип. 26</span></td>
+                    <td class="col-type"><span class="badge badge-red date-type">31 лип. 26</span></td>
+                    <td class="col-crm"><span class="badge badge-red date-crm">28 лют. 26</span></td>
+                    <td class="col-med"><span class="badge badge-red date-med">25 лип. 25</span></td>
+                    <td class="col-license"><span class="badge badge-red date-license">31 лип. 26</span></td>
+                    <td><button class="mock-button btn-edit-crew" style="padding:0.2rem 0.5rem; font-size:0.7rem;" onclick="openEditModal(1, 'Flight')">✏️</button></td>
+                  </tr>
+                  <!-- Row 2 -->
+                  <tr id="crew-row-2">
+                    <td>2</td>
+                    <td class="font-bold crew-name-cell">Алекса С.М.</td>
+                    <td>БП-РА</td>
+                    <td>ВзПЕ</td>
+                    <td class="crew-phone-cell">+380 67 987-6543</td>
+                    <td class="crew-lic-cell">FL-80045</td>
+                    <td class="col-opc"><span class="badge badge-green date-opc">31 лип. 27</span></td>
+                    <td class="col-lpc"><span class="badge badge-green date-lpc">31 лип. 26</span></td>
+                    <td class="col-type"><span class="badge badge-green date-type">28 лют. 27</span></td>
+                    <td class="col-crm"><span class="badge badge-green date-crm">28 лют. 27</span></td>
+                    <td class="col-med"><span class="badge badge-green date-med">25 лип. 28</span></td>
+                    <td class="col-license"><span class="badge badge-gray date-license">N/A</span></td>
+                    <td><button class="mock-button btn-edit-crew" style="padding:0.2rem 0.5rem; font-size:0.7rem;" onclick="openEditModal(2, 'Flight')">✏️</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= CABIN CREW VIEW ================= -->
+        <div id="view-cabin" class="hidden">
+          <div class="content-panel">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+              <input type="text" class="form-input" style="max-width:300px;" placeholder="Пошук..." data-ua-placeholder="Пошук за Name_Shrt_UA..." data-en-placeholder="Search by Full_Name_EN...">
+              <button class="mock-button" id="btn-import-cabin" style="display:inline-block;" data-ua="Імпорт Excel" data-en="Import Excel">Імпорт Excel</button>
+            </div>
+            <div class="data-table-wrapper">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th data-ua="Ім'я" data-en="Name">Ім'я</th>
+                    <th>Rank</th>
+                    <th>Dept</th>
+                    <th data-ua="Телефон" data-en="Phone">Телефон</th>
+                    <th data-ua="Номер свідоцтва" data-en="License №">Номер свідоцтва</th>
+                    <th class="col-cab-opc">OPC</th>
+                    <th class="col-cab-lpc">LPC</th>
+                    <th class="col-cab-type">CC_Type</th>
+                    <th class="col-cab-emer1">EMER_1</th>
+                    <th class="col-cab-emer3">EMER_3</th>
+                    <th class="col-cab-dg">DG</th>
+                    <th class="col-cab-crm">CRM</th>
+                    <th class="col-cab-med">MED</th>
+                    <th data-ua="Дії" data-en="Actions">Дії</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr id="crew-row-3">
+                    <td>1</td>
+                    <td class="font-bold crew-name-cell">Анджеєвський Д.З.</td>
+                    <td>БП</td>
+                    <td>ТВ</td>
+                    <td class="crew-phone-cell">+380 93 456-7890</td>
+                    <td class="crew-lic-cell">CC-44102</td>
+                    <td class="col-cab-opc"><span class="badge badge-orange date-opc">30 лист. 26</span></td>
+                    <td class="col-cab-lpc"><span class="badge badge-orange date-lpc">30 лист. 26</span></td>
+                    <td class="col-cab-type"><span class="badge badge-orange date-type">30 лист. 26</span></td>
+                    <td class="col-cab-emer1"><span class="badge badge-orange date-emer1">30 лист. 26</span></td>
+                    <td class="col-cab-emer3"><span class="badge badge-green date-emer3">30 лист. 28</span></td>
+                    <td class="col-cab-dg"><span class="badge badge-orange date-dg">30 лист. 26</span></td>
+                    <td class="col-cab-crm"><span class="badge badge-orange date-crm">30 лист. 26</span></td>
+                    <td class="col-cab-med"><span class="badge badge-green date-med">29 жовт. 30</span></td>
+                    <td><button class="mock-button btn-edit-crew" style="padding:0.2rem 0.5rem; font-size:0.7rem;" onclick="openEditModal(3, 'Cabin')">✏️</button></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= TRAINING FLIGHTS VIEW ================= -->
+        <div id="view-flights" class="hidden">
+          <div class="content-panel" style="max-width: 600px; margin: 0 auto;">
+            <div class="panel-title" data-ua="Логування тренувального польоту" data-en="Log Training Flight">Логування тренувального польоту</div>
+            <div class="grid-form">
+              <div class="form-field">
+                <label data-ua="Член екіпажу" data-en="Crew Member">Член екіпажу</label>
+                <select class="form-input" id="logFlightCrewSelect">
+                  <option value="Алекса С.М.">Алекса С.М. (Flight Crew)</option>
+                  <option value="Анджеєвський Д.З.">Анджеєвський Д.З. (Cabin Crew)</option>
+                </select>
+              </div>
+              <div class="form-field">
+                <label data-ua="Дата польоту" data-en="Flight Date">Дата польоту</label>
+                <input type="date" class="form-input" value="2026-07-12" id="logFlightDateInput">
+              </div>
+              <div class="form-field">
+                <label data-ua="Тип ПС" data-en="Aircraft Type">Тип ПС</label>
+                <input type="text" class="form-input" value="Mi-8" id="logFlightTypeInput">
+              </div>
+              <div class="form-field">
+                <label data-ua="Тривалість (хв)" data-en="Duration (min)">Тривалість (хв)</label>
+                <input type="number" class="form-input" value="45" id="logFlightDurInput">
+              </div>
+              <div class="form-field" style="grid-column: span 2;">
+                <label data-ua="Опис вправи / Примітки" data-en="Exercise Details / Notes">Опис вправи / Примітки</label>
+                <textarea class="form-input" style="height:80px; resize:none;" id="logFlightNotesInput">Періодичне тренування в повному обсязі вправ.</textarea>
+              </div>
+            </div>
+            <button class="login-btn" style="margin-top:1.5rem;" onclick="saveFlightMock()" data-ua="Зафіксувати політ" data-en="Log Flight & Send Stub Notification">Зафіксувати політ</button>
+          </div>
+        </div>
+
+        <!-- ================= FORMS VIEW ================= -->
+        <div id="view-forms" class="hidden">
+          <div class="content-panel" style="max-width: 600px; margin: 0 auto;">
+            <div class="panel-title" data-ua="Заповнення бланків та заяв" data-en="Form Builder & Printing Templates">Заповнення бланків та заяв</div>
+            <p style="font-size:0.8rem; color:var(--app-text-muted); margin-bottom:1.5rem;" data-ua="Виберіть тип бланку та екіпаж, щоб автоматично заповнити поля на основі даних про рівень підготовки." data-en="Select a template and a crew member to auto-generate the document with current training levels.">Виберіть тип бланку та екіпаж, щоб автоматично заповнити поля на основі даних про рівень підготовки.</p>
+            <div class="form-field">
+              <label data-ua="Тип бланку" data-en="Document Template">Тип бланку</label>
+              <select class="form-input">
+                <option data-ua="Заявка на проходження періодичного тренування CRM" data-en="Application for Periodic CRM Training">Заявка на проходження періодичного тренування CRM</option>
+                <option data-ua="Заявка на проходження LPC/OPC" data-en="Application for LPC/OPC Evaluation">Заявка на проходження LPC/OPC</option>
+              </select>
+            </div>
+            <div class="form-field">
+              <label data-ua="Член екіпажу" data-en="Select Crew Member">Член екіпажу</label>
+              <select class="form-input">
+                <option>Алекса С.М. (Email: aleksa@aerocheck.com)</option>
+                <option>Анджеєвський Д.З. (Email: andrzejewski@aerocheck.com)</option>
+              </select>
+            </div>
+            <button class="login-btn" style="margin-top:1.5rem;" onclick="alert('Form filled! Ready to Print Preview (detailed fields will be coded later)')" data-ua="Згенерувати та Друкувати" data-en="Generate & Print">Згенерувати та Друкувати</button>
+          </div>
+        </div>
+
+        <!-- ================= SYSTEM SETTINGS VIEW ================= -->
+        <div id="view-settings" class="hidden">
+          <div class="settings-grid">
+            <!-- Left: Google Drive Settings -->
+            <div class="settings-card">
+              <div class="settings-card-title">
+                <span data-ua="🔗 Інтеграція з Google Drive" data-en="🔗 Google Drive Integration">🔗 Інтеграція з Google Drive</span>
+              </div>
+              <div class="form-field">
+                <label>Google Service Account Key (JSON)</label>
+                <textarea class="form-input" style="height: 80px; font-family: monospace; font-size:0.75rem;" placeholder='{"type": "service_account", "project_id": "aerocheck"...}'></textarea>
+              </div>
+              <div class="form-field">
+                <label>Google Drive File ID (SSOT Database)</label>
+                <input type="text" class="form-input" value="1x9A_BcdEFghIJKlmNoPqRStUvWxYz_1234567">
+              </div>
+              <div class="checkbox-row">
+                <input type="checkbox" id="gdriveAutoSync" checked>
+                <label for="gdriveAutoSync" data-ua="Синхронізувати автоматично при імпорті" data-en="Sync automatically upon file import">Синхронізувати автоматично при імпорті</label>
+              </div>
+              <button class="mock-button" onclick="alert('Google Drive connection validated!')" data-ua="Перевірити з'єднання" data-en="Validate Connection">Перевірити з'єднання</button>
+            </div>
+
+            <!-- Right: Column Visibility in Tables -->
+            <div class="settings-card">
+              <div class="settings-card-title">
+                <span data-ua="📊 Відображення колонок у таблицях" data-en="📊 Displayed Columns in Tables">📊 Відображення колонок у таблицях</span>
+              </div>
+              <div style="margin-bottom:1rem;">
+                <strong style="font-size:0.8rem; display:block; margin-bottom:0.5rem;" data-ua="Льотний склад (Flight Crew)" data-en="Flight Crew Columns">Льотний склад (Flight Crew)</strong>
+                <div class="column-toggle-list">
+                  <div class="checkbox-row"><input type="checkbox" checked onchange="toggleTableCol('col-opc', this.checked)"> <label>OPC</label></div>
+                  <div class="checkbox-row"><input type="checkbox" checked onchange="toggleTableCol('col-lpc', this.checked)"> <label>LPC</label></div>
+                  <div class="checkbox-row"><input type="checkbox" checked onchange="toggleTableCol('col-type', this.checked)"> <label>Type Rating</label></div>
+                  <div class="checkbox-row"><input type="checkbox" checked onchange="toggleTableCol('col-crm', this.checked)"> <label>CRM</label></div>
+                  <div class="checkbox-row"><input type="checkbox" checked onchange="toggleTableCol('col-med', this.checked)"> <label>MED</label></div>
+                  <div class="checkbox-row"><input type="checkbox" checked onchange="toggleTableCol('col-license', this.checked)"> <label>LICENSE</label></div>
+                </div>
+              </div>
+              <div>
+                <strong style="font-size:0.8rem; display:block; margin-bottom:0.5rem;" data-ua="Кабінний склад (Cabin Crew)" data-en="Cabin Crew Columns">Кабінний склад (Cabin Crew)</strong>
+                <div class="column-toggle-list">
+                  <div class="checkbox-row"><input type="checkbox" checked onchange="toggleTableCol('col-cab-opc', this.checked)"> <label>OPC</label></div>
+                  <div class="checkbox-row"><input type="checkbox" checked onchange="toggleTableCol('col-cab-lpc', this.checked)"> <label>LPC</label></div>
+                  <div class="checkbox-row"><input type="checkbox" checked onchange="toggleTableCol('col-cab-type', this.checked)"> <label>CC_Type</label></div>
+                  <div class="checkbox-row"><input type="checkbox" checked onchange="toggleTableCol('col-cab-emer1', this.checked)"> <label>EMER_1</label></div>
+                  <div class="checkbox-row"><input type="checkbox" checked onchange="toggleTableCol('col-cab-emer3', this.checked)"> <label>EMER_3</label></div>
+                  <div class="checkbox-row"><input type="checkbox" checked onchange="toggleTableCol('col-cab-dg', this.checked)"> <label>DG</label></div>
+                  <div class="checkbox-row"><input type="checkbox" checked onchange="toggleTableCol('col-cab-crm', this.checked)"> <label>CRM</label></div>
+                  <div class="checkbox-row"><input type="checkbox" checked onchange="toggleTableCol('col-cab-med', this.checked)"> <label>MED</label></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ================= PERSONAL VIEW (CREW ONLY) ================= -->
+        <div id="view-personal" class="hidden">
+          <div class="personal-welcome">
+            <div class="personal-meta-left">
+              <h2 id="crewWelcomeName">Вітаємо, Алекса С.М.</h2>
+              <p id="crewWelcomeDesc">Flight Crew | Department: ВзПЕ | Employee ID: #2</p>
+            </div>
+            <!-- Responsive Info Details block -->
+            <div class="personal-meta-right">
+              <div>📞 <strong data-ua="Телефон:" data-en="Phone:">Телефон:</strong> <span id="crewWelcomePhone">+380 67 987-6543</span></div>
+              <div>✉️ <strong>Email:</strong> <span id="crewWelcomeEmail">aleksa@aerocheck.com</span></div>
+              <div>🪪 <strong data-ua="Свідоцтво:" data-en="License №:">Свідоцтво:</strong> <span id="crewWelcomeLic">FL-80045</span></div>
+            </div>
+          </div>
+
+          <h3 style="margin-bottom:1rem;" data-ua="Терміни дії вашої підготовки" data-en="Your Qualification Status">Терміни дії вашої підготовки</h3>
+          
+          <div class="prep-grid">
+            <div class="prep-card">
+              <span class="prep-name">OPC</span>
+              <div class="prep-dates">
+                <span class="prep-date-label" data-ua="Дійсний до:" data-en="Valid Until:">Дійсний до:</span>
+                <span class="prep-date-val badge badge-green" id="personal-opc">31 лип. 2027</span>
+              </div>
+            </div>
+            <div class="prep-card">
+              <span class="prep-name">LPC</span>
+              <div class="prep-dates">
+                <span class="prep-date-label" data-ua="Дійсний до:" data-en="Valid Until:">Дійсний до:</span>
+                <span class="prep-date-val badge badge-green" id="personal-lpc">31 лип. 26</span>
+              </div>
+            </div>
+            <div class="prep-card">
+              <span class="prep-name">Type Rating</span>
+              <div class="prep-dates">
+                <span class="prep-date-label" data-ua="Дійсний до:" data-en="Valid Until:">Дійсний до:</span>
+                <span class="prep-date-val badge badge-green" id="personal-type">28 лют. 2027</span>
+              </div>
+            </div>
+            <div class="prep-card">
+              <span class="prep-name">CRM</span>
+              <div class="prep-dates">
+                <span class="prep-date-label" data-ua="Дійсний до:" data-en="Valid Until:">Дійсний до:</span>
+                <span class="prep-date-val badge badge-green" id="personal-crm">28 лют. 2027</span>
+              </div>
+            </div>
+            <div class="prep-card">
+              <span class="prep-name">MED</span>
+              <div class="prep-dates">
+                <span class="prep-date-label" data-ua="Дійсний до:" data-en="Valid Until:">Дійсний до:</span>
+                <span class="prep-date-val badge badge-green" id="personal-med">25 лип. 2028</span>
+              </div>
+            </div>
+            <div class="prep-card">
+              <span class="prep-name">LICENSE</span>
+              <div class="prep-dates">
+                <span class="prep-date-label" data-ua="Дійсний до:" data-en="Valid Until:">Дійсний до:</span>
+                <span class="prep-date-val badge badge-gray" id="personal-license">N/A</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Files from Google Drive folder list -->
+          <div class="files-section">
+            <h3 data-ua="📂 Відскановані документи (Google Drive)" data-en="📂 Scanned Documents (Google Drive)">📂 Відскановані документи (Google Drive)</h3>
+            <p style="font-size:0.75rem; color:var(--app-text-muted); margin-bottom:0.75rem;" data-ua="Файли синхронізовані з вашої індивідуальної папки:" data-en="Sync files from your individual folder:">Файли синхронізовані з вашої індивідуальної папки:</p>
+            <div class="files-grid">
+              <div class="file-item" onclick="alert('Opening document: Aleksa_OPC_2026.pdf')">
+                <span class="file-icon">📄</span>
+                <div class="file-info">
+                  <span class="file-name">Aleksa_OPC_2026.pdf</span>
+                  <span class="file-size">1.2 MB</span>
+                </div>
+              </div>
+              <div class="file-item" onclick="alert('Opening document: Medical_Certificate_Class1.pdf')">
+                <span class="file-icon">📄</span>
+                <div class="file-info">
+                  <span class="file-name">Medical_Certificate_Class1.pdf</span>
+                  <span class="file-size">845 KB</span>
+                </div>
+              </div>
+              <div class="file-item" onclick="alert('Opening document: Mi8_TypeRating_Stamp.jpg')">
+                <span class="file-icon">🖼️</span>
+                <div class="file-info">
+                  <span class="file-name">Mi8_TypeRating_Stamp.jpg</span>
+                  <span class="file-size">2.1 MB</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Interactive Edit Modal -->
+    <div class="edit-modal-backdrop hidden" id="editModal">
+      <div class="edit-modal-content">
+        <div class="edit-modal-header">
+          <h3 id="modalTitle" data-ua="Редагування профілю екіпажу" data-en="Edit Crew Profile">Редагування профілю екіпажу</h3>
+          <button class="mock-button" style="background:transparent; color:var(--app-text); border:none; font-size:1.2rem; cursor:pointer;" onclick="closeEditModal()">✕</button>
+        </div>
+        <div class="edit-modal-body">
+          <input type="hidden" id="editCrewId">
+          <input type="hidden" id="editCrewType">
+          
+          <!-- Dynamic warning banner for Instructor -->
+          <div class="restricted-banner hidden" id="instructorWarning">
+            <span>⚠️</span>
+            <span data-ua="Ви ввійшли як INSTRUCTOR. Редагування імені та контактів заблоковано. Дозволено лише дати." data-en="Logged in as INSTRUCTOR. Editing personal data is restricted. Only training dates are editable.">Ви ввійшли як INSTRUCTOR. Редагування імені та контактів заблоковано. Дозволено лише дати.</span>
+          </div>
+
+          <strong style="display:block; margin-bottom:0.75rem; font-size:0.85rem;" data-ua="Персональна інформація" data-en="Personal & Contact Info">Персональна інформація</strong>
+          <div class="grid-form" style="margin-bottom: 1rem;">
+            <div class="form-field">
+              <label data-ua="ПІБ / Ім'я" data-en="Full Name">ПІБ / Ім'я</label>
+              <input type="text" class="form-input" id="editName">
+            </div>
+            <div class="form-field">
+              <label>Email</label>
+              <input type="email" class="form-input" id="editEmail">
+            </div>
+            <div class="form-field">
+              <label data-ua="Телефон" data-en="Phone">Телефон</label>
+              <input type="text" class="form-input" id="editPhone">
+            </div>
+            <div class="form-field">
+              <label data-ua="Номер свідоцтва" data-en="License №">Номер свідоцтва</label>
+              <input type="text" class="form-input" id="editLicenseNo">
+            </div>
+          </div>
+
+          <strong style="display:block; margin-bottom:0.75rem; font-size:0.85rem;" data-ua="Терміни підготовки (Expiring Trainings)" data-en="Training Dates (Expiring)">Терміни підготовки (Expiring Trainings)</strong>
+          <div class="grid-form" style="max-height: 200px; overflow-y: auto; padding-right: 0.5rem;">
+            <div class="form-field">
+              <label>OPC</label>
+              <input type="text" class="form-input" id="editOpc">
+            </div>
+            <div class="form-field">
+              <label>LPC</label>
+              <input type="text" class="form-input" id="editLpc">
+            </div>
+            <div class="form-field">
+              <label id="editTypeLabel">Type Rating</label>
+              <input type="text" class="form-input" id="editType">
+            </div>
+            <div class="form-field" id="modal-field-emer1">
+              <label>EMER_1</label>
+              <input type="text" class="form-input" id="editEmer1">
+            </div>
+            <div class="form-field" id="modal-field-emer3">
+              <label>EMER_3</label>
+              <input type="text" class="form-input" id="editEmer3">
+            </div>
+            <div class="form-field" id="modal-field-dg">
+              <label>DG (Dangerous Goods)</label>
+              <input type="text" class="form-input" id="editDg">
+            </div>
+            <div class="form-field">
+              <label>CRM</label>
+              <input type="text" class="form-input" id="editCrm">
+            </div>
+            <div class="form-field">
+              <label>MED</label>
+              <input type="text" class="form-input" id="editMed">
+            </div>
+            <div class="form-field" id="modal-field-lic">
+              <label>LICENSE</label>
+              <input type="text" class="form-input" id="editLicense">
+            </div>
+          </div>
+        </div>
+        <div class="edit-modal-footer">
+          <button class="mock-button" style="background:var(--app-bg); color:var(--app-text); border:1px solid var(--app-border);" onclick="closeEditModal()" data-ua="Скасувати" data-en="Cancel">Скасувати</button>
+          <button class="mock-button" onclick="saveCrewEdit()" data-ua="Зберегти" data-en="Save Changes">Зберегти</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let currentRole = 'admin';
+  let currentTab = 'dashboard';
+  let currentMockTheme = 'light';
+  let currentMockLang = 'uk';
+
+  // Mock Crew Database inside frontend prototype to allow dynamic editing and display
+  const crewDb = {
+    1: { id: 1, name: 'Земляний А.О.', rank: 'ІБ', dept: 'ПРВ', phone: '+380 50 123-4567', email: 'zemlianyi@aerocheck.com', licenseNo: 'FL-77291', type: 'Flight', opc: '31 лип. 26', lpc: '31 лип. 26', typeRating: '31 лип. 26', emer1: 'N/A', emer3: 'N/A', dg: 'N/A', crm: '28 лют. 26', med: '25 лип. 25', license: '31 лип. 26' },
+    2: { id: 2, name: 'Алекса С.М.', rank: 'БП-РА', dept: 'ВзПЕ', phone: '+380 67 987-6543', email: 'aleksa@aerocheck.com', licenseNo: 'FL-80045', type: 'Flight', opc: '31 лип. 27', lpc: '31 лип. 26', typeRating: '28 лют. 27', emer1: 'N/A', emer3: 'N/A', dg: 'N/A', crm: '28 лют. 27', med: '25 лип. 28', license: 'N/A' },
+    3: { id: 3, name: 'Анджеєвський Д.З.', rank: 'БП', dept: 'ТВ', phone: '+380 93 456-7890', email: 'andrzejewski@aerocheck.com', licenseNo: 'CC-44102', type: 'Cabin', opc: '30 лист. 26', lpc: '30 лист. 26', typeRating: '30 лист. 26', emer1: '30 лист. 26', emer3: '30 лист. 28', dg: '30 лист. 26', crm: '30 лист. 26', med: '29 жовт. 30', license: 'N/A' }
+  };
+
+  function setRole(role) {
+    currentRole = role;
+    
+    // Update active button styling in controls
+    document.querySelectorAll('#roleSwitcher button').forEach(btn => btn.classList.remove('active'));
+    document.getElementById('btn-role-' + role).classList.add('active');
+
+    // Update internal browser state
+    const avatar = document.getElementById('userAvatar');
+    const uName = document.getElementById('userProfileName');
+    const uRole = document.getElementById('userProfileRole');
+    const menuDashboard = document.getElementById('menu-dashboard');
+    const menuFlight = document.getElementById('menu-flight');
+    const menuCabin = document.getElementById('menu-cabin');
+    const menuFlights = document.getElementById('menu-flights');
+    const menuForms = document.getElementById('menu-forms');
+    const menuSettings = document.getElementById('menu-settings');
+    const menuPersonal = document.getElementById('menu-personal');
+    const header = document.getElementById('appHeader');
+
+    // Hide edit/import buttons in UI based on roles
+    const importFlight = document.getElementById('btn-import-flight');
+    const importCabin = document.getElementById('btn-import-cabin');
+    const editBtns = document.querySelectorAll('.btn-edit-crew');
+
+    if (role === 'guest') {
+      avatar.innerText = '?';
+      uName.innerText = 'Guest';
+      uRole.innerText = 'Not Signed In';
+      header.classList.add('hidden');
+      switchTab('guest');
+    } else if (role === 'admin') {
+      avatar.innerText = 'A';
+      uName.innerText = 'Operations Admin';
+      uRole.innerText = 'Administrator';
+      header.classList.remove('hidden');
+      importFlight.classList.remove('hidden');
+      importCabin.classList.remove('hidden');
+      editBtns.forEach(b => b.classList.remove('hidden'));
+      switchTab('dashboard');
+    } else if (role === 'crew') {
+      avatar.innerText = 'C';
+      uName.innerText = crewDb[2].name; // Map to Alexa S.M.
+      uRole.innerText = 'Flight Crew';
+      header.classList.remove('hidden');
+      syncPersonalViewData(2);
+      switchTab('personal');
+    } else if (role === 'instructor') {
+      avatar.innerText = 'I';
+      uName.innerText = 'Instructor Chief';
+      uRole.innerText = 'Instructor';
+      header.classList.remove('hidden');
+      importFlight.classList.remove('hidden');
+      importCabin.classList.remove('hidden');
+      editBtns.forEach(b => b.classList.remove('hidden'));
+      switchTab('dashboard');
+    } else if (role === 'office') {
+      avatar.innerText = 'O';
+      uName.innerText = 'Office Clerk';
+      uRole.innerText = 'Office Staff';
+      header.classList.remove('hidden');
+      importFlight.classList.add('hidden');
+      importCabin.classList.add('hidden');
+      editBtns.forEach(b => b.classList.add('hidden'));
+      switchTab('dashboard');
+    }
+
+    // Dynamic Sidebar Menu Items Visibility
+    if (role === 'guest') {
+      document.getElementById('sidebarContainer').classList.add('hidden');
+    } else {
+      document.getElementById('sidebarContainer').classList.remove('hidden');
+    }
+
+    if (role === 'crew') {
+      menuDashboard.classList.add('hidden');
+      menuFlight.classList.add('hidden');
+      menuCabin.classList.add('hidden');
+      menuFlights.classList.add('hidden');
+      menuForms.classList.add('hidden');
+      menuSettings.classList.add('hidden');
+      menuPersonal.classList.remove('hidden');
+    } else {
+      menuDashboard.classList.remove('hidden');
+      menuFlight.classList.remove('hidden');
+      menuCabin.classList.remove('hidden');
+      
+      // Office does not have access to Training Flight log
+      if (role === 'office') {
+        menuFlights.classList.add('hidden');
+      } else {
+        menuFlights.classList.remove('hidden');
+      }
+
+      // Instructor does not have access to Forms or Settings
+      if (role === 'instructor') {
+        menuForms.classList.add('hidden');
+        menuSettings.classList.add('hidden');
+      } else {
+        menuForms.classList.remove('hidden');
+        
+        // Settings are ONLY accessible to ADMIN
+        if (role === 'admin') {
+          menuSettings.classList.remove('hidden');
+        } else {
+          menuSettings.classList.add('hidden');
+        }
+      }
+
+      menuPersonal.classList.add('hidden');
+    }
+  }
+
+  function switchTab(tab) {
+    currentTab = tab;
+    
+    // Update active class on menu items
+    document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+    const menuEl = document.getElementById('menu-' + tab);
+    if (menuEl) menuEl.classList.add('active');
+
+    // Show corresponding view content
+    document.getElementById('view-guest').classList.add('hidden');
+    document.getElementById('view-dashboard').classList.add('hidden');
+    document.getElementById('view-flight').classList.add('hidden');
+    document.getElementById('view-cabin').classList.add('hidden');
+    document.getElementById('view-flights').classList.add('hidden');
+    document.getElementById('view-forms').classList.add('hidden');
+    document.getElementById('view-settings').classList.add('hidden');
+    document.getElementById('view-personal').classList.add('hidden');
+
+    const viewEl = document.getElementById('view-' + tab);
+    if (viewEl) viewEl.classList.remove('hidden');
+
+    // Update mock browser address bar URL
+    document.getElementById('browserUrl').innerText = 'http://aerocheck.crew.local/' + tab;
+
+    // Update Titles based on Lang & Tab
+    updateHeaderTitles();
+  }
+
+  function setMockTheme(theme) {
+    currentMockTheme = theme;
+    
+    // Update mock element class
+    const mock = document.getElementById('browserMock');
+    mock.className = 'browser-mock app-theme-' + theme;
+
+    // Update external controls buttons
+    document.getElementById('btn-theme-light').classList.remove('active');
+    document.getElementById('btn-theme-dark').classList.remove('active');
+    document.getElementById('btn-theme-' + theme).classList.add('active');
+
+    // Update inside mockup buttons
+    document.getElementById('btn-in-light').classList.remove('active');
+    document.getElementById('btn-in-dark').classList.remove('active');
+    document.getElementById('btn-in-' + theme).classList.add('active');
+  }
+
+  function setMockLang(lang) {
+    currentMockLang = lang;
+
+    // Update external controls buttons
+    document.getElementById('btn-lang-uk').classList.remove('active');
+    document.getElementById('btn-lang-en').classList.remove('active');
+    document.getElementById('btn-lang-' + lang).classList.add('active');
+
+    // Update inside mockup buttons
+    document.getElementById('btn-in-uk').classList.remove('active');
+    document.getElementById('btn-in-en').classList.remove('active');
+    document.getElementById('btn-in-' + lang).classList.add('active');
+
+    // Translate all elements with data-ua / data-en attributes
+    document.querySelectorAll('[data-ua]').forEach(el => {
+      if (lang === 'uk') {
+        if (el.tagName === 'INPUT') {
+          el.placeholder = el.getAttribute('data-ua-placeholder') || el.placeholder;
+        } else {
+          el.innerText = el.getAttribute('data-ua');
+        }
+      } else {
+        if (el.tagName === 'INPUT') {
+          el.placeholder = el.getAttribute('data-en-placeholder') || el.placeholder;
+        } else {
+          el.innerText = el.getAttribute('data-en');
+        }
+      }
+    });
+
+    updateHeaderTitles();
+  }
+
+  function updateHeaderTitles() {
+    const titleEl = document.getElementById('viewTitle');
+    const subEl = document.getElementById('viewSubtitle');
+
+    const translations = {
+      dashboard: {
+        title: { uk: 'Панель відповідності', en: 'Compliance Dashboard' },
+        sub: { uk: 'Огляд статусу підготовки та термінів дії документів', en: 'Overview of crew qualification levels and document expiries' }
+      },
+      flight: {
+        title: { uk: 'Льотний екіпаж (Flight Crew)', en: 'Flight Crew List' },
+        sub: { uk: 'Пошук, фільтрація та перегляд OPC, LPC, CRM та медичних дат', en: 'Search, filter, and review OPC, LPC, CRM, and medical dates' }
+      },
+      cabin: {
+        title: { uk: 'Кабінний екіпаж (Cabin Crew)', en: 'Cabin Crew List' },
+        sub: { uk: 'Пошук, фільтрація та перегляд OPC, LPC, EMER та медичних дат бортпровідників', en: 'Search, filter, and review cabin crew qualification and dates' }
+      },
+      flights: {
+        title: { uk: 'Логування тренувальних польотів', en: 'Log Training Flights' },
+        sub: { uk: 'Внесення інформації про виконані тренувальні вправи', en: 'Record execution of training flight exercises and duration' }
+      },
+      forms: {
+        title: { uk: 'Генерація документів', en: 'Document Forms' },
+        sub: { uk: 'Заповнення офіційних бланків на основі рівня підготовки', en: 'Auto-fill official templates using training database records' }
+      },
+      settings: {
+        title: { uk: 'Системні налаштування', en: 'System Settings' },
+        sub: { uk: 'Керування ролями, підключенням до хмари та структурою таблиць', en: 'Manage role configurations, cloud sync, and table columns structure' }
+      },
+      personal: {
+        title: { uk: 'Мій кабінет екіпажу', en: 'My Crew Portal' },
+        sub: { uk: 'Перегляд термінів дії вашої льотної придатності та допусків', en: 'Track validity periods for your personal licenses and trainings' }
+      }
+    };
+
+    if (translations[currentTab]) {
+      titleEl.innerText = translations[currentTab].title[currentMockLang];
+      subEl.innerText = translations[currentTab].sub[currentMockLang];
+    }
+  }
+
+  // Map to Alexa S.M.
+  function syncPersonalViewData(crewId) {
+    const data = crewDb[crewId];
+    if (!data) return;
+
+    document.getElementById('crewWelcomeName').innerText = 'Вітаємо, ' + data.name;
+    document.getElementById('crewWelcomeDesc').innerText = data.rank + ' | Department: ' + data.dept + ' | Employee ID: #' + data.id;
+    document.getElementById('crewWelcomePhone').innerText = data.phone;
+    document.getElementById('crewWelcomeEmail').innerText = data.email;
+    document.getElementById('crewWelcomeLic').innerText = data.licenseNo;
+
+    // Update badges
+    updatePersonalBadge('personal-opc', data.opc);
+    updatePersonalBadge('personal-lpc', data.lpc);
+    updatePersonalBadge('personal-type', data.typeRating);
+    updatePersonalBadge('personal-crm', data.crm);
+    updatePersonalBadge('personal-med', data.med);
+    updatePersonalBadge('personal-license', data.license);
+  }
+
+  function updatePersonalBadge(elementId, value) {
+    const el = document.getElementById(elementId);
+    el.innerText = value;
+    el.className = 'prep-date-val badge';
+    if (value === 'N/A' || value === 'N/A ') {
+      el.classList.add('badge-gray');
+    } else if (value.includes('27') || value.includes('28') || value.includes('30')) {
+      el.classList.add('badge-green');
+    } else if (value.includes('26')) {
+      el.classList.add('badge-orange');
+    } else {
+      el.classList.add('badge-red');
+    }
+  }
+
+  // Interactive Crew Editing Modal logic with role-based disables
+  function openEditModal(crewId, crewType) {
+    const data = crewDb[crewId];
+    if (!data) return;
+
+    // Set fields
+    document.getElementById('editCrewId').value = crewId;
+    document.getElementById('editCrewType').value = crewType;
+    document.getElementById('editName').value = data.name;
+    document.getElementById('editEmail').value = data.email;
+    document.getElementById('editPhone').value = data.phone;
+    document.getElementById('editLicenseNo').value = data.licenseNo;
+    
+    document.getElementById('editOpc').value = data.opc;
+    document.getElementById('editLpc').value = data.lpc;
+    document.getElementById('editType').value = data.typeRating;
+    document.getElementById('editCrm').value = data.crm;
+    document.getElementById('editMed').value = data.med;
+
+    // RULE: Admin can edit Name/Email/Phone/License, Instructor cannot (disabled)
+    const isAdmin = (currentRole === 'admin');
+    document.getElementById('editName').disabled = !isAdmin;
+    document.getElementById('editEmail').disabled = !isAdmin;
+    document.getElementById('editPhone').disabled = !isAdmin;
+    document.getElementById('editLicenseNo').disabled = !isAdmin;
+
+    const warnBanner = document.getElementById('instructorWarning');
+    if (currentRole === 'instructor') {
+      warnBanner.classList.remove('hidden');
+    } else {
+      warnBanner.classList.add('hidden');
+    }
+
+    // Show/hide fields depending on Flight vs Cabin Crew
+    const fieldEmer1 = document.getElementById('modal-field-emer1');
+    const fieldEmer3 = document.getElementById('modal-field-emer3');
+    const fieldDg = document.getElementById('modal-field-dg');
+    const fieldLic = document.getElementById('modal-field-lic');
+    const typeLabel = document.getElementById('editTypeLabel');
+
+    if (crewType === 'Flight') {
+      typeLabel.innerText = 'Type Rating';
+      fieldEmer1.classList.add('hidden');
+      fieldEmer3.classList.add('hidden');
+      fieldDg.classList.add('hidden');
+      fieldLic.classList.remove('hidden');
+      document.getElementById('editLicense').value = data.license;
+    } else {
+      typeLabel.innerText = 'CC_Type';
+      fieldEmer1.classList.remove('hidden');
+      fieldEmer3.classList.remove('hidden');
+      fieldDg.classList.remove('hidden');
+      fieldLic.classList.add('hidden');
+      document.getElementById('editEmer1').value = data.emer1;
+      document.getElementById('editEmer3').value = data.emer3;
+      document.getElementById('editDg').value = data.dg;
+    }
+
+    // Display modal
+    document.getElementById('editModal').classList.remove('hidden');
+  }
+
+  function closeEditModal() {
+    document.getElementById('editModal').classList.add('hidden');
+  }
+
+  function saveCrewEdit() {
+    const id = document.getElementById('editCrewId').value;
+    const type = document.getElementById('editCrewType').value;
+    const data = crewDb[id];
+
+    if (!data) return;
+
+    // Retrieve input values (only if admin, else keep old name/email/phone/license)
+    if (currentRole === 'admin') {
+      data.name = document.getElementById('editName').value;
+      data.email = document.getElementById('editEmail').value;
+      data.phone = document.getElementById('editPhone').value;
+      data.licenseNo = document.getElementById('editLicenseNo').value;
+    }
+    
+    data.opc = document.getElementById('editOpc').value;
+    data.lpc = document.getElementById('editLpc').value;
+    data.typeRating = document.getElementById('editType').value;
+    data.crm = document.getElementById('editCrm').value;
+    data.med = document.getElementById('editMed').value;
+
+    if (type === 'Flight') {
+      data.license = document.getElementById('editLicense').value;
+    } else {
+      data.emer1 = document.getElementById('editEmer1').value;
+      data.emer3 = document.getElementById('editEmer3').value;
+      data.dg = document.getElementById('editDg').value;
+    }
+
+    // Update cells in the HTML tables
+    const row = document.getElementById('crew-row-' + id);
+    if (row) {
+      row.querySelector('.crew-name-cell').innerText = data.name;
+      row.querySelector('.crew-phone-cell').innerText = data.phone;
+      row.querySelector('.crew-lic-cell').innerText = data.licenseNo;
+
+      // Update date badges in row
+      updateTableRowBadge(row.querySelector('.date-opc'), data.opc);
+      updateTableRowBadge(row.querySelector('.date-lpc'), data.lpc);
+      updateTableRowBadge(row.querySelector('.date-type'), data.typeRating);
+      updateTableRowBadge(row.querySelector('.date-crm'), data.crm);
+      updateTableRowBadge(row.querySelector('.date-med'), data.med);
+      
+      if (type === 'Flight') {
+        updateTableRowBadge(row.querySelector('.date-license'), data.license);
+      } else {
+        updateTableRowBadge(row.querySelector('.date-emer1'), data.emer1);
+        updateTableRowBadge(row.querySelector('.date-emer3'), data.emer3);
+        updateTableRowBadge(row.querySelector('.date-dg'), data.dg);
+      }
+    }
+
+    // Update Changelog display on Dashboard
+    const userEmail = currentRole === 'admin' ? 'admin@aerocheck.com' : 'instructor@aerocheck.com';
+    document.getElementById('changelogUser2').innerText = userEmail;
+    document.getElementById('changelogDetails2').innerHTML = `Змінено дати підготовки для <strong>${data.name}</strong> (${currentRole === 'admin' ? 'контакти/допуски оновлено' : 'тільки дати підготовки'})`;
+
+    alert('Changes saved! Table rows and Dashboard audit logs updated.');
+    closeEditModal();
+  }
+
+  function updateTableRowBadge(el, val) {
+    if (!el) return;
+    el.innerText = val;
+    el.className = 'badge';
+    if (val === 'N/A' || val === 'N/A ') {
+      el.classList.add('badge-gray');
+    } else if (val.includes('27') || val.includes('28') || val.includes('30')) {
+      el.classList.add('badge-green');
+    } else if (val.includes('26')) {
+      el.classList.add('badge-orange');
+    } else {
+      el.classList.add('badge-red');
+    }
+  }
+
+  function saveFlightMock() {
+    const crewName = document.getElementById('logFlightCrewSelect').value;
+    const flightDate = document.getElementById('logFlightDateInput').value;
+    const flightType = document.getElementById('logFlightTypeInput').value;
+    const flightDur = document.getElementById('logFlightDurInput').value;
+    const flightNotes = document.getElementById('logFlightNotesInput').value;
+
+    // Update last flight widget
+    document.getElementById('lastFlightCrew').innerText = crewName;
+    document.getElementById('lastFlightDate').innerText = flightDate;
+    document.getElementById('lastFlightType').innerText = flightType;
+    document.getElementById('lastFlightDur').innerText = flightDur + ' хв';
+    document.getElementById('lastFlightEx').innerText = flightNotes;
+
+    alert('Flight Log Saved! Dashboard "Last Logged Flight" widget updated.');
+    switchTab('dashboard');
+  }
+
+  function toggleTableCol(className, isVisible) {
+    const cells = document.querySelectorAll('.' + className);
+    cells.forEach(c => {
+      if (isVisible) {
+        c.classList.remove('hidden');
+      } else {
+        c.classList.add('hidden');
+      }
+    });
+  }
+
+  // Initialize
+  setRole('admin');
+</script>

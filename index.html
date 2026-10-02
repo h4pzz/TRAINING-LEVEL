@@ -1,0 +1,917 @@
+<!DOCTYPE html>
+<html lang="uk" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AeroCheck Crew Training Dashboard</title>
+  
+  <!-- CSS Stylesheets -->
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  
+  <!-- SheetJS Library (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  
+  <!-- Lucide Icons Library (CDN) -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+
+  <!-- ================= AUTHENTICATION / LOGIN PORTAL ================= -->
+  <div id="login-backdrop" class="login-backdrop">
+    <div class="login-card">
+      <div class="login-logo">
+        <img src="PICS/LOGO_UH.png" alt="Ukrainian Helicopters Logo">
+      </div>
+      <div class="login-header-text">
+        <h2 data-i18n="login_title">Вхід в систему</h2>
+        <p data-i18n="login_subtitle">Введіть ваші авіаційні облікові дані</p>
+      </div>
+      <form id="login-form" style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+        <div class="form-group">
+          <label for="login-email" data-i18n="label_email">Електронна пошта</label>
+          <input type="email" id="login-email" class="form-input" required placeholder="name@ukr-helicopters.ua">
+        </div>
+        <div class="form-group">
+          <label for="login-password" data-i18n="label_password">Пароль</label>
+          <input type="password" id="login-password" class="form-input" required placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn btn-primary" style="margin-top: var(--spacing-2);" data-i18n="btn_signin">Увійти</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= FIRST-TIME PASSWORD CONFIG DIALOG ================= -->
+  <div id="pw-setup-backdrop" class="modal-backdrop">
+    <div class="modal-content" style="width: 400px;">
+      <div class="modal-header">
+        <h2 data-i18n="pw_setup_title">Встановити пароль</h2>
+      </div>
+      <div style="font-size: 13px; color: var(--text-secondary);" data-i18n="pw_setup_desc">
+        Вітаємо! Ви вперше входите у свій кабінет. Будь ласка, встановіть пароль для наступного доступу.
+      </div>
+      <form id="pw-setup-form" style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+        <div class="form-group">
+          <label for="new-password" data-i18n="label_new_password">Новий пароль</label>
+          <input type="password" id="new-password" class="form-input" required minlength="6" placeholder="••••••••">
+        </div>
+        <div class="form-group">
+          <label for="confirm-password" data-i18n="label_confirm_password">Підтвердження паролю</label>
+          <input type="password" id="confirm-password" class="form-input" required minlength="6" placeholder="••••••••">
+        </div>
+        <button type="submit" class="btn btn-primary" data-i18n="btn_save_password">Зберегти пароль</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= SPA SHELL CONTAINER ================= -->
+  <div class="app-container">
+    
+    <!-- LEFT SIDEBAR NAVIGATION -->
+    <aside class="sidebar">
+      <div class="logo-container">
+        <img src="PICS/LOGO_UH.png" alt="Ukrainian Helicopters">
+      </div>
+      
+      <nav class="nav-links">
+        <button class="nav-item active" data-view="dashboard">
+          <i data-lucide="layout-dashboard"></i>
+          <span data-i18n="nav_dashboard">Статистика</span>
+        </button>
+        <button class="nav-item" data-view="flight-crew" id="nav-btn-flight">
+          <i data-lucide="plane"></i>
+          <span data-i18n="nav_flight_crew">Льотний склад</span>
+        </button>
+        <button class="nav-item" data-view="cabin-crew" id="nav-btn-cabin">
+          <i data-lucide="users"></i>
+          <span data-i18n="nav_cabin_crew">Кабінний склад</span>
+        </button>
+        <button class="nav-item" data-view="training-flights" id="nav-btn-flights">
+          <i data-lucide="clipboard-list"></i>
+          <span data-i18n="nav_training_flights">Тренувальні польоти</span>
+        </button>
+        <button class="nav-item" data-view="forms" id="nav-btn-forms">
+          <i data-lucide="file-text"></i>
+          <span data-i18n="nav_forms">Бланки</span>
+        </button>
+        <button class="nav-item" data-view="settings" id="nav-btn-settings">
+          <i data-lucide="settings"></i>
+          <span data-i18n="nav_settings">Налаштування</span>
+        </button>
+        <button class="nav-item" data-view="personal-portal" id="nav-btn-portal" style="display: none;">
+          <i data-lucide="user"></i>
+          <span data-i18n="nav_portal">Мій кабінет</span>
+        </button>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <div class="footer-controls">
+          <button class="footer-btn" id="theme-toggle" title="Змінити тему">
+            <i data-lucide="moon" id="theme-icon"></i>
+          </button>
+          <button class="footer-btn" id="lang-toggle" style="font-family: var(--font-display); font-size: 13px; font-weight: 700;">
+            EN
+          </button>
+          <button class="footer-btn" id="logout-btn" title="Вийти">
+            <i data-lucide="log-out"></i>
+          </button>
+        </div>
+        <div class="system-date-indicator">
+          <span data-i18n="sys_date_label">Розрахункова дата:</span>
+          <div id="sidebar-ref-date" style="font-weight: 600; margin-top: 2px;">2026-07-12</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN WORKSPACE -->
+    <main class="main-workspace">
+      
+      <!-- TOP HEADER -->
+      <header class="main-header">
+        <div class="header-title-container">
+          <h1 id="view-title" data-i18n="title_dashboard">Статистика</h1>
+        </div>
+        <div class="header-right">
+          <!-- Google Drive Sync Status Indicator -->
+          <div id="sync-status-indicator" class="status-badge status-neutral" style="cursor: pointer; border-radius: var(--radius-full);">
+            <div style="width: 8px; height: 8px; border-radius: 50%; background-color: var(--badge-neutral-color); margin-right: 6px;" id="sync-status-dot"></div>
+            <span id="sync-status-text" data-i18n="sync_offline">Офлайн режим</span>
+          </div>
+          <div class="user-badge">
+            <i data-lucide="user"></i>
+            <span id="user-email-display">admin@ukr-helicopters.ua</span>
+            <span id="user-role-display" class="status-badge status-neutral" style="margin-left: 8px; font-size: 10px;">ADMIN</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- VIEWS WINDOW -->
+      <div class="views-container">
+        
+        <!-- 1. DASHBOARD VIEW -->
+        <div class="view-panel active" id="view-dashboard">
+          <!-- KPI Row -->
+          <div class="dashboard-grid">
+            <div class="card kpi-card">
+              <div class="kpi-icon" style="background-color: var(--badge-valid-bg); color: var(--badge-valid-color);">
+                <i data-lucide="shield-check"></i>
+              </div>
+              <div class="kpi-details">
+                <span class="kpi-title" data-i18n="kpi_compliance">Рівень відповідності</span>
+                <span class="kpi-value" id="kpi-compliance-val">--%</span>
+              </div>
+            </div>
+            
+            <div class="card kpi-card">
+              <div class="kpi-icon">
+                <i data-lucide="users"></i>
+              </div>
+              <div class="kpi-details">
+                <span class="kpi-title" data-i18n="kpi_total_crew">Всього екіпажу</span>
+                <span class="kpi-value" id="kpi-total-val">0</span>
+              </div>
+            </div>
+            
+            <div class="card kpi-card">
+              <div class="kpi-icon" style="background-color: var(--badge-expired-bg); color: var(--badge-expired-color);">
+                <i data-lucide="alert-triangle"></i>
+              </div>
+              <div class="kpi-details">
+                <span class="kpi-title" data-i18n="kpi_expired">Прострочені сертифікати</span>
+                <span class="kpi-value" id="kpi-expired-val" style="color: var(--badge-expired-color);">0</span>
+              </div>
+            </div>
+            
+            <div class="card kpi-card">
+              <div class="kpi-icon" style="background-color: var(--badge-warning-bg); color: var(--badge-warning-color);">
+                <i data-lucide="clock"></i>
+              </div>
+              <div class="kpi-details">
+                <span class="kpi-title" data-i18n="kpi_warning">Закінчуються скоро</span>
+                <span class="kpi-value" id="kpi-warning-val" style="color: var(--badge-warning-color);">0</span>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Detailed Panels -->
+          <div class="dashboard-panels">
+            <!-- Left Side: Progress & Attention list -->
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-6);">
+              <!-- Department Progress -->
+              <div class="card">
+                <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600;" data-i18n="dash_dept_stats">Статистика по відділах</h3>
+                <div id="dept-progress-container" style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+                  <!-- Progress items generated dynamically -->
+                </div>
+              </div>
+              
+              <!-- Attention list -->
+              <div class="card" style="flex-grow: 1;">
+                <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600; color: var(--badge-expired-color);" data-i18n="dash_attention">Потребують уваги</h3>
+                <div class="scroll-table-wrapper">
+                  <table class="data-table" id="dashboard-attention-table">
+                    <thead>
+                      <tr>
+                        <th data-i18n="th_name">Ім'я</th>
+                        <th data-i18n="th_crew_type">Тип</th>
+                        <th data-i18n="th_rank">Посада</th>
+                        <th data-i18n="th_expired_count">Прострочено</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <!-- Dynamic rows -->
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+            
+            <!-- Right Side: Flight widget & Audit Feed -->
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-6);">
+              <!-- Last Logged Flight -->
+              <div class="card">
+                <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600;" data-i18n="dash_last_flight">Тренувальні польоти</h3>
+                <div id="last-flight-widget" style="font-size: 13px; display: flex; flex-direction: column; gap: var(--spacing-2);">
+                  <div style="font-style: italic; color: var(--text-secondary);" data-i18n="dash_no_flights">Записи відсутні</div>
+                </div>
+              </div>
+              
+              <!-- Audit Logs -->
+              <div class="card" style="flex-grow: 1;">
+                <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600;" data-i18n="dash_audit">Останні системні зміни</h3>
+                <div class="audit-list" id="dashboard-audit-list">
+                  <!-- Dynamic audit lines -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. FLIGHT CREW VIEW -->
+        <div class="view-panel" id="view-flight-crew">
+          <div class="table-container">
+            <div class="table-header-bar">
+              <div class="search-box">
+                <i data-lucide="search"></i>
+                <input type="text" id="flight-search" placeholder="Пошук пілота..." data-i18n-placeholder="search_flight_placeholder">
+              </div>
+              <div style="display: flex; gap: var(--spacing-2);">
+                <select id="flight-filter-rank" class="form-select" style="height: 40px; padding: 0 var(--spacing-3); font-size: 13px; min-width: 140px;"></select>
+                <select id="flight-filter-dept" class="form-select" style="height: 40px; padding: 0 var(--spacing-3); font-size: 13px; min-width: 140px;"></select>
+              </div>
+              <div class="table-actions">
+                <button class="btn btn-secondary action-btn-admin" id="btn-import-flight">
+                  <i data-lucide="upload"></i>
+                  <span data-i18n="btn_import_excel">Імпорт Excel</span>
+                </button>
+                <input type="file" id="file-import-flight" accept=".xlsx" style="display: none;">
+                
+                <button class="btn btn-primary action-btn-admin" id="btn-add-crew-flight">
+                  <i data-lucide="user-plus"></i>
+                  <span data-i18n="btn_add_member">Додати члена</span>
+                </button>
+              </div>
+            </div>
+            <div class="scroll-table-wrapper">
+              <table class="data-table" id="flight-crew-table">
+                <thead>
+                  <tr id="flight-table-headers">
+                    <!-- Loaded dynamically based on visibility settings -->
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Loaded dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. CABIN CREW VIEW -->
+        <div class="view-panel" id="view-cabin-crew">
+          <div class="table-container">
+            <div class="table-header-bar">
+              <div class="search-box">
+                <i data-lucide="search"></i>
+                <input type="text" id="cabin-search" placeholder="Пошук БП..." data-i18n-placeholder="search_cabin_placeholder">
+              </div>
+              <div style="display: flex; gap: var(--spacing-2);">
+                <select id="cabin-filter-rank" class="form-select" style="height: 40px; padding: 0 var(--spacing-3); font-size: 13px; min-width: 140px;"></select>
+                <select id="cabin-filter-dept" class="form-select" style="height: 40px; padding: 0 var(--spacing-3); font-size: 13px; min-width: 140px;"></select>
+              </div>
+              <div class="table-actions">
+                <button class="btn btn-secondary action-btn-admin" id="btn-import-cabin">
+                  <i data-lucide="upload"></i>
+                  <span data-i18n="btn_import_excel">Імпорт Excel</span>
+                </button>
+                <input type="file" id="file-import-cabin" accept=".xlsx" style="display: none;">
+                
+                <button class="btn btn-primary action-btn-admin" id="btn-add-crew-cabin">
+                  <i data-lucide="user-plus"></i>
+                  <span data-i18n="btn_add_member">Додати члена</span>
+                </button>
+              </div>
+            </div>
+            <div class="scroll-table-wrapper">
+              <table class="data-table" id="cabin-crew-table">
+                <thead>
+                  <tr id="cabin-table-headers">
+                    <!-- Loaded dynamically -->
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Loaded dynamically -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. TRAINING FLIGHTS VIEW -->
+        <div class="view-panel" id="view-training-flights">
+          <div class="training-flights-layout">
+            
+            <!-- Left Card: Form -->
+            <div class="card" style="width: 100%;">
+              <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600;" data-i18n="flights_title">Training Flight Log</h3>
+              <form id="training-flight-form" style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+                
+                <!-- Row 1: Date, Helicopter Reg, Flight Task # -->
+                <div class="form-row grid-3cols" style="align-items: end;">
+                  <div class="form-group">
+                    <label for="flight-date">Date</label>
+                    <input type="date" id="flight-date" class="form-input" required>
+                  </div>
+                  <div class="form-group">
+                    <label for="flight-helicopter-reg">Helicopter Reg</label>
+                    <input type="text" id="flight-helicopter-reg" class="form-input" placeholder="UR-...." required>
+                  </div>
+                  <div class="form-group" style="position: relative;">
+                    <label for="flight-task-main">Flight Task #</label>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <input type="text" id="flight-task-main" class="form-input" placeholder="enter Flight task #" style="flex: 1;">
+                      <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-top: 2px;">
+                        <input type="checkbox" id="flight-same-task" checked style="width: 14px; height: 14px; cursor: pointer;">
+                        <label for="flight-same-task" style="font-size: 11px; font-weight: 700; cursor: pointer; user-select: none; white-space: nowrap;">FOR ALL</label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Row 2: Fuel metrics -->
+                <div class="form-row grid-3cols">
+                  <div class="form-group">
+                    <label for="flight-fuel-start">Fuel at Start-up</label>
+                    <input type="number" id="flight-fuel-start" class="form-input" placeholder="liters" required min="0">
+                  </div>
+                  <div class="form-group">
+                    <label for="flight-fuel-end">Fuel at Shut-down</label>
+                    <input type="number" id="flight-fuel-end" class="form-input" placeholder="liters" required min="0">
+                  </div>
+                  <div class="form-group">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                      <label for="flight-refuel" style="margin-bottom: 0;">Refuel</label>
+                      <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; color: var(--text-secondary); font-weight: 600;">
+                        <input type="checkbox" id="flight-refuel-more" style="width: 12px; height: 12px; cursor: pointer;">
+                        <span>Add more</span>
+                      </label>
+                    </div>
+                    <input type="number" id="flight-refuel" class="form-input" placeholder="liters" required min="0" value="0">
+                  </div>
+                </div>
+                
+                <!-- Hidden row for additional refuels -->
+                <div id="refuel-extra-row" style="display: none; margin-top: -8px;">
+                  <div class="form-row grid-3cols">
+                    <div></div> <!-- Empty spacer -->
+                    <div class="form-group">
+                      <label for="flight-refuel-2">Refuel 2</label>
+                      <input type="number" id="flight-refuel-2" class="form-input" placeholder="liters" min="0" value="0" style="background-color: var(--bg-surface);">
+                    </div>
+                    <div class="form-group">
+                      <label for="flight-refuel-3">Refuel 3</label>
+                      <input type="number" id="flight-refuel-3" class="form-input" placeholder="liters" min="0" value="0" style="background-color: var(--bg-surface);">
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Side-by-Side Instructions & Debrief Blocks -->
+                <div class="form-row grid-2cols">
+                  
+                  <!-- Block 1: Pre-Flight Instructions -->
+                  <div style="background-color: var(--bg-surface-alt); padding: var(--spacing-4); border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: var(--spacing-3);">
+                    <h4 style="font-family: var(--font-display); font-weight: 700; font-size: 14px; margin: 0; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: var(--spacing-2); text-align: center;">Pre-Flight Instructions</h4>
+                    <div class="form-group">
+                      <label for="flight-pre-bgn" style="font-weight: 600; font-size: 13px;">BGN</label>
+                      <input type="time" id="flight-pre-bgn" class="form-input" required style="background-color: var(--bg-surface);">
+                    </div>
+                    <div class="form-group">
+                      <label for="flight-pre-end" style="font-weight: 600; font-size: 13px;">END</label>
+                      <input type="time" id="flight-pre-end" class="form-input" required style="background-color: var(--bg-surface);">
+                    </div>
+                    <div class="form-group">
+                      <label for="flight-pre-ttl" style="font-weight: 600; font-size: 13px;">TTL</label>
+                      <input type="text" id="flight-pre-ttl" class="form-input" placeholder="calculated" readonly style="background-color: var(--bg-surface); font-weight: 700; color: var(--text-primary);">
+                    </div>
+                  </div>
+
+                  <!-- Block 2: Post-Flight Debrief -->
+                  <div style="background-color: var(--bg-surface-alt); padding: var(--spacing-4); border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: var(--spacing-3);">
+                    <h4 style="font-family: var(--font-display); font-weight: 700; font-size: 14px; margin: 0; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: var(--spacing-2); text-align: center;">Post-Flight Debrief</h4>
+                    <div class="form-group">
+                      <label for="flight-post-bgn" style="font-weight: 600; font-size: 13px;">BGN</label>
+                      <input type="time" id="flight-post-bgn" class="form-input" required style="background-color: var(--bg-surface);">
+                    </div>
+                    <div class="form-group">
+                      <label for="flight-post-end" style="font-weight: 600; font-size: 13px;">END</label>
+                      <input type="time" id="flight-post-end" class="form-input" required style="background-color: var(--bg-surface);">
+                    </div>
+                    <div class="form-group">
+                      <label for="flight-post-ttl" style="font-weight: 600; font-size: 13px;">TTL</label>
+                      <input type="text" id="flight-post-ttl" class="form-input" placeholder="calculated" readonly style="background-color: var(--bg-surface); font-weight: 700; color: var(--text-primary);">
+                    </div>
+                  </div>
+                  
+                </div>
+
+                <!-- Row: Duty Time, Total Flight Time, Total Block Time -->
+                <div class="form-row grid-3cols" style="align-items: stretch;">
+                  <div class="form-group" style="background-color: var(--bg-surface-alt); padding: var(--spacing-3); border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; min-height: 95px; box-sizing: border-box; margin: 0;">
+                    <label for="flight-duty-time" style="font-weight: 700; color: var(--text-primary); margin-bottom: var(--spacing-1); display: block; text-align: center;">Duty Time</label>
+                    <input type="text" id="flight-duty-time" class="form-input" placeholder="calculated" readonly style="background-color: var(--bg-surface); font-weight: 700; color: var(--accent); font-size: 15px; border-color: var(--border-color); height: 38px; box-sizing: border-box; width: 100%;">
+                  </div>
+                  <div class="form-group" style="background-color: var(--bg-surface-alt); padding: var(--spacing-3); border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; min-height: 95px; box-sizing: border-box; margin: 0;">
+                    <label for="flight-total-flight-time" style="font-weight: 700; color: var(--text-primary); margin-bottom: var(--spacing-1); display: block; text-align: center;">Total Flight Time</label>
+                    <input type="time" id="flight-total-flight-time" class="form-input" value="00:00" style="background-color: var(--bg-surface); font-weight: 700; color: var(--text-primary); font-size: 15px; border-color: var(--border-color); height: 38px; box-sizing: border-box; width: 100%;">
+                  </div>
+                  <div class="form-group" style="background-color: var(--bg-surface-alt); padding: var(--spacing-3); border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; min-height: 95px; box-sizing: border-box; margin: 0;">
+                    <label for="flight-total-block-time" style="font-weight: 700; color: var(--text-primary); margin-bottom: var(--spacing-1); display: block; text-align: center;">Total Block Time</label>
+                    <input type="time" id="flight-total-block-time" class="form-input" value="00:00" style="background-color: var(--bg-surface); font-weight: 700; color: var(--text-primary); font-size: 15px; border-color: var(--border-color); height: 38px; box-sizing: border-box; width: 100%;">
+                  </div>
+                </div>
+
+                <!-- Crew Section Separator -->
+                <div style="border-top: 1px solid var(--border-color); margin-top: var(--spacing-4); padding-top: var(--spacing-4);">
+                  <h4 style="font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: var(--spacing-4);">Crew Members / Особовий склад</h4>
+                  
+                  <!-- Dynamic crew card container -->
+                  <div id="crew-members-container" style="display: flex; flex-direction: column; gap: var(--spacing-6); margin-bottom: var(--spacing-4);">
+                    <!-- Dynamic crew card blocks added in JS -->
+                  </div>
+                  
+                  <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: var(--spacing-4); margin-top: var(--spacing-4);">
+                    <button type="button" id="btn-add-crew-member" class="btn btn-secondary" style="display: flex; align-items: center; gap: 8px;">
+                      <i data-lucide="plus-circle" style="width: 16px; height: 16px;"></i>
+                      <span>Add Crew Member</span>
+                    </button>
+                    
+                    <button type="submit" id="btn-save-flight" class="btn btn-primary" style="display: flex; align-items: center; gap: 8px; padding-left: var(--spacing-6); padding-right: var(--spacing-6);">
+                      <i data-lucide="save" style="width: 16px; height: 16px;"></i>
+                      <span>Save Flight</span>
+                    </button>
+                  </div>
+                </div>
+
+              </form>
+            </div>
+            
+            <!-- Right Card: Logged Flights List -->
+            <div class="card" style="width: 100%; max-height: 85vh; overflow-y: auto;">
+              <h3 data-i18n="logged_flights_title" style="font-family: var(--font-display); font-size: 16px; font-weight: 600; border-bottom: 1px solid var(--border-color); padding-bottom: var(--spacing-2); margin: 0;">Logged Flights</h3>
+              
+              <!-- Month Filter and Stats Container -->
+              <div style="display: flex; flex-direction: column; gap: 8px; margin: 12px 0; padding: 10px; background-color: var(--bg-surface-alt); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+                  <label for="flight-month-filter" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin: 0; white-space: nowrap;">Month / Місяць:</label>
+                  <select id="flight-month-filter" class="form-input" style="padding: 4px 8px; font-size: 12px; height: auto; max-width: 160px; margin: 0; cursor: pointer; background-color: var(--bg-surface);">
+                    <option value="all">All Months / Всі місяці</option>
+                  </select>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: var(--text-primary); border-top: 1px solid var(--border-color); padding-top: 6px; margin-top: 2px;">
+                  <div>
+                    <span style="color: var(--text-secondary);">TTL Flight / Польоти:</span>
+                    <span id="month-stat-flight" style="font-weight: 700; color: var(--accent); margin-left: 2px;">00:00</span>
+                  </div>
+                  <div>
+                    <span style="color: var(--text-secondary);">TTL Block / Блок:</span>
+                    <span id="month-stat-block" style="font-weight: 700; color: var(--accent); margin-left: 2px;">00:00</span>
+                  </div>
+                </div>
+              </div>
+
+              <div id="logged-flights-list" style="display: flex; flex-direction: column; gap: var(--spacing-3); padding-right: 4px;">
+                <!-- Dynamically populated in JS -->
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- 5. FORMS VIEW -->
+        <div class="view-panel" id="view-forms">
+          <div class="card">
+            <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600;" data-i18n="forms_list_title">Бланки для заповнення та друку</h3>
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-3);" id="forms-list-container">
+              <!-- Lists of forms -->
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-4); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+                <div style="display: flex; align-items: center; gap: var(--spacing-3);">
+                  <i data-lucide="file" style="color: var(--accent);"></i>
+                  <div>
+                    <div style="font-weight: 600; font-size: 14px;">Подання на присвоєння кваліфікації (Льотний склад)</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Форма UH-F-22 • PDF</div>
+                  </div>
+                </div>
+                <button class="btn btn-secondary" onclick="alert('Скачування бланку...')">
+                  <i data-lucide="download"></i>
+                </button>
+              </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; padding: var(--spacing-4); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+                <div style="display: flex; align-items: center; gap: var(--spacing-3);">
+                  <i data-lucide="file" style="color: var(--accent);"></i>
+                  <div>
+                    <div style="font-weight: 600; font-size: 14px;">Звіт про перевірку в польоті БП (Кабінний склад)</div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">Форма UH-C-09 • PDF</div>
+                  </div>
+                </div>
+                <button class="btn btn-secondary" onclick="alert('Скачування бланку...')">
+                  <i data-lucide="download"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 6. SETTINGS VIEW -->
+        <div class="view-panel" id="view-settings">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-6);">
+            
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-6);">
+              <!-- Sync & Backup Panel -->
+              <div class="card">
+                <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600;" data-i18n="set_sync_backup">Синхронізація та Бекап</h3>
+                
+                <div style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+                  <!-- Sync settings stubs -->
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                      <div style="font-weight: 600; font-size: 13px;">Автоматична синхронізація Google Drive</div>
+                      <div style="font-size: 11px; color: var(--text-secondary);">Кожні 5 хвилин у фоновому режимі</div>
+                    </div>
+                    <input type="checkbox" id="settings-auto-sync" style="width: 18px; height: 18px; cursor: pointer;">
+                  </div>
+                  
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                      <div style="font-weight: 600; font-size: 13px;">Уточнювати тип дати при внесенні</div>
+                      <div style="font-size: 11px; color: var(--text-secondary);">Промпт "Completion vs Expiry"</div>
+                    </div>
+                    <input type="checkbox" id="settings-date-prompt" checked style="width: 18px; height: 18px; cursor: pointer;">
+                  </div>
+                  
+                  <div class="form-group">
+                    <label for="settings-ref-date" data-i18n="label_reference_date">Розрахункова дата системи</label>
+                    <input type="date" id="settings-ref-date" class="form-input" value="2026-07-12">
+                  </div>
+                  
+                  <button class="btn btn-primary" id="btn-manual-sync">
+                    <i data-lucide="refresh-cw"></i>
+                    <span data-i18n="btn_manual_sync_drive">Синхронізувати з Drive</span>
+                  </button>
+                  
+                  <div style="border-top: 1px solid var(--border-color); padding-top: var(--spacing-4); display: flex; gap: var(--spacing-3);">
+                    <button class="btn btn-secondary" id="btn-backup-json" style="flex-grow: 1;">
+                      <i data-lucide="download"></i>
+                      <span>JSON Backup</span>
+                    </button>
+                    <button class="btn btn-secondary" id="btn-backup-xlsx" style="flex-grow: 1;">
+                      <i data-lucide="file-spreadsheet"></i>
+                      <span>XLSX Backup</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Excel Database Update Card -->
+              <div class="card">
+                <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600;">Оновлення бази даних (Excel)</h3>
+                <div style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+                  <div style="font-size: 11px; color: var(--text-secondary);">
+                    Виберіть початковий файл Excel (з листами Flight_Crew та Cabin_Crew). Система оновить лише змінені та новіші дати, після чого відобразить звіт про зміни.
+                  </div>
+                  <input type="file" id="file-update-db" accept=".xlsx" style="display: none;">
+                  <button class="btn btn-primary" id="btn-update-db-excel" style="width: 100%;">
+                    <i data-lucide="upload"></i>
+                    <span>Оновити базу з Excel</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Column Visibility settings -->
+              <div class="card">
+                <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600;" data-i18n="set_columns">Відображення стовпчиків</h3>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-3);" id="columns-visibility-container">
+                  <!-- Generated dynamically based on configuration -->
+                </div>
+              </div>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-6);">
+              <!-- Permissions configuration table -->
+              <div class="card">
+                <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600;" data-i18n="set_permissions">Матриця прав доступу</h3>
+                <div class="scroll-table-wrapper">
+                  <table class="data-table" style="font-size: 12px;">
+                    <thead>
+                      <tr>
+                        <th>Роль</th>
+                        <th>Бази даних</th>
+                        <th>Редагування</th>
+                        <th>Польоти</th>
+                        <th>Налаштування</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><strong>ADMIN</strong></td>
+                        <td>READ / WRITE</td>
+                        <td>FULL</td>
+                        <td>WRITE</td>
+                        <td>FULL</td>
+                      </tr>
+                      <tr>
+                        <td><strong>INSTRUCTOR</strong></td>
+                        <td>READ</td>
+                        <td>DATES ONLY</td>
+                        <td>WRITE</td>
+                        <td>NONE</td>
+                      </tr>
+                      <tr>
+                        <td><strong>OFFICE</strong></td>
+                        <td>READ</td>
+                        <td>NONE</td>
+                        <td>NONE</td>
+                        <td>NONE</td>
+                      </tr>
+                      <tr>
+                        <td><strong>CREW</strong></td>
+                        <td>PORTAL ONLY</td>
+                        <td>NONE</td>
+                        <td>NONE</td>
+                        <td>NONE</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <!-- Crew Member Management (Add/Delete) -->
+              <div class="card" style="flex-grow: 1;">
+                <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600;" data-i18n="set_crew_mgmt">Керування персоналом</h3>
+                <div style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+                  <div class="form-group">
+                    <label for="mgmt-delete-select" data-i18n="label_delete_crew">Видалити члена екіпажу</label>
+                    <select id="mgmt-delete-select" class="form-select">
+                      <!-- Loaded dynamically -->
+                    </select>
+                  </div>
+                  <button class="btn btn-danger" id="btn-mgmt-delete" style="width: 100%;">
+                    <i data-lucide="trash-2"></i>
+                    <span data-i18n="btn_delete_crew_member">Видалити співробітника</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+          </div>
+        </div>
+
+        <!-- 7. PERSONAL PORTAL VIEW (CREW VIEW) -->
+        <div class="view-panel" id="view-personal-portal">
+          <div id="portal-back-btn-container"></div>
+          <div style="display: grid; grid-template-columns: 1fr 2fr; gap: var(--spacing-6);">
+            <!-- Profile Info -->
+            <div class="card" id="portal-profile-card">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-3);">
+                <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 0;" data-i18n="portal_profile_title">Особистий профіль</h3>
+                <button id="btn-edit-portal-profile" class="btn btn-secondary" style="height: 32px; padding: 0 var(--spacing-2); display: none; align-items: center; gap: 4px;" title="Edit Profile">
+                  <i data-lucide="edit-3" style="width: 14px; height: 14px;"></i>
+                </button>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: var(--spacing-4);" id="portal-profile-details">
+                <!-- Loaded dynamically -->
+              </div>
+            </div>
+            
+            <div style="display: flex; flex-direction: column; gap: var(--spacing-6);">
+              <!-- Qualifications & Expirations Grid -->
+              <div class="card">
+                <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600;" data-i18n="portal_expiries_title">Терміни дії підготовок</h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--spacing-4);" id="portal-expiries-grid">
+                  <!-- Loaded dynamically -->
+                </div>
+              </div>
+              
+              <!-- Additional Trainings Grid -->
+              <div class="card" id="portal-additional-card">
+                <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600;">
+                  <span data-i18n="portal_additional_title">Додаткові підготовки / Additional trainings</span>
+                </h3>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--spacing-4);" id="portal-additional-grid">
+                  <!-- Loaded dynamically -->
+                </div>
+              </div>
+              
+              <!-- Scanned PDFs -->
+              <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-3);">
+                  <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 0;" data-i18n="portal_scans_title">Завантажені скан-копії документів</h3>
+                  <button id="btn-scan-document" class="btn btn-secondary" style="height: 32px; padding: 0 var(--spacing-3); display: none; align-items: center; gap: 6px;">
+                    <i data-lucide="plus" style="width: 14px; height: 14px;"></i>
+                    <span style="font-size: 12px; font-weight: 600;">SCAN / Сканувати</span>
+                  </button>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: var(--spacing-3);" id="portal-documents-list">
+                  <!-- Loaded dynamically or stubbed -->
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- ================= CREW ADD / EDIT MODAL DIALOG ================= -->
+  <div id="crew-modal-backdrop" class="modal-backdrop">
+    <div class="modal-content" style="width: 600px; max-height: 85vh;">
+      <div class="modal-header">
+        <h2 id="crew-modal-title">Додати нового члена екіпажу</h2>
+        <button class="modal-close-btn" id="btn-close-crew-modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      
+      <form id="crew-modal-form" style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+        <input type="hidden" id="crew-modal-id">
+        <input type="hidden" id="crew-modal-type">
+        
+        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-4);">
+          <div class="form-group">
+            <label for="crew-modal-name-ua" data-i18n="label_name_ua">Прізвище Ім'я (Укр.)</label>
+            <input type="text" id="crew-modal-name-ua" class="form-input" required placeholder="Алекса Сергій Миколайович">
+          </div>
+          <div class="form-group">
+            <label for="crew-modal-name-en" data-i18n="label_name_en">Прізвище Ім'я (Англ.)</label>
+            <input type="text" id="crew-modal-name-en" class="form-input" required placeholder="Aleksa Sergii">
+          </div>
+        </div>
+
+        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-4);">
+          <div class="form-group">
+            <label for="crew-modal-rank" data-i18n="label_rank">Посада</label>
+            <input type="text" id="crew-modal-rank" class="form-input" required placeholder="БП-РА">
+          </div>
+          <div class="form-group">
+            <label for="crew-modal-dept" data-i18n="label_dept">Відділ</label>
+            <input type="text" id="crew-modal-dept" class="form-input" required placeholder="ВзПЕ">
+          </div>
+        </div>
+
+        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-4);">
+          <div class="form-group">
+            <label for="crew-modal-phone" data-i18n="label_phone">Телефон</label>
+            <input type="text" id="crew-modal-phone" class="form-input" placeholder="+380991234567">
+          </div>
+          <div class="form-group">
+            <label for="crew-modal-email" data-i18n="label_email">Електронна пошта</label>
+            <input type="email" id="crew-modal-email" class="form-input" required placeholder="name@ukr-helicopters.ua">
+          </div>
+        </div>
+        
+        <div class="form-group" id="crew-modal-license-group">
+          <label for="crew-modal-license" data-i18n="label_license">Номер свідоцтва (LICENSE)</label>
+          <input type="text" id="crew-modal-license" class="form-input" placeholder="UA.FCL.12345">
+        </div>
+
+        <div style="border-top: 1px solid var(--border-color); padding-top: var(--spacing-4);">
+          <h4 style="font-family: var(--font-display); font-size: 14px; font-weight: 600; margin-bottom: var(--spacing-3);" data-i18n="dates_title">Дати підготовок</h4>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-4); max-height: 250px; overflow-y: auto; padding: 4px;" id="crew-modal-dates-fields">
+            <!-- Populated dynamically based on crew type -->
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: var(--spacing-3); border-top: 1px solid var(--border-color); padding-top: var(--spacing-4);">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-crew-modal" data-i18n="btn_cancel">Скасувати</button>
+          <button type="submit" class="btn btn-primary" data-i18n="btn_save">Зберегти зміни</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= DATE TYPE PROMPT MODAL ================= -->
+  <div id="date-prompt-backdrop" class="modal-backdrop">
+    <div class="modal-content" style="width: 400px;">
+      <div class="modal-header">
+        <h2 id="date-prompt-title" data-i18n="prompt_date_title">Виберіть тип дати</h2>
+      </div>
+      <div style="font-size: 13px; color: var(--text-secondary);" id="date-prompt-desc">
+        Будь ласка, вкажіть, яке значення дати ви вводите для поля <strong id="date-prompt-fieldname">OPC</strong>:
+      </div>
+      <div class="date-type-prompt">
+        <div class="radio-group">
+          <label class="radio-option">
+            <input type="radio" name="date-type" value="EXPIRY" checked>
+            <span data-i18n="prompt_expiry_date">Дата закінчення дії (Expiration)</span>
+          </label>
+        </div>
+        <div class="radio-group" style="margin-top: 8px;">
+          <label class="radio-option">
+            <input type="radio" name="date-type" value="COMPLETION">
+            <span data-i18n="prompt_completion_date">Дата проходження курсу (Completion)</span>
+          </label>
+        </div>
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: var(--spacing-3);">
+        <button class="btn btn-primary" id="btn-submit-date-prompt" data-i18n="btn_confirm">Підтвердити</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SCAN DOCUMENT MODAL ================= -->
+  <div id="scan-modal-backdrop" class="modal-backdrop">
+    <div class="modal-content" style="width: 450px;">
+      <div class="modal-header">
+        <h2 style="font-family: var(--font-display); font-size: 18px; font-weight: 600;">Сканувати документ / Scan Document</h2>
+        <button class="modal-close-btn" id="btn-close-scan-modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      
+      <form id="scan-modal-form" style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+        <div class="form-group">
+          <label for="scan-doc-type" style="font-weight:600; font-size:13px;">Тип підготовки / Training Type</label>
+          <select id="scan-doc-type" class="form-input" required>
+            <!-- Populated dynamically based on crew type -->
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="scan-doc-date" style="font-weight:600; font-size:13px;">Дата проходження / Completion Date</label>
+          <input type="date" id="scan-doc-date" class="form-input" required>
+        </div>
+        
+        <div class="form-group">
+          <label for="scan-file-input" style="font-weight:600; font-size:13px;">Файл документа / Document File (PDF / Image)</label>
+          <input type="file" id="scan-file-input" class="form-input" accept="application/pdf,image/*" required>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: var(--spacing-3); border-top: 1px solid var(--border-color); padding-top: var(--spacing-4); margin-top: var(--spacing-2);">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-scan-modal">Скасувати / Cancel</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-scan">Сканувати / Scan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ================= CONFIRM DIALOG ================= -->
+  <div id="confirm-backdrop" class="modal-backdrop">
+    <div class="modal-content" style="width: 400px;">
+      <div class="modal-header">
+        <h2 id="confirm-title" data-i18n="confirm_title">Підтвердження дії</h2>
+      </div>
+      <div style="font-size: 14px; color: var(--text-primary);" id="confirm-message">
+        Ви впевнені, що хочете виконати цю дію?
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: var(--spacing-3);">
+        <button class="btn btn-secondary" id="btn-cancel-confirm" data-i18n="btn_no">Ні</button>
+        <button class="btn btn-danger" id="btn-submit-confirm" data-i18n="btn_yes">Так, видалити</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= IMPORT REPORT DIALOG ================= -->
+  <div id="import-report-backdrop" class="modal-backdrop">
+    <div class="modal-content" style="width: 600px; max-width: 90%; max-height: 85vh; display: flex; flex-direction: column;">
+      <div class="modal-header">
+        <h2 style="font-family: var(--font-display); font-size: 18px; font-weight: 600;">Звіт про оновлення даних</h2>
+      </div>
+      <div style="overflow-y: auto; flex-grow: 1; padding: var(--spacing-4) 0; font-size: 13px;" id="import-report-body">
+        <!-- Populated dynamically -->
+      </div>
+      <div style="display: flex; justify-content: flex-end; gap: var(--spacing-3); border-top: 1px solid var(--border-color); padding-top: var(--spacing-4); margin-top: auto;">
+        <button class="btn btn-primary" id="btn-close-import-report">Добре</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TOAST NOTIFICATION CONTAINER ================= -->
+  <div id="toast-container" style="position: fixed; bottom: 24px; right: 24px; display: flex; flex-direction: column; gap: var(--spacing-2); z-index: 10000; pointer-events: none;">
+    <!-- Toast boxes appended dynamically -->
+  </div>
+
+  <!-- Main SPA Application logic script -->
+  <script type="module" src="js/app.js?v=2"></script>
+</body>
+</html>
