@@ -1123,5 +1123,56 @@
   transform: translateY(0);
 }
 
+/* Personal Portal Layout */
+.portal-layout-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--spacing-6);
+  align-items: start;
+}
+
+#portal-profile-card {
+  width: max-content;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.portal-profile-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--spacing-3);
+  min-height: 32px;
+}
+
+.portal-profile-header h3 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  text-align: center;
+  width: 100%;
+}
+
+.portal-profile-header #btn-edit-portal-profile {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 32px;
+  padding: 0 var(--spacing-2);
+  display: none;
+  align-items: center;
+  gap: 4px;
+}
+
+@media (max-width: 768px) {
+  .portal-layout-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+
 
 

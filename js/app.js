@@ -5166,6 +5166,7 @@ function renderPersonalPortal() {
     
     document.getElementById('btn-portal-back').addEventListener('click', () => {
       STATE.selectedCrewMemberId = null;
+      STATE.isEditingPortalProfile = false;
       switchView(STATE.previousCrewView || 'flight-crew');
     });
   }
@@ -5219,24 +5220,57 @@ function renderPersonalPortal() {
   // Show / Hide edit profile button for admin
   const editProfileBtn = document.getElementById('btn-edit-portal-profile');
   if (editProfileBtn) {
-    editProfileBtn.style.display = role === ROLES.ADMIN ? 'inline-flex' : 'none';
+    editProfileBtn.style.display = (role === ROLES.ADMIN && !STATE.isEditingPortalProfile) ? 'inline-flex' : 'none';
   }
 
   // Render profile (either Edit form or static view)
   if (STATE.isEditingPortalProfile && role === ROLES.ADMIN) {
+    // Generate unique Ranks and Depts from the table
+    const crewList = (member.crewType && member.crewType.toUpperCase().includes('CABIN')) ? STATE.cabinCrew : STATE.flightCrew;
+    const allRanks = [...new Set(crewList.map(c => c.Rank).filter(Boolean))];
+    if (member.Rank && !allRanks.includes(member.Rank)) allRanks.push(member.Rank);
+    const rankOrder = ['КПС', '2П', 'ІБ', 'БП-РА', 'БП'];
+    allRanks.sort((a, b) => {
+      const idxA = rankOrder.indexOf(a);
+      const idxB = rankOrder.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b, STATE.lang === 'uk' ? 'uk' : 'en');
+    });
+
+    const allDepts = [...new Set(crewList.map(c => c.Department).filter(Boolean))];
+    if (member.Department && !allDepts.includes(member.Department)) allDepts.push(member.Department);
+    const deptOrder = ['ПРВ', 'ТВ'];
+    allDepts.sort((a, b) => {
+      const idxA = deptOrder.indexOf(a);
+      const idxB = deptOrder.indexOf(b);
+      if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+      if (idxA !== -1) return -1;
+      if (idxB !== -1) return 1;
+      return a.localeCompare(b, STATE.lang === 'uk' ? 'uk' : 'en');
+    });
+
+    const rankOptionsHtml = allRanks.map(r => `<option value="${r}" ${r === member.Rank ? 'selected' : ''}>${r}</option>`).join('');
+    const deptOptionsHtml = allDepts.map(d => `<option value="${d}" ${d === member.Department ? 'selected' : ''}>${d}</option>`).join('');
+
     profileDetails.innerHTML = `
       ${avatarHtml}
       <form id="portal-profile-edit-form" style="display: flex; flex-direction: column; gap: var(--spacing-3); width: 100%;">
-        <div><strong>Прізвище Ім'я:</strong> ${member.Full_Name_UA}</div>
-        <div><strong>Name:</strong> ${member.Full_Name_EN}</div>
+        <div id="portal-profile-name-row" style="white-space: nowrap;"><span class="profile-name-text-measure"><strong>Прізвище Ім'я:</strong> ${member.Full_Name_UA}</span></div>
+        <div style="white-space: nowrap;"><strong>Name:</strong> ${member.Full_Name_EN}</div>
         
         <div class="form-group">
           <label style="font-weight: 600; font-size: 13px;">Посада / Rank:</label>
-          <input type="text" id="edit-portal-rank" class="form-input" value="${member.Rank || ''}" required />
+          <select id="edit-portal-rank" class="form-input" required>
+            ${rankOptionsHtml}
+          </select>
         </div>
         <div class="form-group">
           <label style="font-weight: 600; font-size: 13px;">Відділ / Dept:</label>
-          <input type="text" id="edit-portal-dept" class="form-input" value="${member.Department || ''}" required />
+          <select id="edit-portal-dept" class="form-input" required>
+            ${deptOptionsHtml}
+          </select>
         </div>
         <div class="form-group">
           <label style="font-weight: 600; font-size: 13px;">Email:</label>
@@ -5317,19 +5351,19 @@ function renderPersonalPortal() {
     // Render static profile details
     profileDetails.innerHTML = `
       ${avatarHtml}
-      <div><strong>Прізвище Ім'я:</strong> ${member.Full_Name_UA}</div>
-      <div><strong>Name:</strong> ${member.Full_Name_EN}</div>
+      <div id="portal-profile-name-row" style="white-space: nowrap;"><span class="profile-name-text-measure"><strong>Прізвище Ім'я:</strong> ${member.Full_Name_UA}</span></div>
+      <div style="white-space: nowrap;"><strong>Name:</strong> ${member.Full_Name_EN}</div>
       <div><strong>Посада / Rank:</strong> <span class="status-badge status-neutral">${member.Rank}</span></div>
       <div><strong>Відділ / Dept:</strong> ${member.Department}</div>
       <div><strong>Email:</strong> ${member.Email}</div>
       <div><strong>Phone:</strong> ${member.Phone || '-'}</div>
       ${member.LICENSE ? `<div><strong>License:</strong> <code>${member.LICENSE}</code></div>` : ''}
-      <div style="margin-top: 8px; padding: 10px; background-color: var(--bg-surface-alt); border-radius: var(--radius-md); border: 1px solid var(--border-color); font-size: 12px;">
+      <div style="margin-top: 8px; padding: 10px; background-color: var(--bg-surface-alt); border-radius: var(--radius-md); border: 1px solid var(--border-color); font-size: 12px; box-sizing: border-box; max-width: 100%;">
         <div style="font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-          <i data-lucide="folder" style="width: 14px; height: 14px; color: var(--accent);"></i>
-          <span>Папка на Google Drive (${member.crewType}):</span>
+          <i data-lucide="folder" style="width: 14px; height: 14px; color: var(--accent); flex-shrink: 0;"></i>
+          <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Папка на Google Drive (${member.crewType}):</span>
         </div>
-        <code style="word-break: break-all; color: var(--text-primary); font-size: 11px;">${getMemberFolderPath(member)}</code>
+        <code style="word-break: break-all; color: var(--text-primary); font-size: 11px; display: block;">${getMemberFolderPath(member)}</code>
       </div>
     `;
     
@@ -5749,6 +5783,27 @@ function renderPersonalPortal() {
   if (window.lucide) {
     window.lucide.createIcons();
   }
+
+  // Adjust card width so it strictly equals the name row width + exact left and right padding
+  const adjustProfileCardWidth = () => {
+    const card = document.getElementById('portal-profile-card');
+    const nameRow = document.getElementById('portal-profile-name-row');
+    if (card && nameRow) {
+      const nameTextSpan = nameRow.querySelector('.profile-name-text-measure');
+      const textWidth = nameTextSpan ? nameTextSpan.getBoundingClientRect().width : nameRow.scrollWidth;
+      if (textWidth > 50) {
+        // card padding is var(--spacing-6) = 24px on left, 24px on right, border is 1px on left, 1px on right (total 50px)
+        const targetWidth = Math.ceil(textWidth + 48 + 2);
+        card.style.width = `${targetWidth}px`;
+        card.style.minWidth = `${targetWidth}px`;
+        card.style.maxWidth = `${targetWidth}px`;
+        card.style.flexShrink = '0';
+      }
+    }
+  };
+  adjustProfileCardWidth();
+  setTimeout(adjustProfileCardWidth, 30);
+  setTimeout(adjustProfileCardWidth, 150);
 }
 
 /**

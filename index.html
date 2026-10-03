@@ -6,9 +6,9 @@
   <title>UH Training Level Dashboard v0.2</title>
   
   <!-- CSS Stylesheets -->
-  <link rel="stylesheet" href="css/variables.css?v=0.2">
-  <link rel="stylesheet" href="css/layout.css?v=0.2">
-  <link rel="stylesheet" href="css/components.css?v=0.2">
+  <link rel="stylesheet" href="css/variables.css?v=0.3">
+  <link rel="stylesheet" href="css/layout.css?v=0.3">
+  <link rel="stylesheet" href="css/components.css?v=0.3">
   
   <!-- SheetJS Library (CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -1494,12 +1494,12 @@
         <!-- 7. PERSONAL PORTAL VIEW (CREW VIEW) -->
         <div class="view-panel" id="view-personal-portal">
           <div id="portal-back-btn-container"></div>
-          <div style="display: grid; grid-template-columns: 1fr 2fr; gap: var(--spacing-6);">
+          <div class="portal-layout-grid" style="display: grid; grid-template-columns: max-content 1fr; gap: var(--spacing-6); align-items: start;">
             <!-- Profile Info -->
-            <div class="card" id="portal-profile-card">
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-3);">
-                <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 0;" data-i18n="portal_profile_title">Особистий профіль</h3>
-                <button id="btn-edit-portal-profile" class="btn btn-secondary" style="height: 32px; padding: 0 var(--spacing-2); display: none; align-items: center; gap: 4px;" title="Edit Profile">
+            <div class="card" id="portal-profile-card" style="width: max-content; max-width: 100%; box-sizing: border-box;">
+              <div class="portal-profile-header" style="position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: var(--spacing-3); min-height: 32px;">
+                <h3 data-i18n="portal_profile_title" style="font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 0; text-align: center; width: 100%;">Особистий профіль</h3>
+                <button id="btn-edit-portal-profile" class="btn btn-secondary" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); height: 32px; padding: 0 var(--spacing-2); display: none; align-items: center; gap: 4px;" title="Edit Profile">
                   <i data-lucide="edit-3" style="width: 14px; height: 14px;"></i>
                 </button>
               </div>
