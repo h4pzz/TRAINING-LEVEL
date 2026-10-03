@@ -239,6 +239,20 @@ html, body {
   }
 }
 
+/* Flight & Cabin crew compliance stats side-by-side grid */
+.crew-stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-6);
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .crew-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Responsive Media Queries (<650px) */
 @media (max-width: 650px) {
   .sidebar {

@@ -5,6 +5,7 @@ import { calculateExpiryDate, determineStatus } from '../execution/compliance_ca
 import { 
   downloadBackupJson, 
   downloadBackupXlsx, 
+  downloadCrewXlsx,
   simulateDriveSync, 
   simulateDrivePhotoUpload, 
   simulateDriveDocumentUpload,
@@ -61,6 +62,8 @@ const TRANSLATIONS = {
     
     // Dashboard panels
     dash_dept_stats: "Статистика по відділах",
+    dash_flight_crew_stats: "Льотний склад",
+    dash_cabin_crew_stats: "Кабінний склад",
     dash_attention: "Потребують уваги",
     dash_last_flight: "Тренувальні польоти",
     dash_no_flights: "Записи відсутні",
@@ -73,6 +76,7 @@ const TRANSLATIONS = {
     th_expired_count: "Прострочено",
     search_flight_placeholder: "Пошук пілота...",
     search_cabin_placeholder: "Пошук БП...",
+    btn_export_excel: "Експорт Excel",
     btn_import_excel: "Імпорт Excel",
     btn_add_member: "Додати члена екіпажу",
     filter_all_ranks: "Всі посади",
@@ -257,6 +261,24 @@ const TRANSLATIONS = {
     btn_cols_select_all: "Вибрати всі",
     btn_cols_deselect_all: "Зняти всі",
     btn_cols_reset_default: "За замовчуванням",
+    btn_add_column: "+ Додати стовпчик",
+    modal_add_column_title: "Додати новий стовпчик",
+    label_column_category: "Категорія персоналу (таблиця):",
+    label_column_key: "Код / Ідентифікатор стовпчика (латиницею):",
+    desc_column_key: "Унікальний ключ для бази даних та експорту (без пробілів)",
+    label_column_name_ua: "Назва стовпчика (Укр.):",
+    label_column_name_en: "Назва стовпчика (Англ.):",
+    label_column_position: "Розташування (після якого стовпчика вставити):",
+    desc_column_position: "За замовчуванням стовпчик додається останнім у кінець таблиці",
+    label_column_type: "Тип даних у стовпчику:",
+    opt_col_type_neutral: "Дата підготовки (нейтральна, фіксація дати)",
+    opt_col_type_expiring: "Термін дії (з підсвічуванням прострочення та попередження)",
+    opt_col_type_text: "Текстове значення / Примітка",
+    label_validity_period: "Термін дійсності підготовки (місяців):",
+    btn_add_column_confirm: "Додати стовпчик",
+    pos_opt_last: "(Останнім) В кінець таблиці",
+    pos_opt_first: "(Першим) На початок таблиці",
+    pos_opt_after: "Після",
     tab_crew_flight: "Льотний склад (Flight Crew)",
     tab_crew_cabin: "Кабінний склад (Cabin Crew)",
     rules_title: "Форматування та Розрахункові правила",
@@ -330,6 +352,8 @@ const TRANSLATIONS = {
     
     // Dashboard panels
     dash_dept_stats: "Department Stats",
+    dash_flight_crew_stats: "Flight Crew",
+    dash_cabin_crew_stats: "Cabin Crew",
     dash_attention: "Attention Needed",
     dash_last_flight: "Training Flights",
     dash_no_flights: "No flights recorded",
@@ -342,6 +366,7 @@ const TRANSLATIONS = {
     th_expired_count: "Expired",
     search_flight_placeholder: "Search pilot...",
     search_cabin_placeholder: "Search cabin crew...",
+    btn_export_excel: "Export Excel",
     btn_import_excel: "Import Excel",
     btn_add_member: "Add Crew Member",
     filter_all_ranks: "All Ranks",
@@ -526,6 +551,24 @@ const TRANSLATIONS = {
     btn_cols_select_all: "Select All",
     btn_cols_deselect_all: "Deselect All",
     btn_cols_reset_default: "Default Columns",
+    btn_add_column: "+ Add Column",
+    modal_add_column_title: "Add New Column",
+    label_column_category: "Staff Category (Table):",
+    label_column_key: "Column Key / Identifier (Latin):",
+    desc_column_key: "Unique key for database and export (no spaces)",
+    label_column_name_ua: "Column Name (UA):",
+    label_column_name_en: "Column Name (EN):",
+    label_column_position: "Insert Position (after which column):",
+    desc_column_position: "By default, the column is added at the end of the table",
+    label_column_type: "Data type for column:",
+    opt_col_type_neutral: "Training completion date (neutral record)",
+    opt_col_type_expiring: "Validity expiration date (with compliance check)",
+    opt_col_type_text: "Text value / Note",
+    label_validity_period: "Validity period (months):",
+    btn_add_column_confirm: "Add Column",
+    pos_opt_last: "(Last) At the end of table",
+    pos_opt_first: "(First) At the start of table",
+    pos_opt_after: "After",
     tab_crew_flight: "Flight Crew",
     tab_crew_cabin: "Cabin Crew",
     rules_title: "Formatting & Calculation Rules",
@@ -733,8 +776,13 @@ function getFormColumnShortTitle(colKey, lang = 'uk') {
       return 'EOIR';
     case 'NAIROBI':
       return 'Nairobi';
-    default:
+    default: {
+      const customCol = [...(BILINGUAL_COLUMNS.Flight || []), ...(BILINGUAL_COLUMNS.Cabin || [])].find(c => c.key === colKey);
+      if (customCol) {
+        return lang === 'uk' ? customCol.ua : (customCol.en || customCol.ua);
+      }
       return colKey;
+    }
   }
 }
 
@@ -801,6 +849,10 @@ const STATE = {
       'Rank', 'Department', 'Name_Shrt_UA', 'OPC', 'LPC', 'CC_Type', 'EMER_1', 'EMER_3', 'DG', 'AV_SEC', 'CRM', 'MED',
       'Resc', 'Rappel', 'Hoist', 'EOIR', 'NAIROBI'
     ]
+  },
+  customColumns: {
+    Flight: [],
+    Cabin: []
   }
 };
 
@@ -851,6 +903,7 @@ function saveStateToStorage() {
   localStorage.setItem('aerocheck_flights', JSON.stringify(STATE.flights));
   localStorage.setItem('aerocheck_forms', JSON.stringify(STATE.forms));
   localStorage.setItem('aerocheck_snapshots', JSON.stringify(STATE.snapshots));
+  localStorage.setItem('aerocheck_custom_columns', JSON.stringify(STATE.customColumns || { Flight: [], Cabin: [] }));
 }
 
 /**
@@ -1046,6 +1099,94 @@ function renderDashboard() {
     `;
     deptContainer.insertAdjacentHTML('beforeend', progressHtml);
   });
+  
+  // Calculate and draw Flight Crew and Cabin Crew compliance stats
+  const flightContainer = document.getElementById('flight-crew-stats-container');
+  const cabinContainer = document.getElementById('cabin-crew-stats-container');
+  
+  if (flightContainer && cabinContainer) {
+    flightContainer.innerHTML = '';
+    cabinContainer.innerHTML = '';
+
+    const flightPrepConfigs = [
+      { colName: 'OPC', ruleKey: 'OPC', label: 'OPC' },
+      { colName: 'OPC_NVG', ruleKey: 'OPC_NVG', label: 'OPC NVG' },
+      { colName: 'LPC', ruleKey: 'LPC', label: 'LPC' },
+      { colName: 'Type', ruleKey: 'Type', label: 'Type' },
+      { colName: 'EMER_1', ruleKey: 'EMER_1', label: 'Emer 1' },
+      { colName: 'EMER_3', ruleKey: 'EMER_3', label: 'Emer 3' },
+      { colName: 'DG', ruleKey: 'DG', label: 'DG' },
+      { colName: 'AV_SEC', ruleKey: 'AV_SEC', label: 'AV SEC' },
+      { colName: 'CRM', ruleKey: 'CRM', label: 'CRM' },
+      { colName: 'MED', ruleKey: 'MED', label: 'MED' },
+      { colName: 'LICENSE', ruleKey: 'LICENSE', label: 'LICENSE' }
+    ];
+
+    const cabinPrepConfigs = [
+      { colName: 'OPC', ruleKey: 'OPC', label: 'OPC' },
+      { colName: 'LPC', ruleKey: 'LPC', label: 'LPC' },
+      { colName: 'CC_Type', ruleKey: 'Type', label: 'CC Type' },
+      { colName: 'EMER_1', ruleKey: 'EMER_1', label: 'Emer 1' },
+      { colName: 'EMER_3', ruleKey: 'EMER_3', label: 'Emer 3' },
+      { colName: 'DG', ruleKey: 'DG', label: 'DG' },
+      { colName: 'AV_SEC', ruleKey: 'AV_SEC', label: 'AV SEC' },
+      { colName: 'CRM', ruleKey: 'CRM', label: 'CRM' },
+      { colName: 'MED', ruleKey: 'MED', label: 'MED' }
+    ];
+
+    const renderPrepStats = (crewList, prepList, targetEl, badgeElId) => {
+      const activeMembers = crewList.filter(c => c.active !== 'NO');
+      let totalAll = 0;
+      let validAll = 0;
+
+      prepList.forEach(item => {
+        let total = 0;
+        let valid = 0;
+
+        activeMembers.forEach(member => {
+          const val = member[item.colName] !== undefined ? member[item.colName] : member[item.ruleKey];
+          if (val !== undefined) {
+            total++;
+            const status = determineStatus(val, sysDate, item.ruleKey);
+            if (status === 'VALID' || status === 'WARNING_ORANGE' || status === 'WARNING_YELLOW') {
+              valid++;
+            }
+          }
+        });
+
+        const rate = total > 0 ? Math.round((valid / total) * 100) : 0;
+        totalAll += total;
+        validAll += valid;
+
+        const fillColor = rate < 50 ? 'background-color: var(--badge-expired-color);' : (rate < 80 ? 'background-color: var(--badge-warning-color);' : '');
+        const textColor = rate < 50 ? 'color: var(--badge-expired-color);' : (rate < 80 ? 'color: var(--badge-warning-color);' : '');
+        const tooltip = `${valid} / ${total} ${STATE.lang === 'uk' ? 'дійсних' : 'valid'}`;
+
+        const itemHtml = `
+          <div class="progress-bar-container" title="${tooltip}">
+            <div class="progress-label-row">
+              <span style="font-size: 13px; font-weight: 500;">${item.label}</span>
+              <span style="font-weight: 700; font-size: 13px; ${textColor}">${rate}%</span>
+            </div>
+            <div class="progress-bar-bg" style="height: 6px;">
+              <div class="progress-bar-fill" style="width: ${rate}%; ${fillColor}"></div>
+            </div>
+          </div>
+        `;
+        targetEl.insertAdjacentHTML('beforeend', itemHtml);
+      });
+
+      const overallRate = totalAll > 0 ? Math.round((validAll / totalAll) * 100) : 0;
+      const overallBadge = document.getElementById(badgeElId);
+      if (overallBadge) {
+        overallBadge.textContent = `${overallRate}%`;
+        overallBadge.className = `status-badge ${overallRate >= 80 ? 'status-valid' : (overallRate >= 50 ? 'status-warning' : 'status-expired')}`;
+      }
+    };
+
+    renderPrepStats(STATE.flightCrew, flightPrepConfigs, flightContainer, 'flight-crew-overall-rate');
+    renderPrepStats(STATE.cabinCrew, cabinPrepConfigs, cabinContainer, 'cabin-crew-overall-rate');
+  }
   
   // Render Attention Needed table
   const attentionList = [];
@@ -1318,7 +1459,10 @@ function renderCrewTable(crewType) {
   tableHeaders.innerHTML = '';
   visibleHeaders.forEach(col => {
     let headerLabel = col;
-    if (col === 'Name_Shrt_UA') headerLabel = STATE.lang === 'uk' ? 'Ім\'я' : 'Short Name';
+    const colDef = (BILINGUAL_COLUMNS[crewType] || []).find(c => c.key === col);
+    if (colDef) {
+      headerLabel = STATE.lang === 'uk' ? (colDef.ua || col) : (colDef.en || colDef.ua || col);
+    } else if (col === 'Name_Shrt_UA') headerLabel = STATE.lang === 'uk' ? 'Ім\'я' : 'Short Name';
     else if (col === 'Full_Name_UA') headerLabel = STATE.lang === 'uk' ? 'Повне Ім\'я' : 'Full Name UA';
     else if (col === 'Full_Name_EN') headerLabel = STATE.lang === 'uk' ? 'Ім\'я (Англ.)' : 'Full Name EN';
     else if (col === 'Rank') headerLabel = STATE.lang === 'uk' ? 'Посада' : 'Rank';
@@ -1433,8 +1577,9 @@ function renderCrewTable(crewType) {
       const val = member[col] || '';
       
       // Determine if this cell column is one of the expiring preparations
+      const colDef = (BILINGUAL_COLUMNS[crewType] || []).find(c => c.key === col);
       const crewConfig = CREW_COMPLIANCE_RULES.CREW_TYPES[crewType];
-      const ruleKey = crewConfig.columnMapping[col] || null;
+      const ruleKey = (crewConfig && crewConfig.columnMapping && crewConfig.columnMapping[col]) || (colDef && colDef.expiring ? col : null);
       
       if (ruleKey && isExpiring(ruleKey)) {
         // Render only date with cell conditional formatting background
@@ -1443,7 +1588,7 @@ function renderCrewTable(crewType) {
         
         td.className = `cell-status cell-${status.toLowerCase()}`;
         td.innerHTML = `<span style="font-size:13px; font-weight:600;">${displayDate}</span>`;
-      } else if (col.endsWith('_T') || col.endsWith('_PRCT') || ['GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'HHO_T', 'HHO_PRCT', 'Resc', 'Rappel', 'Hoist', 'EOIR', 'NAIROBI'].includes(col)) {
+      } else if (col.endsWith('_T') || col.endsWith('_PRCT') || (colDef && colDef.type === 'DATE_NEUTRAL') || ['GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'HHO_T', 'HHO_PRCT', 'Resc', 'Rappel', 'Hoist', 'EOIR', 'NAIROBI'].includes(col)) {
         // Render neutral gray badge for completion dates
         if (val) {
           td.innerHTML = `
@@ -3727,6 +3872,272 @@ function confirmDeleteCrewMember(memberId, crewType, name) {
 }
 
 /**
+ * Loads custom columns from localStorage and registers them in BILINGUAL_COLUMNS and CREW_COMPLIANCE_RULES
+ */
+function loadCustomColumns() {
+  try {
+    const raw = localStorage.getItem('aerocheck_custom_columns');
+    if (!raw) return;
+    const loaded = JSON.parse(raw);
+    if (!loaded) return;
+
+    STATE.customColumns = loaded;
+
+    ['Flight', 'Cabin'].forEach(cat => {
+      const list = STATE.customColumns[cat] || [];
+      list.forEach(col => {
+        col.custom = true;
+        
+        // Add to BILINGUAL_COLUMNS if not already present
+        if (!BILINGUAL_COLUMNS[cat]) BILINGUAL_COLUMNS[cat] = [];
+        const exists = BILINGUAL_COLUMNS[cat].some(c => c.key === col.key);
+        if (!exists) {
+          BILINGUAL_COLUMNS[cat].push(col);
+        }
+
+        // Register compliance rules if expiring
+        if (col.expiring || col.type === 'DATE_EXPIRING') {
+          if (!CREW_COMPLIANCE_RULES.EXPIRING_PREPARATIONS.includes(col.key)) {
+            CREW_COMPLIANCE_RULES.EXPIRING_PREPARATIONS.push(col.key);
+          }
+          if (CREW_COMPLIANCE_RULES.CREW_TYPES[cat]) {
+            CREW_COMPLIANCE_RULES.CREW_TYPES[cat].validity[col.key] = col.validityMonths || 12;
+            CREW_COMPLIANCE_RULES.CREW_TYPES[cat].columnMapping[col.key] = col.key;
+          }
+        }
+      });
+    });
+  } catch (err) {
+    console.error('Failed to load custom columns:', err);
+  }
+}
+
+/**
+ * Updates the position select dropdown in Add Column modal based on selected category
+ */
+function updateAddColumnPositions(category) {
+  const select = document.getElementById('new-col-position');
+  if (!select) return;
+
+  const cols = BILINGUAL_COLUMNS[category] || [];
+  const isUk = STATE.lang === 'uk';
+
+  let html = `<option value="__LAST__" selected>${isUk ? '(Останнім) В кінець таблиці' : '(Last) At the end of table'}</option>`;
+  html += `<option value="__FIRST__">${isUk ? '(Першим) На початок таблиці' : '(First) At the beginning of table'}</option>`;
+
+  cols.forEach(col => {
+    const title = isUk ? col.ua : col.en;
+    html += `<option value="${col.key}">${isUk ? 'Після' : 'After'} "${col.key} — ${title}"</option>`;
+  });
+
+  select.innerHTML = html;
+}
+
+/**
+ * Opens Add Column Modal dialog
+ */
+function openAddColumnModal() {
+  const modal = document.getElementById('add-column-modal-backdrop');
+  if (!modal) return;
+
+  const activeCat = STATE.activeColumnsTab || 'Flight';
+  const radio = document.querySelector(`input[name="new-col-category"][value="${activeCat}"]`);
+  if (radio) radio.checked = true;
+
+  const keyInput = document.getElementById('new-col-key');
+  const nameUaInput = document.getElementById('new-col-name-ua');
+  const nameEnInput = document.getElementById('new-col-name-en');
+  const typeSelect = document.getElementById('new-col-type');
+  const ruleContainer = document.getElementById('new-col-rule-container');
+  const monthsSelect = document.getElementById('new-col-validity-months');
+
+  if (keyInput) keyInput.value = '';
+  if (nameUaInput) nameUaInput.value = '';
+  if (nameEnInput) nameEnInput.value = '';
+  if (typeSelect) typeSelect.value = 'DATE_NEUTRAL';
+  if (ruleContainer) ruleContainer.style.display = 'none';
+  if (monthsSelect) monthsSelect.value = '12';
+
+  updateAddColumnPositions(activeCat);
+
+  modal.classList.add('active');
+  if (window.lucide) window.lucide.createIcons();
+}
+
+/**
+ * Closes Add Column Modal dialog
+ */
+function closeAddColumnModal() {
+  const modal = document.getElementById('add-column-modal-backdrop');
+  if (modal) modal.classList.remove('active');
+}
+
+/**
+ * Handles submission of new column modal
+ */
+function handleAddColumnSubmit(e) {
+  e.preventDefault();
+
+  const categoryRadio = document.querySelector('input[name="new-col-category"]:checked');
+  const category = categoryRadio ? categoryRadio.value : 'Flight';
+
+  const rawKey = document.getElementById('new-col-key').value.trim();
+  const colKey = rawKey.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '').toUpperCase();
+  const nameUa = document.getElementById('new-col-name-ua').value.trim();
+  const nameEn = document.getElementById('new-col-name-en').value.trim() || nameUa;
+  const position = document.getElementById('new-col-position').value;
+  const colType = document.getElementById('new-col-type').value;
+  const validityMonths = parseInt(document.getElementById('new-col-validity-months').value, 10) || 12;
+
+  if (!colKey) {
+    showToast(STATE.lang === 'uk' ? 'Будь ласка, вкажіть коректний код стовпчика (латиницею)' : 'Please provide a valid column key (latin)', 'error');
+    return;
+  }
+  if (!nameUa) {
+    showToast(STATE.lang === 'uk' ? 'Будь ласка, вкажіть назву стовпчика українською' : 'Please provide column title in Ukrainian', 'error');
+    return;
+  }
+
+  if (!BILINGUAL_COLUMNS[category]) BILINGUAL_COLUMNS[category] = [];
+  const exists = BILINGUAL_COLUMNS[category].some(c => c.key === colKey);
+  if (exists) {
+    showToast(STATE.lang === 'uk' ? `Стовпчик "${colKey}" вже існує в цій таблиці!` : `Column "${colKey}" already exists in this table!`, 'warning');
+    return;
+  }
+
+  const isExp = colType === 'DATE_EXPIRING';
+  const newColDef = {
+    key: colKey,
+    ua: nameUa,
+    en: nameEn,
+    type: colType,
+    expiring: isExp,
+    validityMonths: isExp ? validityMonths : undefined,
+    custom: true
+  };
+
+  // 1. Insert into BILINGUAL_COLUMNS[category]
+  if (position === '__LAST__') {
+    BILINGUAL_COLUMNS[category].push(newColDef);
+  } else if (position === '__FIRST__') {
+    BILINGUAL_COLUMNS[category].unshift(newColDef);
+  } else {
+    const afterIdx = BILINGUAL_COLUMNS[category].findIndex(c => c.key === position);
+    if (afterIdx !== -1) {
+      BILINGUAL_COLUMNS[category].splice(afterIdx + 1, 0, newColDef);
+    } else {
+      BILINGUAL_COLUMNS[category].push(newColDef);
+    }
+  }
+
+  // 2. Insert into visible columns list
+  let visibleList = category === 'Flight' ? STATE.settings.visibleColumnsFlight : STATE.settings.visibleColumnsCabin;
+  if (position === '__LAST__') {
+    if (!visibleList.includes(colKey)) visibleList.push(colKey);
+  } else if (position === '__FIRST__') {
+    if (!visibleList.includes(colKey)) visibleList.unshift(colKey);
+  } else {
+    const afterVisIdx = visibleList.indexOf(position);
+    if (afterVisIdx !== -1) {
+      visibleList.splice(afterVisIdx + 1, 0, colKey);
+    } else {
+      visibleList.push(colKey);
+    }
+  }
+
+  if (category === 'Flight') {
+    STATE.settings.visibleColumnsFlight = visibleList;
+  } else {
+    STATE.settings.visibleColumnsCabin = visibleList;
+  }
+
+  // 3. Register compliance rules if expiring
+  if (isExp) {
+    if (!CREW_COMPLIANCE_RULES.EXPIRING_PREPARATIONS.includes(colKey)) {
+      CREW_COMPLIANCE_RULES.EXPIRING_PREPARATIONS.push(colKey);
+    }
+    if (CREW_COMPLIANCE_RULES.CREW_TYPES[category]) {
+      CREW_COMPLIANCE_RULES.CREW_TYPES[category].validity[colKey] = validityMonths;
+      CREW_COMPLIANCE_RULES.CREW_TYPES[category].columnMapping[colKey] = colKey;
+    }
+  }
+
+  // 4. Save to STATE.customColumns and storage
+  if (!STATE.customColumns) STATE.customColumns = { Flight: [], Cabin: [] };
+  if (!STATE.customColumns[category]) STATE.customColumns[category] = [];
+  STATE.customColumns[category].push(newColDef);
+
+  localStorage.setItem('aerocheck_custom_columns', JSON.stringify(STATE.customColumns));
+  saveStateToStorage();
+
+  // 5. Add audit log entry
+  STATE.changelog.unshift({
+    timestamp: new Date().toISOString(),
+    userEmail: STATE.currentUser ? STATE.currentUser.email : 'admin@ukr-helicopters.ua',
+    crewMember: colKey,
+    crewType: category,
+    type: 'COLUMN_ADD',
+    details: `Added column ${colKey} (${nameUa}) after "${position}"`
+  });
+  localStorage.setItem('aerocheck_changelog', JSON.stringify(STATE.changelog));
+
+  // 6. Close modal & update views
+  closeAddColumnModal();
+  renderSettingsDisplayTab();
+  if (STATE.currentView === 'flight-crew' || STATE.currentView === 'cabin-crew') {
+    renderCrewTable(category);
+  }
+
+  showToast(STATE.lang === 'uk' ? `Стовпчик "${nameUa}" успішно додано!` : `Column "${nameEn}" successfully added!`);
+}
+
+/**
+ * Deletes a custom column
+ */
+function deleteCustomColumn(category, colKey) {
+  const isUk = STATE.lang === 'uk';
+  const confirmMsg = isUk 
+    ? `Ви впевнені, що бажаєте видалити стовпчик "${colKey}"?` 
+    : `Are you sure you want to delete column "${colKey}"?`;
+  
+  if (!confirm(confirmMsg)) return;
+
+  if (BILINGUAL_COLUMNS[category]) {
+    BILINGUAL_COLUMNS[category] = BILINGUAL_COLUMNS[category].filter(c => c.key !== colKey);
+  }
+
+  if (STATE.customColumns && STATE.customColumns[category]) {
+    STATE.customColumns[category] = STATE.customColumns[category].filter(c => c.key !== colKey);
+    localStorage.setItem('aerocheck_custom_columns', JSON.stringify(STATE.customColumns));
+  }
+
+  if (category === 'Flight') {
+    STATE.settings.visibleColumnsFlight = STATE.settings.visibleColumnsFlight.filter(k => k !== colKey);
+  } else {
+    STATE.settings.visibleColumnsCabin = STATE.settings.visibleColumnsCabin.filter(k => k !== colKey);
+  }
+
+  saveStateToStorage();
+
+  STATE.changelog.unshift({
+    timestamp: new Date().toISOString(),
+    userEmail: STATE.currentUser ? STATE.currentUser.email : 'admin@ukr-helicopters.ua',
+    crewMember: colKey,
+    crewType: category,
+    type: 'COLUMN_DELETE',
+    details: `Deleted custom column ${colKey}`
+  });
+  localStorage.setItem('aerocheck_changelog', JSON.stringify(STATE.changelog));
+
+  renderSettingsDisplayTab();
+  if (STATE.currentView === 'flight-crew' || STATE.currentView === 'cabin-crew') {
+    renderCrewTable(category);
+  }
+
+  showToast(isUk ? `Стовпчик "${colKey}" видалено` : `Column "${colKey}" deleted`);
+}
+
+/**
  * TAB 3: Renders Display & Column Visibility panel
  */
 function renderSettingsDisplayTab() {
@@ -3752,14 +4163,18 @@ function renderSettingsDisplayTab() {
     const subTitle = STATE.lang === 'uk' ? col.en : col.ua;
 
     const div = document.createElement('div');
-    div.style.cssText = 'display:flex; align-items:flex-start; gap:8px; padding:8px; background:var(--bg-surface-alt); border-radius:var(--radius-md); border:1px solid var(--border-color);';
+    div.style.cssText = 'display:flex; align-items:flex-start; gap:8px; padding:8px; background:var(--bg-surface-alt); border-radius:var(--radius-md); border:1px solid var(--border-color); position:relative;';
     div.innerHTML = `
       <input type="checkbox" class="col-vis-checkbox" data-key="${col.key}" data-type="${activeColTab}" ${isVisible ? 'checked' : ''} style="margin-top:3px; cursor:pointer;">
       <div style="flex:1; cursor:pointer;" onclick="this.previousElementSibling.click()">
-        <div style="font-weight:600; font-size:12.5px; color:var(--text-primary);">${col.key} — ${labelTitle}</div>
+        <div style="font-weight:600; font-size:12.5px; color:var(--text-primary); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+          <span>${col.key} — ${labelTitle}</span>
+          ${col.custom ? `<span class="status-badge status-neutral" style="font-size:9.5px; padding:1px 5px;">${STATE.lang === 'uk' ? 'Користувацький' : 'Custom'}</span>` : ''}
+        </div>
         <div style="font-size:11px; color:var(--text-secondary);">${subTitle}</div>
-        ${col.expiring ? '<span class="status-badge status-warning" style="font-size:9.5px; padding:1px 5px; margin-top:3px; display:inline-block;">Термін дії (11 обовʼязкових)</span>' : ''}
+        ${col.expiring ? `<span class="status-badge status-warning" style="font-size:9.5px; padding:1px 5px; margin-top:3px; display:inline-block;">${STATE.lang === 'uk' ? 'Термін дії' : 'Expiring'}${col.custom ? ` (${col.validityMonths || 12} ${STATE.lang === 'uk' ? 'міс.' : 'mo.'})` : ' (11 обовʼязкових)'}</span>` : ''}
       </div>
+      ${col.custom ? `<button type="button" class="btn btn-secondary btn-delete-custom-col" data-key="${col.key}" data-type="${activeColTab}" title="${STATE.lang === 'uk' ? 'Видалити стовпчик' : 'Delete column'}" style="padding:4px 6px; height:auto; color:var(--danger, #ef4444); border-color:var(--border-color); cursor:pointer;"><i data-lucide="trash-2" style="width:13px; height:13px;"></i></button>` : ''}
     `;
     container.appendChild(div);
   });
@@ -3782,6 +4197,16 @@ function renderSettingsDisplayTab() {
         STATE.settings.visibleColumnsCabin = targetList;
       }
       saveStateToStorage();
+    });
+  });
+
+  // Attach listeners to custom column delete buttons
+  container.querySelectorAll('.btn-delete-custom-col').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const colKey = btn.getAttribute('data-key');
+      const cat = btn.getAttribute('data-type');
+      deleteCustomColumn(cat, colKey);
     });
   });
 
@@ -4190,6 +4615,14 @@ function renderSettingsLogTab() {
     MERGE_IMPORT: {
       label: { uk: 'Імпорт Excel', en: 'Excel Import' },
       style: 'background-color: rgba(14, 165, 233, 0.12); color: #0284c7; border: 1px solid rgba(14, 165, 233, 0.3);'
+    },
+    COLUMN_ADD: {
+      label: { uk: 'Стовпчик +', en: 'Col Added' },
+      style: 'background-color: rgba(16, 185, 129, 0.12); color: #059669; border: 1px solid rgba(16, 185, 129, 0.3);'
+    },
+    COLUMN_DELETE: {
+      label: { uk: 'Стовпчик -', en: 'Col Deleted' },
+      style: 'background-color: rgba(239, 68, 68, 0.12); color: #dc2626; border: 1px solid rgba(239, 68, 68, 0.3);'
     }
   };
 
@@ -5969,7 +6402,13 @@ function executeLogin(email, role) {
   // Hide action buttons in table lists for non-editors
   const isEditor = role === ROLES.ADMIN || role === ROLES.INSTRUCTOR;
   document.querySelectorAll('.action-btn-admin').forEach(btn => {
-    btn.style.display = isEditor ? 'flex' : 'none';
+    btn.style.display = isEditor ? 'inline-flex' : 'none';
+  });
+
+  // Export buttons visible in ADMIN, INSTRUCTOR, and OFFICE
+  const canExport = role === ROLES.ADMIN || role === ROLES.INSTRUCTOR || role === ROLES.OFFICE;
+  document.querySelectorAll('.action-btn-export').forEach(btn => {
+    btn.style.display = canExport ? 'inline-flex' : 'none';
   });
   
   if (role === ROLES.CREW) {
@@ -5986,6 +6425,8 @@ function executeLogin(email, role) {
     document.getElementById('nav-btn-portal').style.display = 'none';
     switchView('dashboard');
   }
+  
+  if (window.lucide) window.lucide.createIcons();
   
   showToast(`Вітаємо, ви увійшли як ${role}`);
 }
@@ -6146,6 +6587,7 @@ async function handleDatabaseExcelUpdate(e) {
  * it fetches the database XLSX file in background and initializes cache.
  */
 async function bootstrapDatabase() {
+  loadCustomColumns();
   const localFlight = localStorage.getItem('aerocheck_flight_crew');
   const localCabin = localStorage.getItem('aerocheck_cabin_crew');
   const localChangelog = localStorage.getItem('aerocheck_changelog');
@@ -6827,6 +7269,49 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Add Column Modal Triggers & Form Listeners
+  const btnOpenAddCol = document.getElementById('btn-add-column-modal');
+  if (btnOpenAddCol) {
+    btnOpenAddCol.addEventListener('click', openAddColumnModal);
+  }
+
+  const btnCloseAddCol = document.getElementById('btn-close-add-column-modal');
+  if (btnCloseAddCol) {
+    btnCloseAddCol.addEventListener('click', closeAddColumnModal);
+  }
+
+  const btnCancelAddCol = document.getElementById('btn-cancel-add-column');
+  if (btnCancelAddCol) {
+    btnCancelAddCol.addEventListener('click', closeAddColumnModal);
+  }
+
+  const modalBackdrop = document.getElementById('add-column-modal-backdrop');
+  if (modalBackdrop) {
+    modalBackdrop.addEventListener('click', (e) => {
+      if (e.target === modalBackdrop) closeAddColumnModal();
+    });
+  }
+
+  const catRadios = document.querySelectorAll('input[name="new-col-category"]');
+  catRadios.forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      updateAddColumnPositions(e.target.value);
+    });
+  });
+
+  const colTypeSelect = document.getElementById('new-col-type');
+  const ruleContainer = document.getElementById('new-col-rule-container');
+  if (colTypeSelect && ruleContainer) {
+    colTypeSelect.addEventListener('change', (e) => {
+      ruleContainer.style.display = e.target.value === 'DATE_EXPIRING' ? 'block' : 'none';
+    });
+  }
+
+  const addColumnForm = document.getElementById('add-column-form');
+  if (addColumnForm) {
+    addColumnForm.addEventListener('submit', handleAddColumnSubmit);
+  }
+
   const btnColsSelectAll = document.getElementById('btn-cols-select-all');
   if (btnColsSelectAll) {
     btnColsSelectAll.addEventListener('click', () => {
@@ -6867,6 +7352,12 @@ document.addEventListener('DOMContentLoaded', () => {
           'Rank', 'Department', 'Name_Shrt_UA', 'OPC', 'LPC', 'CC_Type', 'EMER_1', 'EMER_3', 'DG', 'AV_SEC', 'CRM', 'MED',
           'Resc', 'Rappel', 'Hoist', 'EOIR', 'NAIROBI'
         ];
+      }
+      if (STATE.customColumns && STATE.customColumns[type]) {
+        STATE.customColumns[type].forEach(col => {
+          const list = type === 'Flight' ? STATE.settings.visibleColumnsFlight : STATE.settings.visibleColumnsCabin;
+          if (!list.includes(col.key)) list.push(col.key);
+        });
       }
       saveStateToStorage();
       renderSettingsDisplayTab();
@@ -7300,6 +7791,22 @@ document.addEventListener('DOMContentLoaded', () => {
   const fileFlight = document.getElementById('file-import-flight');
   const fileCabin = document.getElementById('file-import-cabin');
   
+  const btnExportFlight = document.getElementById('btn-export-flight');
+  if (btnExportFlight) {
+    btnExportFlight.addEventListener('click', () => {
+      downloadCrewXlsx('Flight', STATE.flightCrew, STATE.cabinCrew);
+      showToast(STATE.lang === 'uk' ? 'Льотний склад успішно експортовано в Excel!' : 'Flight crew successfully exported to Excel!');
+    });
+  }
+
+  const btnExportCabin = document.getElementById('btn-export-cabin');
+  if (btnExportCabin) {
+    btnExportCabin.addEventListener('click', () => {
+      downloadCrewXlsx('Cabin', STATE.flightCrew, STATE.cabinCrew);
+      showToast(STATE.lang === 'uk' ? 'Кабінний склад успішно експортовано в Excel!' : 'Cabin crew successfully exported to Excel!');
+    });
+  }
+
   if (document.getElementById('btn-import-flight')) {
     document.getElementById('btn-import-flight').addEventListener('click', () => fileFlight.click());
   }

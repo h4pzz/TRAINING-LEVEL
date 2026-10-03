@@ -142,6 +142,94 @@ export function downloadBackupXlsx(flightCrew, cabinCrew) {
 }
 
 /**
+ * Exports a specific crew type (Flight or Cabin) or both to an Excel spreadsheet.
+ * 
+ * @param {string} crewType - 'Flight' or 'Cabin'
+ * @param {Array} flightCrew 
+ * @param {Array} cabinCrew 
+ */
+export function downloadCrewXlsx(crewType, flightCrew, cabinCrew) {
+  const xlsxLib = typeof XLSX !== 'undefined' ? XLSX : null;
+  if (!xlsxLib) {
+    alert('SheetJS (XLSX) library is not loaded');
+    return;
+  }
+  
+  const wb = xlsxLib.utils.book_new();
+  const todayStr = new Date().toISOString().split('T')[0];
+  let fileName = `Training_level_FLIGHT_and_CABIN_${todayStr}.xlsx`;
+  
+  if (crewType === 'Flight') {
+    fileName = `Training_level_Flight_Crew_${todayStr}.xlsx`;
+    const flightHeaders = [
+      'Rank', 'Department', 'Name_Shrt_UA', 'Full_Name_UA', 'Full_Name_EN', 
+      'OPC', 'OPC_NVG', 'LPC', 'Type', 'EMER_1', 'EMER_3', 'DG', 'AV_SEC', 'CRM', 'MED', 'LICENSE', 
+      'GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'HHO_T', 'HHO_PRCT'
+    ];
+    
+    const flightMatrix = [];
+    flightMatrix.push([]); // Row 1 (Empty)
+    flightMatrix.push([]); // Row 2 (Empty)
+    flightMatrix.push(['ЛЬОТНИЙ СКЛАД']); // Row 3 Title
+    flightMatrix.push(flightHeaders); // Row 4 Headers
+    
+    flightCrew.forEach(member => {
+      const row = flightHeaders.map(header => {
+        const val = member[header] || '';
+        if (val && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+          return formatDateUa(val);
+        }
+        return val;
+      });
+      flightMatrix.push(row);
+    });
+    
+    const flightWs = xlsxLib.utils.aoa_to_sheet(flightMatrix);
+    xlsxLib.utils.book_append_sheet(wb, flightWs, 'Flight_Crew');
+  } else if (crewType === 'Cabin') {
+    fileName = `Training_level_Cabin_Crew_${todayStr}.xlsx`;
+    const cabinHeaders = [
+      '#', 'Active', 'Rank', 'Department', 'Name_Shrt_UA', 'Full_Name_UA', 'Full_Name_EN', 
+      'OPC', 'LPC', 'CC_Type', 'EMER_1', 'EMER_3', 'DG', 'AV_SEC', 'CRM', 'MED', 
+      'Resc', 'Rappel', 'Hoist', 'EOIR', 'NAIROBI'
+    ];
+    
+    const cabinMatrix = [];
+    cabinMatrix.push([]); // Row 1 (Empty)
+    cabinMatrix.push(cabinHeaders); // Row 2 Headers
+    
+    cabinCrew.forEach((member, index) => {
+      const row = cabinHeaders.map(header => {
+        if (header === '#') return member.id || String(index + 1);
+        const val = member[header] || '';
+        if (val && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+          return formatDateUa(val);
+        }
+        return val;
+      });
+      cabinMatrix.push(row);
+    });
+    
+    const cabinWs = xlsxLib.utils.aoa_to_sheet(cabinMatrix);
+    xlsxLib.utils.book_append_sheet(wb, cabinWs, 'Cabin_Crew');
+  } else {
+    return downloadBackupXlsx(flightCrew, cabinCrew);
+  }
+  
+  const wbout = xlsxLib.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([wbout], { type: 'application/octet-stream' });
+  const url = URL.createObjectURL(blob);
+  
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = fileName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
  * Simulates a Google Drive sync request with a visual network delay stub.
  * Writes a backup to localStorage representing the Drive backup.
  * 

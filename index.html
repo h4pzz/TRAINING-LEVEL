@@ -214,6 +214,31 @@
                   <!-- Progress items generated dynamically -->
                 </div>
               </div>
+
+              <!-- Crew Compliance Breakdown: Flight & Cabin Crew -->
+              <div class="crew-stats-grid">
+                <!-- Flight Crew Card -->
+                <div class="card">
+                  <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: var(--spacing-2);">
+                    <h3 style="font-family: var(--font-display); font-size: 15px; font-weight: 600;" data-i18n="dash_flight_crew_stats">Льотний склад</h3>
+                    <span id="flight-crew-overall-rate" class="status-badge status-valid" style="font-size: 13px; font-weight: 700;">--%</span>
+                  </div>
+                  <div id="flight-crew-stats-container" style="display: flex; flex-direction: column; gap: var(--spacing-3);">
+                    <!-- Dynamic items -->
+                  </div>
+                </div>
+
+                <!-- Cabin Crew Card -->
+                <div class="card">
+                  <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: var(--spacing-2);">
+                    <h3 style="font-family: var(--font-display); font-size: 15px; font-weight: 600;" data-i18n="dash_cabin_crew_stats">Кабінний склад</h3>
+                    <span id="cabin-crew-overall-rate" class="status-badge status-valid" style="font-size: 13px; font-weight: 700;">--%</span>
+                  </div>
+                  <div id="cabin-crew-stats-container" style="display: flex; flex-direction: column; gap: var(--spacing-3);">
+                    <!-- Dynamic items -->
+                  </div>
+                </div>
+              </div>
               
               <!-- Attention list -->
               <div class="card" style="flex-grow: 1;">
@@ -274,6 +299,10 @@
                 </div>
               </div>
               <div class="table-actions">
+                <button class="btn btn-secondary action-btn-export" id="btn-export-flight" title="Експорт в Excel">
+                  <i data-lucide="download"></i>
+                  <span data-i18n="btn_export_excel">Експорт Excel</span>
+                </button>
                 <button class="btn btn-secondary action-btn-admin" id="btn-import-flight">
                   <i data-lucide="upload"></i>
                   <span data-i18n="btn_import_excel">Імпорт Excel</span>
@@ -318,6 +347,10 @@
                 </div>
               </div>
               <div class="table-actions">
+                <button class="btn btn-secondary action-btn-export" id="btn-export-cabin" title="Експорт в Excel">
+                  <i data-lucide="download"></i>
+                  <span data-i18n="btn_export_excel">Експорт Excel</span>
+                </button>
                 <button class="btn btn-secondary action-btn-admin" id="btn-import-cabin">
                   <i data-lucide="upload"></i>
                   <span data-i18n="btn_import_excel">Імпорт Excel</span>
@@ -994,7 +1027,11 @@
                   </div>
 
                   <!-- Quick Action Buttons -->
-                  <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                  <div style="display: flex; gap: 6px; flex-wrap: wrap; align-items: center;">
+                    <button class="btn btn-primary" id="btn-add-column-modal" style="height: 30px; font-size: 11px; padding: 0 10px; display: inline-flex; align-items: center; gap: 4px;">
+                      <i data-lucide="plus" style="width: 14px; height: 14px;"></i>
+                      <span data-i18n="btn_add_column">+ Додати стовпчик</span>
+                    </button>
                     <button class="btn btn-secondary" id="btn-cols-select-all" style="height: 30px; font-size: 11px; padding: 0 10px;" data-i18n="btn_cols_select_all">
                       Вибрати всі
                     </button>
@@ -1885,6 +1922,99 @@
         </div>
         <button class="btn btn-primary" id="btn-close-folders-modal">Закрити</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ================= ADD COLUMN MODAL DIALOG ================= -->
+  <div id="add-column-modal-backdrop" class="modal-backdrop">
+    <div class="modal-content" style="width: 520px; max-width: 95vw;">
+      <div class="modal-header">
+        <h2 id="add-column-modal-title" style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="columns" style="color: var(--accent);"></i>
+          <span data-i18n="modal_add_column_title">Додати новий стовпчик</span>
+        </h2>
+        <button class="modal-close-btn" id="btn-close-add-column-modal">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+
+      <form id="add-column-form" style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+        <!-- Category: Flight vs Cabin -->
+        <div class="form-group">
+          <label style="font-weight: 600; font-size: 13px;" data-i18n="label_column_category">Категорія персоналу (таблиця):</label>
+          <div style="display: flex; gap: var(--spacing-4); margin-top: 4px;">
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;">
+              <input type="radio" name="new-col-category" value="Flight" checked id="new-col-cat-flight">
+              <span data-i18n="tab_crew_flight">Льотний склад (Flight Crew)</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer;">
+              <input type="radio" name="new-col-category" value="Cabin" id="new-col-cat-cabin">
+              <span data-i18n="tab_crew_cabin">Кабінний склад (Cabin Crew)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Column Key & Titles -->
+        <div class="form-group">
+          <label for="new-col-key" style="font-weight: 600; font-size: 13px;" data-i18n="label_column_key">Код / Ідентифікатор стовпчика (латиницею):</label>
+          <input type="text" id="new-col-key" class="form-input" required placeholder="напр. SMS_T, SAFETY_CHECK, SPECIAL_AIR" style="font-family: monospace;">
+          <span style="font-size: 11px; color: var(--text-secondary);" data-i18n="desc_column_key">Унікальний ключ для бази даних та експорту (без пробілів)</span>
+        </div>
+
+        <div class="form-row grid-2cols">
+          <div class="form-group">
+            <label for="new-col-name-ua" style="font-weight: 600; font-size: 13px;" data-i18n="label_column_name_ua">Назва стовпчика (Укр.):</label>
+            <input type="text" id="new-col-name-ua" class="form-input" required placeholder="напр. Безпека польотів">
+          </div>
+          <div class="form-group">
+            <label for="new-col-name-en" style="font-weight: 600; font-size: 13px;" data-i18n="label_column_name_en">Назва стовпчика (Англ.):</label>
+            <input type="text" id="new-col-name-en" class="form-input" placeholder="e.g. Flight Safety">
+          </div>
+        </div>
+
+        <!-- Position Selector -->
+        <div class="form-group">
+          <label for="new-col-position" style="font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="arrow-down-narrow-wide" style="width: 14px; height: 14px; color: var(--accent);"></i>
+            <span data-i18n="label_column_position">Розташування (після якого стовпчика вставити):</span>
+          </label>
+          <select id="new-col-position" class="form-select" style="height: 38px; font-size: 13px;">
+            <!-- Dynamically populated, default: __LAST__ (Останнім у таблиці) -->
+          </select>
+          <span style="font-size: 11px; color: var(--text-secondary);" data-i18n="desc_column_position">За замовчуванням стовпчик додається останнім у кінець таблиці</span>
+        </div>
+
+        <!-- Column Type (Expiring vs Neutral Date vs Text) -->
+        <div class="form-group">
+          <label for="new-col-type" style="font-weight: 600; font-size: 13px;" data-i18n="label_column_type">Тип даних у стовпчику:</label>
+          <select id="new-col-type" class="form-select" style="height: 38px; font-size: 13px;">
+            <option value="DATE_NEUTRAL" data-i18n="opt_col_type_neutral">Дата підготовки (нейтральна, фіксація дати)</option>
+            <option value="DATE_EXPIRING" data-i18n="opt_col_type_expiring">Термін дії (з підсвічуванням прострочення та попередження)</option>
+            <option value="TEXT" data-i18n="opt_col_type_text">Текстове значення / Примітка</option>
+          </select>
+        </div>
+
+        <!-- Expiry Rule (if DATE_EXPIRING is selected) -->
+        <div class="form-group" id="new-col-rule-container" style="display: none; background: var(--bg-surface-alt); padding: 10px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+          <label for="new-col-validity-months" style="font-weight: 600; font-size: 12px;" data-i18n="label_validity_period">Термін дійсності підготовки (місяців):</label>
+          <select id="new-col-validity-months" class="form-select" style="height: 34px; font-size: 12px; margin-top: 4px;">
+            <option value="6">6 місяців (півроку)</option>
+            <option value="12" selected>12 місяців (1 рік)</option>
+            <option value="24">24 місяці (2 роки)</option>
+            <option value="36">36 місяців (3 роки)</option>
+            <option value="60">60 місяців (5 років)</option>
+          </select>
+        </div>
+
+        <!-- Form Actions -->
+        <div style="display: flex; justify-content: flex-end; gap: var(--spacing-3); border-top: 1px solid var(--border-color); padding-top: var(--spacing-4); margin-top: var(--spacing-2);">
+          <button type="button" class="btn btn-secondary" id="btn-cancel-add-column" data-i18n="btn_cancel">Скасувати</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-add-column">
+            <i data-lucide="plus"></i>
+            <span data-i18n="btn_add_column_confirm">Додати стовпчик</span>
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 
