@@ -4769,6 +4769,12 @@ function renderForms() {
   const container = document.getElementById('forms-list-container');
   if (!container) return;
 
+  const btnGotoFormsBuilder = document.getElementById('btn-goto-forms-builder');
+  if (btnGotoFormsBuilder) {
+    const role = STATE.currentUser ? STATE.currentUser.role : 'ADMIN';
+    btnGotoFormsBuilder.style.display = role === ROLES.ADMIN ? 'inline-flex' : 'none';
+  }
+
   container.innerHTML = '';
   if (!STATE.forms || STATE.forms.length === 0) {
     const emptyMsg = STATE.lang === 'uk' 
@@ -6396,7 +6402,7 @@ function executeLogin(email, role) {
   
   // Hide settings and forms button for unauthorized roles
   document.getElementById('nav-btn-settings').style.display = role === ROLES.ADMIN ? 'flex' : 'none';
-  document.getElementById('nav-btn-forms').style.display = (role === ROLES.ADMIN || role === ROLES.OFFICE) ? 'flex' : 'none';
+  document.getElementById('nav-btn-forms').style.display = (role === ROLES.ADMIN || role === ROLES.INSTRUCTOR || role === ROLES.OFFICE) ? 'flex' : 'none';
   document.getElementById('nav-btn-flights').style.display = (role === ROLES.ADMIN || role === ROLES.INSTRUCTOR) ? 'flex' : 'none';
   
   // Hide action buttons in table lists for non-editors
