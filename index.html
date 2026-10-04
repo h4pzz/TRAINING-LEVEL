@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>UH Training Level Dashboard v0.2</title>
+  <title>UH Training Level Dashboard v0.4</title>
+  
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="PICS/favicon.svg">
+  <link rel="alternate icon" type="image/png" href="PICS/LOGO_UH.png">
+  <link rel="apple-touch-icon" href="PICS/LOGO_UH.png">
   
   <!-- CSS Stylesheets -->
   <link rel="stylesheet" href="css/variables.css?v=0.3">
@@ -72,7 +77,7 @@
     <aside class="sidebar">
       <div class="logo-container">
         <img src="PICS/LOGO_UH.png" alt="Ukrainian Helicopters">
-        <span class="status-badge status-neutral" style="font-size: 10px; font-weight: 700; padding: 2px 6px; margin-top: 4px; letter-spacing: 0.5px;">v0.2</span>
+        <span class="status-badge status-neutral" style="font-size: 10px; font-weight: 700; padding: 2px 6px; margin-top: 4px; letter-spacing: 0.5px;">v0.4</span>
       </div>
       
       <nav class="nav-links">
@@ -387,139 +392,188 @@
               <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600;" data-i18n="flights_title">Training Flight Log</h3>
               <form id="training-flight-form" style="display: flex; flex-direction: column; gap: var(--spacing-4);">
                 
-                <!-- Row 1: Date, Helicopter Reg, Flight Task # -->
-                <div class="form-row grid-3cols" style="align-items: end;">
-                  <div class="form-group">
-                    <label for="flight-date">Date</label>
-                    <input type="date" id="flight-date" class="form-input" required>
-                  </div>
-                  <div class="form-group">
-                    <label for="flight-helicopter-reg">Helicopter Reg</label>
-                    <input type="text" id="flight-helicopter-reg" class="form-input" placeholder="UR-...." required>
-                  </div>
-                  <div class="form-group" style="position: relative;">
-                    <label for="flight-task-main">Flight Task #</label>
+                <!-- GROUP 1: General Information / Загальна інформація -->
+                <div class="form-group-section" id="form-group-1" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); background-color: var(--bg-surface); overflow: hidden;">
+                  <div class="group-section-header" onclick="toggleFormGroup('form-group-1')" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background-color: var(--bg-surface-alt); cursor: pointer; user-select: none; border-bottom: 1px solid var(--border-color);">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                      <input type="text" id="flight-task-main" class="form-input" placeholder="enter Flight task #" style="flex: 1;">
-                      <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-top: 2px;">
-                        <input type="checkbox" id="flight-same-task" checked style="width: 14px; height: 14px; cursor: pointer;">
-                        <label for="flight-same-task" style="font-size: 11px; font-weight: 700; cursor: pointer; user-select: none; white-space: nowrap;">FOR ALL</label>
+                      <i data-lucide="file-text" style="width: 18px; height: 18px; color: var(--accent);"></i>
+                      <span data-i18n="group_general_info" style="font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--text-primary);">
+                        Загальна інформація
+                      </span>
+                    </div>
+                    <div class="group-toggle-btn" style="width: 28px; height: 28px; border-radius: 50%; background: var(--bg-surface); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-xs);">
+                      <i class="group-chevron" data-lucide="chevron-up" style="width: 16px; height: 16px; transition: transform var(--transition-normal); color: var(--text-primary);"></i>
+                    </div>
+                  </div>
+                  
+                  <div class="group-section-body" style="padding: clamp(10px, 1.2vw, 16px); display: flex; flex-direction: column; gap: var(--spacing-4);">
+                    <div class="form-row grid-4cols">
+                      <!-- 1. Основні дані -->
+                      <div class="general-info-card">
+                        <h4 data-i18n="basic_details">
+                          Основні дані
+                        </h4>
+                        <div class="form-group">
+                          <label for="flight-date" data-i18n="label_flight_date">Дата</label>
+                          <input type="date" id="flight-date" class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                          <label for="flight-helicopter-reg" data-i18n="label_helicopter_reg">Реєстраційний номер</label>
+                          <input type="text" id="flight-helicopter-reg" class="form-input" placeholder="UR-...." required>
+                        </div>
+                        <div class="form-group">
+                          <div class="general-info-header-row">
+                            <label for="flight-task-main" data-i18n="label_flight_task">№ польотного завдання</label>
+                            <label style="font-size: 11px; font-weight: 700; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 4px; white-space: nowrap;">
+                              <input type="checkbox" id="flight-same-task" checked style="width: 13px; height: 13px; cursor: pointer;">
+                              <span data-i18n="label_for_all">ДЛЯ ВСІХ</span>
+                            </label>
+                          </div>
+                          <input type="text" id="flight-task-main" class="form-input" placeholder="enter Flight task #">
+                        </div>
+                      </div>
+
+                      <!-- 2. Паливо -->
+                      <div class="general-info-card">
+                        <h4 data-i18n="fuel_title">
+                          Паливо
+                        </h4>
+                        <div class="form-group">
+                          <label for="flight-fuel-start" data-i18n="fuel_start_label">На початок</label>
+                          <input type="number" id="flight-fuel-start" class="form-input" placeholder="liters" required min="0">
+                        </div>
+                        <div class="form-group">
+                          <label for="flight-fuel-end" data-i18n="fuel_end_label">При вимкненні</label>
+                          <input type="number" id="flight-fuel-end" class="form-input" placeholder="liters" required min="0">
+                        </div>
+                        <div class="form-group">
+                          <div class="general-info-header-row">
+                            <label for="flight-refuel" data-i18n="refuel_label">Заправлено</label>
+                            <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; color: var(--text-secondary); font-weight: 600; white-space: nowrap;">
+                              <input type="checkbox" id="flight-refuel-more" style="width: 12px; height: 12px; cursor: pointer;">
+                              <span data-i18n="add_refuel_label">Додати заправку</span>
+                            </label>
+                          </div>
+                          <input type="number" id="flight-refuel" class="form-input" placeholder="liters" required min="0" value="0">
+                        </div>
+                        
+                        <!-- Hidden row for additional refuels -->
+                        <div id="refuel-extra-row" style="display: none; margin-top: 2px;">
+                          <div class="form-row grid-2cols" style="gap: 6px;">
+                            <div class="form-group">
+                              <label for="flight-refuel-2" style="font-weight: 600; font-size: 11px;">Refuel 2</label>
+                              <input type="number" id="flight-refuel-2" class="form-input" placeholder="liters" min="0" value="0">
+                            </div>
+                            <div class="form-group">
+                              <label for="flight-refuel-3" style="font-weight: 600; font-size: 11px;">Refuel 3</label>
+                              <input type="number" id="flight-refuel-3" class="form-input" placeholder="liters" min="0" value="0">
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- 3. Передпольотний інструктаж -->
+                      <div class="general-info-card">
+                        <h4 data-i18n="pre_flight_title">
+                          Передпольотний інструктаж
+                        </h4>
+                        <div class="form-group">
+                          <label for="flight-pre-bgn" data-i18n="time_bgn">Початок (BGN)</label>
+                          <input type="time" id="flight-pre-bgn" class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                          <label for="flight-pre-end" data-i18n="time_end">Кінець (END)</label>
+                          <input type="time" id="flight-pre-end" class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                          <label for="flight-pre-ttl" data-i18n="time_ttl">Всього (TTL)</label>
+                          <input type="text" id="flight-pre-ttl" class="form-input" placeholder="calculated" readonly style="font-weight: 700; color: var(--text-primary); text-align: center;">
+                        </div>
+                      </div>
+
+                      <!-- 4. Післяпольотний брифінг -->
+                      <div class="general-info-card">
+                        <h4 data-i18n="post_flight_title">
+                          Післяпольотний брифінг
+                        </h4>
+                        <div class="form-group">
+                          <label for="flight-post-bgn" data-i18n="time_bgn">Початок (BGN)</label>
+                          <input type="time" id="flight-post-bgn" class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                          <label for="flight-post-end" data-i18n="time_end">Кінець (END)</label>
+                          <input type="time" id="flight-post-end" class="form-input" required>
+                        </div>
+                        <div class="form-group">
+                          <label for="flight-post-ttl" data-i18n="time_ttl">Всього (TTL)</label>
+                          <input type="text" id="flight-post-ttl" class="form-input" placeholder="calculated" readonly style="font-weight: 700; color: var(--text-primary); text-align: center;">
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                <!-- Row 2: Fuel metrics -->
-                <div class="form-row grid-3cols">
-                  <div class="form-group">
-                    <label for="flight-fuel-start">Fuel at Start-up</label>
-                    <input type="number" id="flight-fuel-start" class="form-input" placeholder="liters" required min="0">
-                  </div>
-                  <div class="form-group">
-                    <label for="flight-fuel-end">Fuel at Shut-down</label>
-                    <input type="number" id="flight-fuel-end" class="form-input" placeholder="liters" required min="0">
-                  </div>
-                  <div class="form-group">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                      <label for="flight-refuel" style="margin-bottom: 0;">Refuel</label>
-                      <label style="font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer; user-select: none; color: var(--text-secondary); font-weight: 600;">
-                        <input type="checkbox" id="flight-refuel-more" style="width: 12px; height: 12px; cursor: pointer;">
-                        <span>Add more</span>
-                      </label>
+                <!-- GROUP 2: Time Totals / Робочий та польотний час -->
+                <div class="form-group-section" id="form-group-2" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); background-color: var(--bg-surface); overflow: hidden;">
+                  <div class="group-section-header" onclick="toggleFormGroup('form-group-2')" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background-color: var(--bg-surface-alt); cursor: pointer; user-select: none; border-bottom: 1px solid var(--border-color);">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <i data-lucide="clock" style="width: 18px; height: 18px; color: var(--accent);"></i>
+                      <span data-i18n="group_briefings_times" style="font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--text-primary);">
+                        Робочий та польотний час
+                      </span>
                     </div>
-                    <input type="number" id="flight-refuel" class="form-input" placeholder="liters" required min="0" value="0">
-                  </div>
-                </div>
-                
-                <!-- Hidden row for additional refuels -->
-                <div id="refuel-extra-row" style="display: none; margin-top: -8px;">
-                  <div class="form-row grid-3cols">
-                    <div></div> <!-- Empty spacer -->
-                    <div class="form-group">
-                      <label for="flight-refuel-2">Refuel 2</label>
-                      <input type="number" id="flight-refuel-2" class="form-input" placeholder="liters" min="0" value="0" style="background-color: var(--bg-surface);">
+                    <div class="group-toggle-btn" style="width: 28px; height: 28px; border-radius: 50%; background: var(--bg-surface); border: 1px solid var(--border-color); display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-xs);">
+                      <i class="group-chevron" data-lucide="chevron-up" style="width: 16px; height: 16px; transition: transform var(--transition-normal); color: var(--text-primary);"></i>
                     </div>
-                    <div class="form-group">
-                      <label for="flight-refuel-3">Refuel 3</label>
-                      <input type="number" id="flight-refuel-3" class="form-input" placeholder="liters" min="0" value="0" style="background-color: var(--bg-surface);">
+                  </div>
+                  
+                  <div class="group-section-body" style="padding: 16px; display: flex; flex-direction: column; gap: var(--spacing-4);">
+                    <!-- Підрахований робочий час, польотний час та Block -->
+                    <div class="form-row grid-3cols" style="align-items: stretch;">
+                      <div class="form-group" style="background-color: var(--bg-surface-alt); padding: var(--spacing-3); border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; min-height: 95px; box-sizing: border-box; margin: 0;">
+                        <label for="flight-duty-time" data-i18n="duty_time_title" style="font-weight: 700; color: var(--text-primary); margin-bottom: var(--spacing-1); display: block; text-align: center;">Робочий час</label>
+                        <input type="text" id="flight-duty-time" class="form-input" placeholder="calculated" readonly style="background-color: var(--bg-surface); font-weight: 700; color: var(--accent); font-size: 15px; border-color: var(--border-color); height: 38px; box-sizing: border-box; width: 100%; text-align: center;">
+                      </div>
+                      <div class="form-group" style="background-color: var(--bg-surface-alt); padding: var(--spacing-3); border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; min-height: 95px; box-sizing: border-box; margin: 0;">
+                        <label for="flight-total-flight-time" data-i18n="flight_time_title" style="font-weight: 700; color: var(--text-primary); margin-bottom: var(--spacing-1); display: block; text-align: center;">Польотний час</label>
+                        <input type="time" id="flight-total-flight-time" class="form-input" value="00:00" style="background-color: var(--bg-surface); font-weight: 700; color: var(--text-primary); font-size: 15px; border-color: var(--border-color); height: 38px; box-sizing: border-box; width: 100%; text-align: center;">
+                      </div>
+                      <div class="form-group" style="background-color: var(--bg-surface-alt); padding: var(--spacing-3); border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; min-height: 95px; box-sizing: border-box; margin: 0;">
+                        <label for="flight-total-block-time" data-i18n="block_time_title" style="font-weight: 700; color: var(--text-primary); margin-bottom: var(--spacing-1); display: block; text-align: center;">Час Block</label>
+                        <input type="time" id="flight-total-block-time" class="form-input" value="00:00" style="background-color: var(--bg-surface); font-weight: 700; color: var(--text-primary); font-size: 15px; border-color: var(--border-color); height: 38px; box-sizing: border-box; width: 100%; text-align: center;">
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <!-- Side-by-Side Instructions & Debrief Blocks -->
-                <div class="form-row grid-2cols">
-                  
-                  <!-- Block 1: Pre-Flight Instructions -->
-                  <div style="background-color: var(--bg-surface-alt); padding: var(--spacing-4); border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: var(--spacing-3);">
-                    <h4 style="font-family: var(--font-display); font-weight: 700; font-size: 14px; margin: 0; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: var(--spacing-2); text-align: center;">Pre-Flight Instructions</h4>
-                    <div class="form-group">
-                      <label for="flight-pre-bgn" style="font-weight: 600; font-size: 13px;">BGN</label>
-                      <input type="time" id="flight-pre-bgn" class="form-input" required style="background-color: var(--bg-surface);">
-                    </div>
-                    <div class="form-group">
-                      <label for="flight-pre-end" style="font-weight: 600; font-size: 13px;">END</label>
-                      <input type="time" id="flight-pre-end" class="form-input" required style="background-color: var(--bg-surface);">
-                    </div>
-                    <div class="form-group">
-                      <label for="flight-pre-ttl" style="font-weight: 600; font-size: 13px;">TTL</label>
-                      <input type="text" id="flight-pre-ttl" class="form-input" placeholder="calculated" readonly style="background-color: var(--bg-surface); font-weight: 700; color: var(--text-primary);">
-                    </div>
-                  </div>
-
-                  <!-- Block 2: Post-Flight Debrief -->
-                  <div style="background-color: var(--bg-surface-alt); padding: var(--spacing-4); border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: var(--spacing-3);">
-                    <h4 style="font-family: var(--font-display); font-weight: 700; font-size: 14px; margin: 0; color: var(--text-primary); border-bottom: 1px solid var(--border-color); padding-bottom: var(--spacing-2); text-align: center;">Post-Flight Debrief</h4>
-                    <div class="form-group">
-                      <label for="flight-post-bgn" style="font-weight: 600; font-size: 13px;">BGN</label>
-                      <input type="time" id="flight-post-bgn" class="form-input" required style="background-color: var(--bg-surface);">
-                    </div>
-                    <div class="form-group">
-                      <label for="flight-post-end" style="font-weight: 600; font-size: 13px;">END</label>
-                      <input type="time" id="flight-post-end" class="form-input" required style="background-color: var(--bg-surface);">
-                    </div>
-                    <div class="form-group">
-                      <label for="flight-post-ttl" style="font-weight: 600; font-size: 13px;">TTL</label>
-                      <input type="text" id="flight-post-ttl" class="form-input" placeholder="calculated" readonly style="background-color: var(--bg-surface); font-weight: 700; color: var(--text-primary);">
+                <!-- GROUP 3: Crew Members / Екіпаж -->
+                <div class="form-group-section" id="form-group-3" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); background-color: var(--bg-surface); overflow: hidden;">
+                  <div class="group-section-header" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background-color: var(--bg-surface-alt); user-select: none; border-bottom: 1px solid var(--border-color);">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <i data-lucide="users" style="width: 18px; height: 18px; color: var(--accent);"></i>
+                      <span data-i18n="group_crew_members" style="font-family: var(--font-display); font-size: 15px; font-weight: 700; color: var(--text-primary);">
+                        Екіпаж
+                      </span>
                     </div>
                   </div>
                   
-                </div>
-
-                <!-- Row: Duty Time, Total Flight Time, Total Block Time -->
-                <div class="form-row grid-3cols" style="align-items: stretch;">
-                  <div class="form-group" style="background-color: var(--bg-surface-alt); padding: var(--spacing-3); border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; min-height: 95px; box-sizing: border-box; margin: 0;">
-                    <label for="flight-duty-time" style="font-weight: 700; color: var(--text-primary); margin-bottom: var(--spacing-1); display: block; text-align: center;">Duty Time</label>
-                    <input type="text" id="flight-duty-time" class="form-input" placeholder="calculated" readonly style="background-color: var(--bg-surface); font-weight: 700; color: var(--accent); font-size: 15px; border-color: var(--border-color); height: 38px; box-sizing: border-box; width: 100%;">
-                  </div>
-                  <div class="form-group" style="background-color: var(--bg-surface-alt); padding: var(--spacing-3); border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; min-height: 95px; box-sizing: border-box; margin: 0;">
-                    <label for="flight-total-flight-time" style="font-weight: 700; color: var(--text-primary); margin-bottom: var(--spacing-1); display: block; text-align: center;">Total Flight Time</label>
-                    <input type="time" id="flight-total-flight-time" class="form-input" value="00:00" style="background-color: var(--bg-surface); font-weight: 700; color: var(--text-primary); font-size: 15px; border-color: var(--border-color); height: 38px; box-sizing: border-box; width: 100%;">
-                  </div>
-                  <div class="form-group" style="background-color: var(--bg-surface-alt); padding: var(--spacing-3); border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; min-height: 95px; box-sizing: border-box; margin: 0;">
-                    <label for="flight-total-block-time" style="font-weight: 700; color: var(--text-primary); margin-bottom: var(--spacing-1); display: block; text-align: center;">Total Block Time</label>
-                    <input type="time" id="flight-total-block-time" class="form-input" value="00:00" style="background-color: var(--bg-surface); font-weight: 700; color: var(--text-primary); font-size: 15px; border-color: var(--border-color); height: 38px; box-sizing: border-box; width: 100%;">
-                  </div>
-                </div>
-
-                <!-- Crew Section Separator -->
-                <div style="border-top: 1px solid var(--border-color); margin-top: var(--spacing-4); padding-top: var(--spacing-4);">
-                  <h4 style="font-family: var(--font-display); font-size: 16px; font-weight: 700; color: var(--text-primary); margin-bottom: var(--spacing-4);">Crew Members / Особовий склад</h4>
-                  
-                  <!-- Dynamic crew card container -->
-                  <div id="crew-members-container" style="display: flex; flex-direction: column; gap: var(--spacing-6); margin-bottom: var(--spacing-4);">
-                    <!-- Dynamic crew card blocks added in JS -->
-                  </div>
-                  
-                  <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: var(--spacing-4); margin-top: var(--spacing-4);">
-                    <button type="button" id="btn-add-crew-member" class="btn btn-secondary" style="display: flex; align-items: center; gap: 8px;">
-                      <i data-lucide="plus-circle" style="width: 16px; height: 16px;"></i>
-                      <span>Add Crew Member</span>
-                    </button>
+                  <div style="padding: 16px; display: flex; flex-direction: column; gap: var(--spacing-4);">
+                    <!-- Dynamic crew card container -->
+                    <div id="crew-members-container" style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+                      <!-- Dynamic crew card blocks added in JS -->
+                    </div>
                     
-                    <button type="submit" id="btn-save-flight" class="btn btn-primary" style="display: flex; align-items: center; gap: 8px; padding-left: var(--spacing-6); padding-right: var(--spacing-6);">
-                      <i data-lucide="save" style="width: 16px; height: 16px;"></i>
-                      <span>Save Flight</span>
-                    </button>
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid var(--border-color); padding-top: var(--spacing-4); margin-top: var(--spacing-2);">
+                      <button type="button" id="btn-add-crew-member" class="btn btn-secondary" style="display: flex; align-items: center; gap: 8px;">
+                        <i data-lucide="plus-circle" style="width: 16px; height: 16px;"></i>
+                        <span>Add Crew Member</span>
+                      </button>
+                      
+                      <button type="submit" id="btn-save-flight" class="btn btn-primary" style="display: flex; align-items: center; gap: 8px; padding-left: var(--spacing-6); padding-right: var(--spacing-6);">
+                        <i data-lucide="save" style="width: 16px; height: 16px;"></i>
+                        <span>Save Flight</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -527,30 +581,30 @@
             </div>
             
             <!-- Right Card: Logged Flights List -->
-            <div class="card" style="width: 100%; max-height: 85vh; overflow-y: auto;">
-              <h3 data-i18n="logged_flights_title" style="font-family: var(--font-display); font-size: 16px; font-weight: 600; border-bottom: 1px solid var(--border-color); padding-bottom: var(--spacing-2); margin: 0;">Logged Flights</h3>
+            <div class="card" style="width: 100%; max-height: 85vh; overflow-y: auto; padding: 12px; box-sizing: border-box;">
+              <h3 data-i18n="logged_flights_title" style="font-family: var(--font-display); font-size: 14.5px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: var(--spacing-2); margin: 0; text-align: center;">Перелік польотів</h3>
               
               <!-- Month Filter and Stats Container -->
-              <div style="display: flex; flex-direction: column; gap: 8px; margin: 12px 0; padding: 10px; background-color: var(--bg-surface-alt); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-                  <label for="flight-month-filter" style="font-size: 12px; font-weight: 700; color: var(--text-secondary); margin: 0; white-space: nowrap;">Month / Місяць:</label>
-                  <select id="flight-month-filter" class="form-input" style="padding: 4px 8px; font-size: 12px; height: auto; max-width: 160px; margin: 0; cursor: pointer; background-color: var(--bg-surface);">
-                    <option value="all">All Months / Всі місяці</option>
+              <div style="display: flex; flex-direction: column; gap: 6px; margin: 10px 0; padding: 8px; background-color: var(--bg-surface-alt); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
+                  <label for="flight-month-filter" data-i18n="label_month_filter" style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin: 0; white-space: nowrap;">Місяць:</label>
+                  <select id="flight-month-filter" class="form-input" style="padding: 2px 4px; font-size: 11px; height: 26px; width: auto; max-width: 135px; margin: 0; cursor: pointer; background-color: var(--bg-surface);">
+                    <option value="all" data-i18n="opt_all_months">Всі місяці</option>
                   </select>
                 </div>
-                <div style="display: flex; justify-content: space-between; font-size: 11px; font-weight: 600; color: var(--text-primary); border-top: 1px solid var(--border-color); padding-top: 6px; margin-top: 2px;">
+                <div style="display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 600; color: var(--text-primary); border-top: 1px solid var(--border-color); padding-top: 4px; margin-top: 1px;">
                   <div>
-                    <span style="color: var(--text-secondary);">TTL Flight / Польоти:</span>
+                    <span style="color: var(--text-secondary);" data-i18n="stat_ttl_flight">Польоти:</span>
                     <span id="month-stat-flight" style="font-weight: 700; color: var(--accent); margin-left: 2px;">00:00</span>
                   </div>
                   <div>
-                    <span style="color: var(--text-secondary);">TTL Block / Блок:</span>
+                    <span style="color: var(--text-secondary);" data-i18n="stat_ttl_block">Блок:</span>
                     <span id="month-stat-block" style="font-weight: 700; color: var(--accent); margin-left: 2px;">00:00</span>
                   </div>
                 </div>
               </div>
 
-              <div id="logged-flights-list" style="display: flex; flex-direction: column; gap: var(--spacing-3); padding-right: 4px;">
+              <div id="logged-flights-list" style="display: flex; flex-direction: column; gap: 6px; padding-right: 2px;">
                 <!-- Dynamically populated in JS -->
               </div>
             </div>
@@ -568,9 +622,34 @@
                   Виберіть бланк, вкажіть співробітника та відкрийте для друку або експорту в PDF. Налаштувати шаблони можна в Генераторі форм.
                 </p>
               </div>
-              <button class="btn btn-secondary" id="btn-goto-forms-builder">
-                <i data-lucide="sliders"></i>
-                <span data-i18n="btn_manage_forms">Конструктор та редактор форм</span>
+              <div style="display: flex; gap: var(--spacing-2); flex-wrap: wrap;">
+                <button class="btn btn-primary" id="btn-forms-quick-upload-pdf" style="display: none;">
+                  <i data-lucide="file-up"></i>
+                  <span data-i18n="btn_quick_upload_pdf">Завантажити PDF бланк</span>
+                </button>
+                <button class="btn btn-secondary" id="btn-goto-forms-builder" style="display: none;">
+                  <i data-lucide="sliders"></i>
+                  <span data-i18n="btn_manage_forms">Конструктор та редактор форм</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- 3 Вкладки розділу БЛАНКИ: Льотний екіпаж, Кабінний екіпаж, Форми -->
+            <div class="forms-subnav-container" id="forms-tabs-subnav">
+              <button class="settings-tab-btn forms-tab-btn active" data-forms-tab="flight">
+                <i data-lucide="plane"></i>
+                <span data-i18n="tab_blanks_flight">Льотний екіпаж</span>
+                <span class="tab-badge" id="forms-tab-count-flight">0</span>
+              </button>
+              <button class="settings-tab-btn forms-tab-btn" data-forms-tab="cabin">
+                <i data-lucide="users"></i>
+                <span data-i18n="tab_blanks_cabin">Кабінний екіпаж</span>
+                <span class="tab-badge" id="forms-tab-count-cabin">0</span>
+              </button>
+              <button class="settings-tab-btn forms-tab-btn" data-forms-tab="forms">
+                <i data-lucide="file-text"></i>
+                <span data-i18n="tab_blanks_forms">Форми</span>
+                <span class="tab-badge" id="forms-tab-count-forms">0</span>
               </button>
             </div>
             
@@ -1127,6 +1206,90 @@
           <!-- TAB 4: ФОРМИ (ГЕНЕРАТОР ТА РЕДАКТОР ФОРМ) -->
           <div class="settings-tab-panel" id="settings-panel-forms">
             
+            <!-- ЗАВАНТАЖЕННЯ ЗВИЧАЙНОГО PDF БЛАНКА (ПЕРЕД ГЕНЕРАТОРОМ ФОРМ) -->
+            <div class="card" id="settings-pdf-upload-card" style="margin-bottom: var(--spacing-4);">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-3); border-bottom: 1px solid var(--border-color); padding-bottom: var(--spacing-3); margin-bottom: var(--spacing-3);">
+                <div>
+                  <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600; margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <i data-lucide="file-up" style="color: var(--accent);"></i>
+                    <span data-i18n="pdf_upload_title">Завантаження звичайного PDF бланка</span>
+                  </h3>
+                  <p style="font-size: 12px; color: var(--text-secondary); margin: 2px 0 0 0;" data-i18n="pdf_upload_subtitle">
+                    Завантажте PDF бланк, який буде відображатись у розділі «Бланки» у вибраній вкладці
+                  </p>
+                </div>
+                <span class="status-badge status-neutral" style="font-size: 11px;">
+                  <i data-lucide="shield-check" style="width: 12px; height: 12px; color: var(--accent);"></i>
+                  <span data-i18n="badge_admin_only">Тільки адміністратор</span>
+                </span>
+              </div>
+
+              <form id="form-upload-pdf-blank" onsubmit="return false;" style="display: flex; flex-direction: column; gap: var(--spacing-3);">
+                <div class="form-group">
+                  <label for="pdf-blank-file-input" style="font-size: 12px; font-weight: 600;" data-i18n="label_pdf_file">
+                    Файл PDF бланка (.pdf):
+                  </label>
+                  <input type="file" id="pdf-blank-file-input" accept=".pdf,application/pdf" class="form-input" style="padding-top: 6px;">
+                  <div id="pdf-blank-file-info" style="font-size: 11.5px; color: var(--text-secondary); margin-top: 4px; display: none;"></div>
+                </div>
+
+                <div class="form-row grid-2cols">
+                  <div class="form-group">
+                    <label for="pdf-blank-name" style="font-size: 12px; font-weight: 600;" data-i18n="label_pdf_name">
+                      Назва бланка:
+                    </label>
+                    <input type="text" id="pdf-blank-name" class="form-input" placeholder="напр. Польотне завдання МІ-8МТВ">
+                  </div>
+                  <div class="form-group">
+                    <label for="pdf-blank-code" style="font-size: 12px; font-weight: 600;" data-i18n="label_pdf_code">
+                      Номер / Код бланка (опціонально):
+                    </label>
+                    <input type="text" id="pdf-blank-code" class="form-input" placeholder="напр. UH-PDF-01">
+                  </div>
+                </div>
+
+                <div class="form-row grid-2cols">
+                  <div class="form-group">
+                    <label for="pdf-blank-target-tab" style="font-size: 12px; font-weight: 600;" data-i18n="label_pdf_target_tab">
+                      В яку вкладку додати бланк:
+                    </label>
+                    <select id="pdf-blank-target-tab" class="form-select">
+                      <option value="flight" data-i18n="opt_tab_flight">Льотний екіпаж</option>
+                      <option value="cabin" data-i18n="opt_tab_cabin">Кабінний екіпаж</option>
+                      <option value="forms" data-i18n="opt_tab_forms">Форми</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label for="pdf-blank-desc" style="font-size: 12px; font-weight: 600;" data-i18n="label_pdf_desc">
+                      Опис або інструкція (опціонально):
+                    </label>
+                    <input type="text" id="pdf-blank-desc" class="form-input" placeholder="напр. Стандартний бланк для друку">
+                  </div>
+                </div>
+
+                <div style="display: flex; justify-content: flex-end; gap: var(--spacing-2); margin-top: 4px;">
+                  <button type="button" class="btn btn-primary" id="btn-submit-pdf-blank">
+                    <i data-lucide="upload"></i>
+                    <span data-i18n="btn_upload_pdf_blank">Завантажити PDF бланк</span>
+                  </button>
+                </div>
+              </form>
+
+              <!-- Список раніше завантажених PDF бланків -->
+              <div style="margin-top: var(--spacing-4); border-top: 1px solid var(--border-color); padding-top: var(--spacing-3);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                  <h4 style="font-size: 13px; font-weight: 600; color: var(--text-secondary); margin: 0; display: flex; align-items: center; gap: 6px;">
+                    <i data-lucide="files" style="width: 14px; height: 14px;"></i>
+                    <span data-i18n="uploaded_pdf_blanks_title">Завантажені PDF бланки</span>
+                    <span id="pdf-blanks-count-badge" class="status-badge status-neutral" style="font-size: 10px;">0</span>
+                  </h4>
+                </div>
+                <div id="settings-pdf-blanks-list">
+                  <!-- Rendered dynamically by renderSettingsPdfBlanksList() -->
+                </div>
+              </div>
+            </div>
+
             <!-- List of existing forms & Create New Button -->
             <div class="card">
               <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-3);">
@@ -1224,6 +1387,18 @@
                   <div class="form-group" style="margin-top: var(--spacing-2);">
                     <label for="form-builder-subtitle" style="font-size: 12px; font-weight: 600;" data-i18n="label_form_subtitle">Підзаголовок або інструкція (опціонально)</label>
                     <input type="text" id="form-builder-subtitle" class="form-input" placeholder="Авіакомпанія «Українські вертольоти» • Льотна служба">
+                  </div>
+
+                  <!-- Dropdown: В яку вкладку додати форму чи бланк -->
+                  <div class="form-group" style="margin-top: var(--spacing-2);">
+                    <label for="form-builder-target-tab" style="font-size: 12px; font-weight: 600;" data-i18n="label_target_tab">
+                      В яку вкладку додати форму чи бланк:
+                    </label>
+                    <select id="form-builder-target-tab" class="form-select">
+                      <option value="flight" data-i18n="opt_tab_flight">Льотний екіпаж</option>
+                      <option value="cabin" data-i18n="opt_tab_cabin">Кабінний екіпаж</option>
+                      <option value="forms" data-i18n="opt_tab_forms">Форми</option>
+                    </select>
                   </div>
 
                   <!-- Page Orientation Selector -->
@@ -2024,6 +2199,6 @@
   </div>
 
   <!-- Main SPA Application logic script -->
-  <script type="module" src="js/app.js?v=0.2"></script>
+  <script type="module" src="js/app.js?v=0.4"></script>
 </body>
 </html>

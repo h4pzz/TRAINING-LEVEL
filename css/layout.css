@@ -297,15 +297,115 @@ html, body {
 /* Training Flights view responsive columns layout */
 .training-flights-layout {
   display: grid;
-  grid-template-columns: 2.2fr 1fr;
-  gap: var(--spacing-6);
-  max-width: 1200px;
+  grid-template-columns: minmax(0, 1fr) 255px;
+  gap: clamp(12px, 1.5vw, 24px);
+  max-width: 100%;
   margin: 0;
   align-items: start;
   width: 100%;
 }
 
+/* Fluid Scaling for Group 1 (General Information) */
+#form-group-1 {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#form-group-1 .group-section-body {
+  width: 100%;
+  box-sizing: border-box;
+  padding: clamp(10px, 1.2vw, 16px);
+}
+
+#form-group-1 .grid-4cols {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: clamp(6px, 1vw, 16px);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.general-info-card {
+  background-color: var(--bg-surface-alt);
+  padding: clamp(8px, 1vw, 14px);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  display: flex;
+  flex-direction: column;
+  gap: clamp(6px, 0.7vw, 10px);
+  min-width: 0;
+  box-sizing: border-box;
+  flex: 1 1 0;
+}
+
+.general-info-card h4 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: clamp(12px, 0.9vw, 14px);
+  margin: 0;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: clamp(4px, 0.5vw, 8px);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.general-info-card .form-group {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.general-info-card label {
+  font-weight: 600;
+  font-size: clamp(10.5px, 0.8vw, 12.5px);
+  margin-bottom: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.general-info-card input.form-input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  height: clamp(30px, 2.2vw, 36px);
+  padding: 0 clamp(4px, 0.6vw, 10px);
+  font-size: clamp(11px, 0.8vw, 13px);
+  background-color: var(--bg-surface);
+}
+
+.general-info-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2px;
+  gap: 4px;
+  min-width: 0;
+}
+
+.general-info-header-row label:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.general-info-header-row label:last-child {
+  flex-shrink: 0;
+}
+
 /* Responsive Grid Utilities for Forms */
+.grid-4cols {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--spacing-4);
+}
+
 .grid-3cols {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -319,36 +419,62 @@ html, body {
 }
 
 .training-types-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--spacing-2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .crew-time-blocks-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--spacing-4);
+  display: flex;
+  gap: var(--spacing-3);
+  align-items: stretch;
   margin-top: var(--spacing-2);
 }
 
+.crew-time-blocks-grid > div {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 /* Media Queries for Responsiveness */
-@media (max-width: 1024px) {
+@media (max-width: 1100px) {
   .training-flights-layout {
     grid-template-columns: 1fr;
   }
 }
 
+@media (max-width: 900px) {
+  .crew-time-blocks-grid {
+    flex-wrap: wrap;
+  }
+  .crew-time-blocks-grid > div {
+    flex: 1 1 calc(50% - var(--spacing-3));
+    min-width: 140px;
+  }
+}
+
 @media (max-width: 768px) {
+  #form-group-1 .grid-4cols,
+  .grid-4cols {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
   .grid-3cols {
     grid-template-columns: 1fr;
   }
   .grid-2cols {
     grid-template-columns: 1fr;
   }
-  .crew-time-blocks-grid {
-    grid-template-columns: 1fr;
+  .crew-time-blocks-grid > div {
+    flex: 1 1 100%;
   }
   .training-types-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  #form-group-1 .grid-4cols,
+  .grid-4cols {
+    grid-template-columns: 1fr;
   }
 }

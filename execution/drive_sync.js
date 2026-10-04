@@ -28,7 +28,7 @@ export function formatDateUa(dateStr) {
  * @param {Array} flights
  * @param {Array} forms
  */
-export function downloadBackupJson(flightCrew, cabinCrew, changelog, settings, flights = [], forms = []) {
+export function downloadBackupJson(flightCrew, cabinCrew, changelog, settings, flights = [], forms = [], pdfBlanks = []) {
   const backupObj = {
     version: '1.2.0',
     exportDate: new Date().toISOString(),
@@ -38,7 +38,8 @@ export function downloadBackupJson(flightCrew, cabinCrew, changelog, settings, f
       changelog,
       settings,
       flights,
-      forms
+      forms,
+      pdfBlanks
     }
   };
   

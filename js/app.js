@@ -86,13 +86,43 @@ const TRANSLATIONS = {
     
     // Flights Form
     logged_flights_title: "Перелік польотів",
+    label_month_filter: "Місяць:",
+    opt_all_months: "Всі місяці",
+    stat_ttl_flight: "Польоти:",
+    stat_ttl_block: "Блок:",
+    no_logged_flights: "Немає збережених польотів",
+    no_flights_in_month: "Немає польотів за цей місяць",
+    item_duty_time: "Робочий час",
+    btn_edit_flight_title: "Редагувати політ",
+    btn_delete_flight_title: "Видалити політ",
     flights_title: "Запис тренувального польоту",
     label_crew_member: "Член екіпажу",
-    label_flight_date: "Дата польоту",
+    label_flight_date: "Дата",
+    label_helicopter_reg: "Реєстраційний номер",
+    label_flight_task: "№ польотного завдання",
+    label_for_all: "ДЛЯ ВСІХ",
     label_ac_type: "Тип ПС",
     label_flight_duration: "Тривалість польоту (години)",
     label_flight_exercise: "Вправа / Деталі тренування",
     btn_log_flight: "Зберегти та надіслати запис",
+    group_general_info: "Загальна інформація",
+    group_briefings_times: "Робочий та польотний час",
+    group_crew_members: "Екіпаж",
+    group_toggle_collapse: "Згорнути / Розгорнути",
+    basic_details: "Основні дані",
+    fuel_title: "Паливо",
+    pre_flight_title: "Передпольотний інструктаж",
+    post_flight_title: "Післяпольотний брифінг",
+    duty_time_title: "Робочий час",
+    flight_time_title: "Польотний час",
+    block_time_title: "Час Block",
+    fuel_start_label: "На початок",
+    fuel_end_label: "При вимкненні",
+    refuel_label: "Заправлено",
+    add_refuel_label: "Додати заправку",
+    time_bgn: "Початок (BGN)",
+    time_end: "Кінець (END)",
+    time_ttl: "Всього (TTL)",
     
     // Settings
     set_sync_backup: "Синхронізація та Бекап",
@@ -191,6 +221,28 @@ const TRANSLATIONS = {
     btn_print_pdf: "Друк бланка / PDF",
     btn_print_roster: "Друк відомості / PDF",
     btn_edit_form: "Редагувати в генераторі",
+    tab_blanks_flight: "Льотний екіпаж",
+    tab_blanks_cabin: "Кабінний екіпаж",
+    tab_blanks_forms: "Форми",
+    label_target_tab: "В яку вкладку додати форму чи бланк:",
+    opt_tab_flight: "Льотний екіпаж",
+    opt_tab_cabin: "Кабінний екіпаж",
+    opt_tab_forms: "Форми",
+    pdf_upload_title: "Завантаження звичайного PDF бланка",
+    pdf_upload_subtitle: "Завантажте PDF бланк, який буде відображатись у розділі «Бланки» у вибраній вкладці",
+    label_pdf_file: "Файл PDF бланка (.pdf):",
+    label_pdf_name: "Назва бланка:",
+    label_pdf_code: "Номер / Код бланка (опціонально):",
+    label_pdf_desc: "Опис або інструкція (опціонально):",
+    label_pdf_target_tab: "В яку вкладку додати бланк:",
+    btn_upload_pdf_blank: "Завантажити PDF бланк",
+    btn_quick_upload_pdf: "Завантажити PDF бланк",
+    uploaded_pdf_blanks_title: "Завантажені PDF бланки",
+    badge_admin_only: "Тільки адміністратор",
+    btn_view_pdf: "Відкрити PDF",
+    btn_download_file: "Завантажити",
+    badge_pdf_blank: "PDF БЛАНК",
+    empty_tab_blanks: "У цій вкладці ще немає бланків чи форм.",
 
     // Settings Tab 1: Sync & Backups extra keys
     set_sync_tables_title: "Таблиці Google Sheets для синхронізації",
@@ -376,13 +428,43 @@ const TRANSLATIONS = {
     
     // Flights Form
     logged_flights_title: "Logged Flights",
+    label_month_filter: "Month:",
+    opt_all_months: "All Months",
+    stat_ttl_flight: "Flight:",
+    stat_ttl_block: "Block:",
+    no_logged_flights: "No logged flights yet",
+    no_flights_in_month: "No flights in this month",
+    item_duty_time: "Duty Time",
+    btn_edit_flight_title: "Edit Flight",
+    btn_delete_flight_title: "Delete Flight",
     flights_title: "Training Flight Log",
     label_crew_member: "Crew Member",
-    label_flight_date: "Flight Date",
+    label_flight_date: "Date",
+    label_helicopter_reg: "Helicopter Reg",
+    label_flight_task: "Flight Task #",
+    label_for_all: "FOR ALL",
     label_ac_type: "A/C Type",
     label_flight_duration: "Flight Duration (hours)",
     label_flight_exercise: "Exercise / Training Details",
     btn_log_flight: "Save & Dispatch Record",
+    group_general_info: "General Information",
+    group_briefings_times: "Duty & Flight Time",
+    group_crew_members: "Crew Members",
+    group_toggle_collapse: "Collapse / Expand",
+    basic_details: "Basic Details",
+    fuel_title: "Fuel",
+    pre_flight_title: "Pre-Flight Instructions",
+    post_flight_title: "Post-Flight Debrief",
+    duty_time_title: "Duty Time",
+    flight_time_title: "Flight Time",
+    block_time_title: "Block Time",
+    fuel_start_label: "Fuel at Start-up",
+    fuel_end_label: "Fuel at Shut-down",
+    refuel_label: "Refuel",
+    add_refuel_label: "Add more",
+    time_bgn: "BGN",
+    time_end: "END",
+    time_ttl: "TTL",
     
     // Settings
     set_sync_backup: "Sync & Backups",
@@ -481,6 +563,28 @@ const TRANSLATIONS = {
     btn_print_pdf: "Print Blank / PDF",
     btn_print_roster: "Print Roster / PDF",
     btn_edit_form: "Edit in Generator",
+    tab_blanks_flight: "Flight Crew",
+    tab_blanks_cabin: "Cabin Crew",
+    tab_blanks_forms: "Forms",
+    label_target_tab: "Target tab for form or blank:",
+    opt_tab_flight: "Flight Crew",
+    opt_tab_cabin: "Cabin Crew",
+    opt_tab_forms: "Forms",
+    pdf_upload_title: "Upload Standard PDF Blank",
+    pdf_upload_subtitle: "Upload a PDF blank to be displayed in the Blank Forms section in the selected tab",
+    label_pdf_file: "PDF Blank File (.pdf):",
+    label_pdf_name: "Blank Name:",
+    label_pdf_code: "Form / Code (optional):",
+    label_pdf_desc: "Description or Instructions (optional):",
+    label_pdf_target_tab: "Target tab for blank:",
+    btn_upload_pdf_blank: "Upload PDF Blank",
+    btn_quick_upload_pdf: "Upload PDF Blank",
+    uploaded_pdf_blanks_title: "Uploaded PDF Blanks",
+    badge_admin_only: "Admin Only",
+    btn_view_pdf: "Open PDF",
+    btn_download_file: "Download",
+    badge_pdf_blank: "PDF BLANK",
+    empty_tab_blanks: "There are no blanks or forms in this tab yet.",
 
     // Settings Tab 1: Sync & Backups extra keys
     set_sync_tables_title: "Google Sheets for Synchronization",
@@ -608,6 +712,7 @@ const DEFAULT_FORMS = [
     code: 'Форма UH-F-22',
     subtitle: 'Авіакомпанія «Українські вертольоти» • Льотна служба',
     crewType: 'Flight',
+    targetTab: 'flight',
     logo: 'PICS/LOGO_UH.png',
     logoPos: 'left',
     orientation: 'portrait',
@@ -629,6 +734,7 @@ const DEFAULT_FORMS = [
     code: 'Форма UH-C-09',
     subtitle: 'Авіакомпанія «Українські вертольоти» • Служба бортпровідників',
     crewType: 'Cabin',
+    targetTab: 'cabin',
     logo: 'PICS/LOGO_UH.png',
     logoPos: 'center',
     orientation: 'landscape',
@@ -650,6 +756,7 @@ const DEFAULT_FORMS = [
     code: 'Форма UH-TR-01',
     subtitle: 'Навчально-тренувальний центр • Підсумковий контроль знань',
     crewType: 'Flight',
+    targetTab: 'forms',
     logo: 'PICS/LOGO_UH.png',
     logoPos: 'right',
     orientation: 'portrait',
@@ -799,7 +906,7 @@ function getFormColumnShortTitle(colKey, lang = 'uk') {
 }
 
 // ================= DEFAULT APP STATE =================
-export const APP_VERSION = '0.2';
+export const APP_VERSION = '0.4';
 
 const STATE = {
   version: APP_VERSION,
@@ -812,6 +919,8 @@ const STATE = {
   changelog: [],
   flights: [],
   forms: [],
+  pdfBlanks: [],
+  activeBlanksTab: 'flight',
   formSelectedCrew: {},
   snapshots: [],
   activeSettingsTab: 'sync',
@@ -902,6 +1011,11 @@ function updateTranslations() {
   
   // Toggle button text
   document.getElementById('lang-toggle').textContent = STATE.lang === 'uk' ? 'EN' : 'UA';
+  
+  // Update Logged Flights list if present
+  if (document.getElementById('logged-flights-list')) {
+    renderLoggedFlightsList();
+  }
 }
 
 /**
@@ -914,6 +1028,7 @@ function saveStateToStorage() {
   localStorage.setItem('aerocheck_settings', JSON.stringify(STATE.settings));
   localStorage.setItem('aerocheck_flights', JSON.stringify(STATE.flights));
   localStorage.setItem('aerocheck_forms', JSON.stringify(STATE.forms));
+  localStorage.setItem('aerocheck_pdf_blanks', JSON.stringify(STATE.pdfBlanks || []));
   localStorage.setItem('aerocheck_snapshots', JSON.stringify(STATE.snapshots));
   localStorage.setItem('aerocheck_custom_columns', JSON.stringify(STATE.customColumns || { Flight: [], Cabin: [] }));
 }
@@ -1928,6 +2043,7 @@ function calculateTimeDiff(startVal, endVal) {
   if (!startVal || !endVal) return '';
   const [startH, startM] = startVal.split(':').map(Number);
   const [endH, endM] = endVal.split(':').map(Number);
+  if (isNaN(startH) || isNaN(startM) || isNaN(endH) || isNaN(endM)) return '';
   
   let diffMins = (endH * 60 + endM) - (startH * 60 + startM);
   if (diffMins < 0) {
@@ -1940,21 +2056,61 @@ function calculateTimeDiff(startVal, endVal) {
 }
 
 /**
+ * Adds minutes to an HH:MM format string and returns new HH:MM format string
+ */
+function addMinutesToTime(timeVal, minutesToAdd) {
+  if (!timeVal) return '';
+  const [h, m] = timeVal.split(':').map(Number);
+  if (isNaN(h) || isNaN(m)) return '';
+  let totalMins = (h * 60 + m + minutesToAdd) % (24 * 60);
+  if (totalMins < 0) totalMins += 24 * 60;
+  const newH = Math.floor(totalMins / 60);
+  const newM = totalMins % 60;
+  return `${String(newH).padStart(2, '0')}:${String(newM).padStart(2, '0')}`;
+}
+
+/**
+ * Toggles collapsible form group sections (Group 1 & Group 2)
+ */
+window.toggleFormGroup = function(groupId) {
+  const group = document.getElementById(groupId);
+  if (!group) return;
+  const body = group.querySelector('.group-section-body');
+  const chevron = group.querySelector('.group-chevron');
+  if (!body) return;
+  const isHidden = body.style.display === 'none';
+  const willBeOpen = isHidden;
+  body.style.display = willBeOpen ? 'flex' : 'none';
+  if (chevron) {
+    chevron.style.transform = willBeOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+  }
+};
+
+/**
  * Updates Pre-flight, Post-flight, and Duty Time calculations
  */
 function updateTimeCalculations() {
-  const preBgn = document.getElementById('flight-pre-bgn').value;
-  const preEnd = document.getElementById('flight-pre-end').value;
-  const postBgn = document.getElementById('flight-post-bgn').value;
-  const postEnd = document.getElementById('flight-post-end').value;
+  const preBgnEl = document.getElementById('flight-pre-bgn');
+  const preEndEl = document.getElementById('flight-pre-end');
+  const postBgnEl = document.getElementById('flight-post-bgn');
+  const postEndEl = document.getElementById('flight-post-end');
+
+  const preBgn = preBgnEl ? preBgnEl.value : '';
+  const preEnd = preEndEl ? preEndEl.value : '';
+  const postBgn = postBgnEl ? postBgnEl.value : '';
+  const postEnd = postEndEl ? postEndEl.value : '';
   
   const preTtl = calculateTimeDiff(preBgn, preEnd);
   const postTtl = calculateTimeDiff(postBgn, postEnd);
   const dutyTime = calculateTimeDiff(preBgn, postEnd);
   
-  document.getElementById('flight-pre-ttl').value = preTtl;
-  document.getElementById('flight-post-ttl').value = postTtl;
-  document.getElementById('flight-duty-time').value = dutyTime;
+  const preTtlEl = document.getElementById('flight-pre-ttl');
+  const postTtlEl = document.getElementById('flight-post-ttl');
+  const dutyTimeEl = document.getElementById('flight-duty-time');
+
+  if (preTtlEl) preTtlEl.value = preTtl;
+  if (postTtlEl) postTtlEl.value = postTtl;
+  if (dutyTimeEl) dutyTimeEl.value = dutyTime;
 }
 
 /**
@@ -2024,8 +2180,8 @@ function updateTrainingTypesLayout(cardNode, crewType) {
     ];
     types.forEach(t => {
       grid.insertAdjacentHTML('beforeend', `
-        <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; color: var(--text-primary);">
-          <input type="checkbox" value="${t.value}" class="crew-training-type"> <span>${t.label}</span>
+        <label style="display: flex; align-items: center; gap: 5px; font-size: 11px; cursor: pointer; color: var(--text-primary); margin: 0; padding: 1px 0; user-select: none;">
+          <input type="checkbox" value="${t.value}" class="crew-training-type" style="width: 13px; height: 13px; cursor: pointer;"> <span>${t.label}</span>
         </label>
       `);
     });
@@ -2041,8 +2197,8 @@ function updateTrainingTypesLayout(cardNode, crewType) {
     ];
     types.forEach(t => {
       grid.insertAdjacentHTML('beforeend', `
-        <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; color: var(--text-primary);">
-          <input type="checkbox" value="${t.value}" class="crew-training-type"> <span>${t.label}</span>
+        <label style="display: flex; align-items: center; gap: 5px; font-size: 11px; cursor: pointer; color: var(--text-primary); margin: 0; padding: 1px 0; user-select: none;">
+          <input type="checkbox" value="${t.value}" class="crew-training-type" style="width: 13px; height: 13px; cursor: pointer;"> <span>${t.label}</span>
         </label>
       `);
     });
@@ -2091,7 +2247,8 @@ function addCrewMemberCard() {
       
       <!-- Card Body (Collapsible) -->
       <div class="crew-card-body" style="display: flex; flex-direction: column; gap: var(--spacing-3); border-top: 1px solid var(--border-color); padding-top: var(--spacing-3); margin-top: var(--spacing-1);">
-        <div class="form-row grid-2cols" style="position: relative;">
+        <!-- Top Row: Name, PSTN, Flight Task # -->
+        <div class="form-row grid-3cols" style="position: relative;">
           <div class="form-group" style="position: relative;">
             <label style="font-weight: 600; font-size: 13px;">Name</label>
             <input type="text" class="form-input crew-name-search-input" placeholder="Type to search name..." required autocomplete="off" style="background-color: var(--bg-surface);">
@@ -2099,17 +2256,27 @@ function addCrewMemberCard() {
             <div class="autocomplete-dropdown" style="display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 1000; max-height: 200px; overflow-y: auto; background-color: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: var(--shadow-lg);"></div>
           </div>
           <div class="form-group">
-            <label style="font-weight: 600; font-size: 13px;">PSTN</label>
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <label style="font-weight: 600; font-size: 13px;">PSTN</label>
+              <label style="display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; cursor: pointer; user-select: none; color: var(--text-secondary);">
+                <input type="checkbox" class="crew-is-instructor" style="width: 14px; height: 14px; cursor: pointer;">
+                <span>instructor</span>
+              </label>
+            </div>
             <input type="text" class="form-input crew-pstn-input" placeholder="PSTN" readonly style="background-color: var(--bg-surface);">
+          </div>
+          <div class="form-group">
+            <label style="font-weight: 600; font-size: 13px;">Flight Task #</label>
+            <input type="text" class="form-input crew-task-input" placeholder="Flight task #" style="background-color: var(--bg-surface);">
           </div>
         </div>
         
-        <!-- 3 Columns of Time Blocks -->
+        <!-- 4 Blocks in Crew Row: Flight Time, Block Time, Instructor Time (conditional), Type of Training -->
         <div class="crew-time-blocks-grid">
           
           <!-- Block 1: FLIGHT TIME (DAY, NIGHT, NVG) -->
-          <div style="border: 1px solid var(--border-color); padding: var(--spacing-3); border-radius: var(--radius-sm); background-color: var(--bg-surface); display: flex; flex-direction: column; gap: var(--spacing-2);">
-            <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; border-bottom: 1px solid var(--border-color); padding-bottom: 2px;">Flight Time</span>
+          <div class="crew-time-block" style="border: 1px solid var(--border-color); padding: var(--spacing-3); border-radius: var(--radius-sm); background-color: var(--bg-surface); display: flex; flex-direction: column; gap: var(--spacing-2);">
+            <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; border-bottom: 1px solid var(--border-color); padding-bottom: 2px; text-align: center;">Flight Time</span>
             <div class="form-group">
               <label style="font-size: 11px; font-weight: 600;">DAY</label>
               <input type="time" class="form-input crew-flight-day" style="padding: 4px 8px; height: 32px; font-size: 13px; background-color: var(--bg-app);" value="00:00">
@@ -2125,8 +2292,8 @@ function addCrewMemberCard() {
           </div>
 
           <!-- Block 2: BLOCK TIME (DAY, NIGHT) -->
-          <div style="border: 1px solid var(--border-color); padding: var(--spacing-3); border-radius: var(--radius-sm); background-color: var(--bg-surface); display: flex; flex-direction: column; gap: var(--spacing-2);">
-            <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; border-bottom: 1px solid var(--border-color); padding-bottom: 2px;">Block Time</span>
+          <div class="crew-time-block" style="border: 1px solid var(--border-color); padding: var(--spacing-3); border-radius: var(--radius-sm); background-color: var(--bg-surface); display: flex; flex-direction: column; gap: var(--spacing-2);">
+            <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; border-bottom: 1px solid var(--border-color); padding-bottom: 2px; text-align: center;">Block Time</span>
             <div class="form-group">
               <label style="font-size: 11px; font-weight: 600;">DAY</label>
               <input type="time" class="form-input crew-block-day" style="padding: 4px 8px; height: 32px; font-size: 13px; background-color: var(--bg-app);" value="00:00">
@@ -2137,9 +2304,9 @@ function addCrewMemberCard() {
             </div>
           </div>
 
-          <!-- Block 3: Instructor Time (DAY, NIGHT) -->
-          <div style="border: 1px solid var(--border-color); padding: var(--spacing-3); border-radius: var(--radius-sm); background-color: var(--bg-surface); display: flex; flex-direction: column; gap: var(--spacing-2);">
-            <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; border-bottom: 1px solid var(--border-color); padding-bottom: 2px;">Instructor Time</span>
+          <!-- Block 3: Instructor Time (DAY, NIGHT) - Visible only if instructor checkbox is checked -->
+          <div class="crew-time-block crew-inst-time-block" style="border: 1px solid var(--border-color); padding: var(--spacing-3); border-radius: var(--radius-sm); background-color: var(--bg-surface); display: none; flex-direction: column; gap: var(--spacing-2);">
+            <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; border-bottom: 1px solid var(--border-color); padding-bottom: 2px; text-align: center;">Instructor Time</span>
             <div class="form-group">
               <label style="font-size: 11px; font-weight: 600;">DAY</label>
               <input type="time" class="form-input crew-inst-day" style="padding: 4px 8px; height: 32px; font-size: 13px; background-color: var(--bg-app);" value="00:00">
@@ -2149,19 +2316,13 @@ function addCrewMemberCard() {
               <input type="time" class="form-input crew-inst-nght" style="padding: 4px 8px; height: 32px; font-size: 13px; background-color: var(--bg-app);" value="00:00">
             </div>
           </div>
-        </div>
-        
-        <div class="form-row" style="display: grid; grid-template-columns: 1fr; gap: var(--spacing-3); margin-top: var(--spacing-2);">
-          <div class="form-group">
-            <label style="font-weight: 600; font-size: 13px;">Flight Task #</label>
-            <input type="text" class="form-input crew-task-input" placeholder="Flight task #">
-          </div>
-        </div>
-        
-        <div style="margin-top: var(--spacing-2);">
-          <label style="font-size: 12px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; display: block; margin-bottom: 6px;">Type of Training</label>
-          <div class="training-types-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--spacing-2);">
-            <!-- Dynamic Checkboxes Injection -->
+
+          <!-- Block 4: Type of Training (Checkboxes) - Placed after Instructor Time -->
+          <div class="crew-time-block crew-training-types-block" style="border: 1px solid var(--border-color); padding: var(--spacing-3); border-radius: var(--radius-sm); background-color: var(--bg-surface); display: flex; flex-direction: column; gap: var(--spacing-2);">
+            <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; border-bottom: 1px solid var(--border-color); padding-bottom: 2px; text-align: center;">Type of Training</span>
+            <div class="training-types-grid" style="display: flex; flex-direction: column; gap: 4px; max-height: 160px; overflow-y: auto; padding-right: 2px;">
+              <!-- Dynamic Checkboxes Injection -->
+            </div>
           </div>
         </div>
       </div>
@@ -2177,6 +2338,8 @@ function addCrewMemberCard() {
   const hiddenInput = cardNode.querySelector('.crew-id-hidden');
   const pstnInput = cardNode.querySelector('.crew-pstn-input');
   const dropdown = cardNode.querySelector('.autocomplete-dropdown');
+  const instChk = cardNode.querySelector('.crew-is-instructor');
+  const instBlock = cardNode.querySelector('.crew-inst-time-block');
   
   function renderDropdown(query) {
     dropdown.innerHTML = '';
@@ -2210,6 +2373,11 @@ function addCrewMemberCard() {
         pstnInput.value = member.Rank || '';
         dropdown.style.display = 'none';
         
+        // Auto-check instructor checkbox if rank contains 'інстр' or 'inst'
+        const isInst = (member.Rank || '').toLowerCase().includes('інстр') || (member.Rank || '').toLowerCase().includes('inst');
+        if (instChk) instChk.checked = isInst;
+        if (instBlock) instBlock.style.display = isInst ? 'flex' : 'none';
+
         // Update header name display!
         const headerNameText = cardNode.querySelector('.crew-name-header-text');
         if (headerNameText) {
@@ -2223,6 +2391,13 @@ function addCrewMemberCard() {
     });
     
     dropdown.style.display = 'block';
+  }
+  
+  // Toggle Instructor Time block visibility when instructor checkbox changes
+  if (instChk && instBlock) {
+    instChk.addEventListener('change', () => {
+      instBlock.style.display = instChk.checked ? 'flex' : 'none';
+    });
   }
   
   searchInput.addEventListener('input', (e) => {
@@ -2307,12 +2482,11 @@ function renderLoggedFlightsList() {
   const sortedMonths = Array.from(months).sort().reverse();
   
   // 2. Populate filter dropdown options
+  const dict = TRANSLATIONS[STATE.lang] || {};
   if (filterSelect) {
     const prevSelected = STATE.selectedFilterMonth || 'all';
     
-    let optionsHtml = STATE.lang === 'uk'
-      ? `<option value="all">Всі місяці</option>`
-      : `<option value="all">All Months</option>`;
+    let optionsHtml = `<option value="all">${dict.opt_all_months || (STATE.lang === 'uk' ? 'Всі місяці' : 'All Months')}</option>`;
       
     sortedMonths.forEach(m => {
       const parts = m.split('-');
@@ -2355,7 +2529,7 @@ function renderLoggedFlightsList() {
   container.innerHTML = '';
   
   if (!STATE.flights || STATE.flights.length === 0) {
-    container.innerHTML = '<div style="font-style:italic; color:var(--text-secondary); text-align:center; padding: var(--spacing-4);">No logged flights yet</div>';
+    container.innerHTML = `<div style="font-style:italic; color:var(--text-secondary); text-align:center; padding: 12px 8px; font-size: 11.5px;">${dict.no_logged_flights || (STATE.lang === 'uk' ? 'Немає збережених польотів' : 'No logged flights yet')}</div>`;
     const statFlightEl = document.getElementById('month-stat-flight');
     const statBlockEl = document.getElementById('month-stat-block');
     if (statFlightEl) statFlightEl.textContent = '00:00';
@@ -2399,12 +2573,15 @@ function renderLoggedFlightsList() {
   if (statBlockEl) statBlockEl.textContent = formatMinutesToDuration(totalBlockMinutes);
 
   if (filteredFlights.length === 0) {
-    container.innerHTML = '<div style="font-style:italic; color:var(--text-secondary); text-align:center; padding: var(--spacing-4);">No flights in this month</div>';
+    container.innerHTML = `<div style="font-style:italic; color:var(--text-secondary); text-align:center; padding: 12px 8px; font-size: 11.5px;">${dict.no_flights_in_month || (STATE.lang === 'uk' ? 'Немає польотів за цей місяць' : 'No flights in this month')}</div>`;
     return;
   }
 
   const role = STATE.currentUser ? STATE.currentUser.role : ROLES.PILOT;
   const showDeleteBtn = role === ROLES.ADMIN;
+  const editTitle = dict.btn_edit_flight_title || (STATE.lang === 'uk' ? 'Редагувати політ' : 'Edit Flight');
+  const deleteTitle = dict.btn_delete_flight_title || (STATE.lang === 'uk' ? 'Видалити політ' : 'Delete Flight');
+  const dutyLabel = dict.item_duty_time || (STATE.lang === 'uk' ? 'Робочий час' : 'Duty Time');
   
   // Render latest first
   const reversedFlights = [...filteredFlights].reverse();
@@ -2412,32 +2589,32 @@ function renderLoggedFlightsList() {
     const crewNames = flight.crew.map(c => c.name).join(', ');
     
     const editBtnHtml = showDeleteBtn ? `
-      <button class="btn-edit-logged-flight" style="background:transparent; border:none; color:#f59e0b; padding:4px; cursor:pointer;" title="Edit Flight">
-        <i data-lucide="edit-3" style="width:14px; height:14px;"></i>
+      <button class="btn-edit-logged-flight" style="background:transparent; border:none; color:#f59e0b; padding:2px; cursor:pointer;" title="${editTitle}">
+        <i data-lucide="edit-3" style="width:13px; height:13px;"></i>
       </button>
     ` : '';
     
     const deleteBtnHtml = showDeleteBtn ? `
-      <button class="btn-delete-logged-flight" style="background:transparent; border:none; color:var(--danger-color); padding:4px; cursor:pointer;" title="Delete Flight">
-        <i data-lucide="trash-2" style="width:14px; height:14px;"></i>
+      <button class="btn-delete-logged-flight" style="background:transparent; border:none; color:var(--danger-color); padding:2px; cursor:pointer;" title="${deleteTitle}">
+        <i data-lucide="trash-2" style="width:13px; height:13px;"></i>
       </button>
     ` : '';
     
     const itemHtml = `
-      <div class="logged-flight-item" data-id="${flight.id}" style="border: 1px solid var(--border-color); padding: var(--spacing-3); border-radius: var(--radius-md); transition: background-color var(--transition-fast); background-color: var(--bg-surface); margin-bottom: 8px; display:flex; justify-content:space-between; align-items:center;">
-        <div style="flex:1; cursor:pointer;" class="logged-flight-content">
-          <div style="display:flex; justify-content:space-between; font-weight:700; font-size:13px; color:var(--accent);">
+      <div class="logged-flight-item" data-id="${flight.id}" style="border: 1px solid var(--border-color); padding: 8px 10px; border-radius: var(--radius-md); transition: background-color var(--transition-fast); background-color: var(--bg-surface); margin-bottom: 6px; display:flex; justify-content:space-between; align-items:center;">
+        <div style="flex:1; min-width:0; cursor:pointer;" class="logged-flight-content">
+          <div style="display:flex; justify-content:space-between; font-weight:700; font-size:12px; color:var(--accent);">
             <span>${flight.helicopterReg}</span>
-            <span>${flight.date}</span>
+            <span style="font-size:11px; opacity:0.9;">${flight.date}</span>
           </div>
-          <div style="font-size:12px; color:var(--text-secondary); margin-top:4px; font-weight:500;">
-            Duty Time: ${flight.dutyTime}
+          <div style="font-size:11px; color:var(--text-secondary); margin-top:3px; font-weight:500;">
+            ${dutyLabel}: ${flight.dutyTime}
           </div>
-          <div style="font-size:12px; color:var(--text-primary); margin-top:4px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:180px;" title="${crewNames}">
+          <div style="font-size:11px; color:var(--text-primary); margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:170px;" title="${crewNames}">
             ${crewNames}
           </div>
         </div>
-        <div style="display:flex; flex-direction:column; align-items:center; gap:4px; margin-left: var(--spacing-3);">
+        <div style="display:flex; flex-direction:column; align-items:center; gap:2px; margin-left: 6px;">
           ${editBtnHtml}
           ${deleteBtnHtml}
         </div>
@@ -2541,28 +2718,32 @@ function openFlightDetailWindow(flight) {
   const isAdmin = role === ROLES.ADMIN;
   const editBtnHtml = isAdmin ? `<button class="print-btn" style="background-color: #f59e0b; margin-left: 10px;" onclick="editFlight()">EDIT</button>` : '';
   
-  function getRankPriority(pstn) {
+  function getRankPriority(pstn, isInstructor) {
     if (!pstn) return 999;
     const pNormalized = pstn.trim().toUpperCase();
-    if (pNormalized.includes('КПС') && (pNormalized.includes('ІНСТР') || pNormalized.includes('INSTRUCTOR') || pNormalized.includes('ІНС'))) return 1;
+    const isInst = !!isInstructor || pNormalized.includes('ІНСТР') || pNormalized.includes('INSTRUCTOR') || pNormalized.includes('ІНС');
+    if (pNormalized.includes('КПС') && isInst) return 1;
     if (pNormalized === 'КПС') return 2;
     if (pNormalized === '2П' || pNormalized === '2P') return 3;
-    if (pNormalized.includes('ІБ') && (pNormalized.includes('ІНСТР') || pNormalized.includes('INSTRUCTOR') || pNormalized.includes('ІНС'))) return 4;
+    if (pNormalized.includes('ІБ') && isInst) return 4;
     if (pNormalized === 'ІБ') return 5;
-    if ((pNormalized.includes('БП-АР') || pNormalized.includes('БП-РА')) && (pNormalized.includes('ІНСТР') || pNormalized.includes('INSTRUCTOR') || pNormalized.includes('ІНС'))) return 6;
+    if ((pNormalized.includes('БП-АР') || pNormalized.includes('БП-РА')) && isInst) return 6;
     if (pNormalized === 'БП-АР' || pNormalized === 'БП-РА') return 7;
-    if (pNormalized.includes('БП') && (pNormalized.includes('ІНСТР') || pNormalized.includes('INSTRUCTOR') || pNormalized.includes('ІНС'))) return 8;
+    if (pNormalized.includes('БП') && isInst) return 8;
     if (pNormalized === 'БП') return 9;
     return 100;
   }
 
   const sortedCrew = [...flight.crew].sort((a, b) => {
-    return getRankPriority(a.pstn) - getRankPriority(b.pstn);
+    return getRankPriority(a.pstn, a.isInstructor) - getRankPriority(b.pstn, b.isInstructor);
   });
 
-  const crewRows = sortedCrew.map(c => `
+  const crewRows = sortedCrew.map(c => {
+    const isInst = c.isInstructor && !c.pstn.toLowerCase().includes('інстр') && !c.pstn.toLowerCase().includes('inst');
+    const displayPstn = c.pstn + (isInst ? ' (Інстр)' : '');
+    return `
     <tr>
-      <td>${c.pstn}</td>
+      <td>${displayPstn}</td>
       <td><strong>${c.name}</strong></td>
       <td style="white-space: nowrap; line-height: 1.25;">
         DAY: ${c.flightTime.day || '00:00'}<br>
@@ -2580,7 +2761,8 @@ function openFlightDetailWindow(flight) {
       <td>${c.flightTask || '-'}</td>
       <td>${c.trainingTypes.join(', ') || '-'}</td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
   
   let refuelText = `${flight.refuel}`;
   if (flight.refuelMore && (flight.refuel2 || flight.refuel3)) {
@@ -2761,6 +2943,15 @@ window.startEditingFlight = function(flightId) {
     hiddenInput.value = c.crewId;
     pstnInput.value = c.pstn;
     
+    const instChk = card.querySelector('.crew-is-instructor');
+    const instBlock = card.querySelector('.crew-inst-time-block');
+    if (instChk) {
+      instChk.checked = !!c.isInstructor;
+    }
+    if (instBlock) {
+      instBlock.style.display = c.isInstructor ? 'flex' : 'none';
+    }
+
     // Set card header name text
     const headerNameText = card.querySelector('.crew-name-header-text');
     if (headerNameText) {
@@ -2956,8 +3147,9 @@ function handleTrainingFlightSubmit(e) {
       return;
     }
     
-    const instDay = card.querySelector('.crew-inst-day').value;
-    const instNght = card.querySelector('.crew-inst-nght').value;
+    const isInstructor = card.querySelector('.crew-is-instructor') ? card.querySelector('.crew-is-instructor').checked : false;
+    const instDay = isInstructor ? (card.querySelector('.crew-inst-day')?.value || '00:00') : '00:00';
+    const instNght = isInstructor ? (card.querySelector('.crew-inst-nght')?.value || '00:00') : '00:00';
     
     const individualTask = card.querySelector('.crew-task-input').value.trim();
     const task = isSameTask ? mainTask : individualTask;
@@ -2966,11 +3158,12 @@ function handleTrainingFlightSubmit(e) {
     card.querySelectorAll('.crew-training-type:checked').forEach(chk => {
       trainingTypes.push(chk.value);
     });
-    
+
     crewMembers.push({
       crewId: selectedId,
       name: member.Full_Name_EN || member.Full_Name_UA,
       pstn,
+      isInstructor,
       flightTime: { day: flightDay, nght: flightNght, nvg: flightNvg },
       blockTime: { day: blockDay, nght: blockNght },
       timeInstructor: { day: instDay, night: instNght },
@@ -3437,6 +3630,7 @@ function renderSnapshotsList() {
         STATE.flights = snap.flights || [];
         STATE.changelog = snap.changelog || [];
         if (snap.forms) STATE.forms = snap.forms;
+        if (snap.pdfBlanks) STATE.pdfBlanks = snap.pdfBlanks;
         saveStateToStorage();
         showToast("Стан системи успішно відновлено зі знімка!");
         renderSettings();
@@ -4240,17 +4434,314 @@ function renderSettingsDisplayTab() {
 }
 
 /**
+ * Formats byte count into human readable file size string
+ */
+function formatFileSize(bytes) {
+  if (!bytes || bytes === 0) return '0 B';
+  const k = 1024;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+/**
+ * Converts Base64 Data URL to Blob object
+ */
+function base64ToBlob(base64Data, contentType = 'application/pdf') {
+  let base64String = base64Data;
+  if (base64Data.includes(',')) {
+    base64String = base64Data.split(',')[1];
+  }
+  const byteCharacters = atob(base64String);
+  const byteArrays = [];
+  const sliceSize = 512;
+  
+  for (let offset = 0; offset < byteCharacters.length; offset += sliceSize) {
+    const slice = byteCharacters.slice(offset, offset + sliceSize);
+    const byteNumbers = new Array(slice.length);
+    for (let i = 0; i < slice.length; i++) {
+      byteNumbers[i] = slice.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    byteArrays.push(byteArray);
+  }
+  return new Blob(byteArrays, { type: contentType });
+}
+
+/**
+ * Opens PDF blank in browser new tab via secure Blob URL
+ */
+function viewPdfBlank(blank) {
+  try {
+    const blob = base64ToBlob(blank.fileData, 'application/pdf');
+    const blobUrl = URL.createObjectURL(blob);
+    const newWindow = window.open(blobUrl, '_blank');
+    if (!newWindow) {
+      downloadPdfBlankFile(blank);
+    }
+  } catch (err) {
+    console.error(err);
+    showToast(STATE.lang === 'uk' ? 'Помилка відкриття PDF: ' + err.message : 'Error opening PDF: ' + err.message, 'error');
+  }
+}
+
+/**
+ * Triggers browser download for uploaded PDF blank
+ */
+function downloadPdfBlankFile(blank) {
+  try {
+    const blob = base64ToBlob(blank.fileData, 'application/pdf');
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = blank.fileName || `${blank.name}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+  } catch (err) {
+    console.error(err);
+    showToast(STATE.lang === 'uk' ? 'Помилка завантаження файлу' : 'Download error', 'error');
+  }
+}
+
+/**
+ * Renders the list of uploaded PDF blanks inside Settings -> Forms
+ */
+function renderSettingsPdfBlanksList() {
+  const container = document.getElementById('settings-pdf-blanks-list');
+  if (!container) return;
+
+  const countBadge = document.getElementById('pdf-blanks-count-badge');
+  if (countBadge) {
+    countBadge.textContent = (STATE.pdfBlanks || []).length;
+  }
+
+  container.innerHTML = '';
+
+  if (!STATE.pdfBlanks || STATE.pdfBlanks.length === 0) {
+    container.innerHTML = `
+      <div style="font-size: 12px; color: var(--text-secondary); font-style: italic; padding: 12px 0;">
+        ${STATE.lang === 'uk' 
+          ? 'Немає завантажених PDF бланків. Виберіть файл вище та натисніть «Завантажити PDF бланк».' 
+          : 'No uploaded PDF blanks yet. Choose a file above and click "Upload PDF Blank".'}
+      </div>
+    `;
+    return;
+  }
+
+  const tableWrapper = document.createElement('div');
+  tableWrapper.style.cssText = 'display: flex; flex-direction: column; gap: 8px;';
+
+  STATE.pdfBlanks.forEach(blank => {
+    const item = document.createElement('div');
+    item.style.cssText = 'display: flex; justify-content: space-between; align-items: center; background: var(--bg-surface); padding: 8px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-md); gap: 10px; flex-wrap: wrap;';
+    
+    let tabBadgeLabel = STATE.lang === 'uk' ? 'Льотний екіпаж' : 'Flight Crew';
+    let tabBadgeClass = 'status-valid';
+    if (blank.targetTab === 'cabin') {
+      tabBadgeLabel = STATE.lang === 'uk' ? 'Кабінний екіпаж' : 'Cabin Crew';
+      tabBadgeClass = 'status-valid';
+    } else if (blank.targetTab === 'forms') {
+      tabBadgeLabel = STATE.lang === 'uk' ? 'Форми' : 'Forms';
+      tabBadgeClass = 'status-neutral';
+    }
+
+    item.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 10px; flex: 1 1 260px;">
+        <div style="width: 32px; height: 32px; border-radius: var(--radius-sm); background: #fee2e2; color: #dc2626; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <i data-lucide="file-text" style="width: 17px; height: 17px;"></i>
+        </div>
+        <div>
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <strong style="font-size: 13px; color: var(--text-primary);">${blank.name}</strong>
+            <span class="status-badge status-neutral" style="font-size: 10px;">${blank.code || 'PDF'}</span>
+            <span class="status-badge ${tabBadgeClass}" style="font-size: 10px;">${tabBadgeLabel}</span>
+          </div>
+          <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+            ${blank.fileName || 'document.pdf'} • ${formatFileSize(blank.fileSize)} • ${new Date(blank.uploadDate || Date.now()).toLocaleDateString()}
+          </div>
+        </div>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <button class="btn btn-secondary btn-settings-view-pdf" data-pdf-id="${blank.id}" style="height: 28px; padding: 0 8px; font-size: 11.5px;">
+          <i data-lucide="eye" style="width: 13px; height: 13px;"></i>
+          <span>${TRANSLATIONS[STATE.lang].btn_view_pdf || 'Відкрити'}</span>
+        </button>
+        <button class="btn btn-secondary btn-settings-download-pdf" data-pdf-id="${blank.id}" style="height: 28px; padding: 0 8px; font-size: 11.5px;">
+          <i data-lucide="download" style="width: 13px; height: 13px;"></i>
+          <span>${TRANSLATIONS[STATE.lang].btn_download_file || 'Завантажити'}</span>
+        </button>
+        <button class="btn btn-secondary btn-settings-delete-pdf" data-pdf-id="${blank.id}" style="height: 28px; padding: 0 6px; font-size: 11.5px; color: var(--badge-expired-color);" title="${TRANSLATIONS[STATE.lang].btn_delete_blank || 'Видалити'}">
+          <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
+        </button>
+      </div>
+    `;
+
+    tableWrapper.appendChild(item);
+  });
+
+  container.appendChild(tableWrapper);
+
+  // Attach handlers
+  container.querySelectorAll('.btn-settings-view-pdf').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const pdfId = e.currentTarget.getAttribute('data-pdf-id');
+      const blank = (STATE.pdfBlanks || []).find(b => b.id === pdfId);
+      if (blank) viewPdfBlank(blank);
+    });
+  });
+
+  container.querySelectorAll('.btn-settings-download-pdf').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const pdfId = e.currentTarget.getAttribute('data-pdf-id');
+      const blank = (STATE.pdfBlanks || []).find(b => b.id === pdfId);
+      if (blank) downloadPdfBlankFile(blank);
+    });
+  });
+
+  container.querySelectorAll('.btn-settings-delete-pdf').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const pdfId = e.currentTarget.getAttribute('data-pdf-id');
+      const blank = (STATE.pdfBlanks || []).find(b => b.id === pdfId);
+      if (!blank) return;
+      if (confirm(STATE.lang === 'uk' ? `Видалити PDF бланк «${blank.name}»?` : `Delete PDF blank "${blank.name}"?`)) {
+        STATE.pdfBlanks = (STATE.pdfBlanks || []).filter(b => b.id !== pdfId);
+        STATE.changelog.unshift({
+          timestamp: new Date().toISOString(),
+          userEmail: STATE.currentUser ? STATE.currentUser.email : 'admin@ukr-helicopters.ua',
+          crewMember: blank.name,
+          crewType: 'Forms',
+          type: 'MANUAL_EDIT',
+          details: [{ field: 'pdf_blank_delete', oldValue: blank.name, newValue: 'Видалено' }]
+        });
+        saveStateToStorage();
+        renderSettingsPdfBlanksList();
+        renderForms();
+        showToast(STATE.lang === 'uk' ? 'PDF бланк успішно видалено' : 'PDF blank removed');
+      }
+    });
+  });
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
+/**
+ * Handles uploading a standard PDF blank
+ * Restricted strictly to ADMIN role
+ */
+function handlePdfBlankUpload() {
+  const role = STATE.currentUser ? STATE.currentUser.role : 'ADMIN';
+  if (role !== ROLES.ADMIN) {
+    showToast(STATE.lang === 'uk' ? 'Завантажувати бланки має право тільки адміністратор' : 'Only administrators can upload blanks', 'error');
+    return;
+  }
+
+  const fileInput = document.getElementById('pdf-blank-file-input');
+  const nameInput = document.getElementById('pdf-blank-name');
+  const codeInput = document.getElementById('pdf-blank-code');
+  const targetTabSelect = document.getElementById('pdf-blank-target-tab');
+  const descInput = document.getElementById('pdf-blank-desc');
+
+  const file = fileInput?.files?.[0];
+  if (!file) {
+    showToast(STATE.lang === 'uk' ? 'Будь ласка, виберіть файл у форматі PDF (.pdf)' : 'Please select a PDF file (.pdf)', 'warning');
+    return;
+  }
+
+  if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+    showToast(STATE.lang === 'uk' ? 'Дозволені лише файли формату PDF (.pdf)' : 'Only PDF files (.pdf) are allowed', 'error');
+    return;
+  }
+
+  const name = (nameInput?.value || '').trim() || file.name.replace(/\.[^/.]+$/, "");
+  const code = (codeInput?.value || '').trim() || 'UH-PDF';
+  const targetTab = targetTabSelect?.value || 'flight';
+  const description = (descInput?.value || '').trim();
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const fileData = e.target.result;
+    const newBlank = {
+      id: 'pdf_blank_' + Date.now(),
+      name: name,
+      code: code,
+      description: description,
+      targetTab: targetTab,
+      fileName: file.name,
+      fileSize: file.size,
+      fileData: fileData,
+      uploadDate: new Date().toISOString(),
+      uploadedBy: STATE.currentUser ? STATE.currentUser.email : 'admin'
+    };
+
+    if (!STATE.pdfBlanks) STATE.pdfBlanks = [];
+    STATE.pdfBlanks.unshift(newBlank);
+
+    try {
+      localStorage.setItem('aerocheck_pdf_blanks', JSON.stringify(STATE.pdfBlanks));
+    } catch (err) {
+      STATE.pdfBlanks.shift();
+      showToast(STATE.lang === 'uk' ? 'Помилка: розмір файлу перевищує доступну пам\'ять браузера' : 'File is too large for browser storage', 'error');
+      return;
+    }
+
+    STATE.changelog.unshift({
+      timestamp: new Date().toISOString(),
+      userEmail: STATE.currentUser ? STATE.currentUser.email : 'admin@ukr-helicopters.ua',
+      crewMember: newBlank.name,
+      crewType: targetTab === 'cabin' ? 'Cabin' : (targetTab === 'forms' ? 'Forms' : 'Flight'),
+      type: 'MANUAL_EDIT',
+      details: [{ field: 'pdf_blank', oldValue: '-', newValue: `Завантажено бланк: ${newBlank.name} (${newBlank.code})` }]
+    });
+
+    saveStateToStorage();
+
+    if (fileInput) fileInput.value = '';
+    if (nameInput) nameInput.value = '';
+    if (codeInput) codeInput.value = '';
+    if (descInput) descInput.value = '';
+    const fileInfo = document.getElementById('pdf-blank-file-info');
+    if (fileInfo) {
+      fileInfo.style.display = 'none';
+      fileInfo.textContent = '';
+    }
+
+    renderSettingsPdfBlanksList();
+    renderForms();
+
+    const tabName = targetTab === 'cabin' 
+      ? (STATE.lang === 'uk' ? 'Кабінний екіпаж' : 'Cabin Crew') 
+      : (targetTab === 'forms' ? (STATE.lang === 'uk' ? 'Форми' : 'Forms') : (STATE.lang === 'uk' ? 'Льотний екіпаж' : 'Flight Crew'));
+
+    showToast(STATE.lang === 'uk' 
+      ? `PDF бланк «${name}» успішно додано у вкладку «${tabName}»!` 
+      : `PDF blank "${name}" successfully added to "${tabName}"!`);
+  };
+
+  reader.onerror = () => {
+    showToast(STATE.lang === 'uk' ? 'Помилка завантаження файлу' : 'Error reading file', 'error');
+  };
+
+  reader.readAsDataURL(file);
+}
+
+/**
  * TAB 4: Renders Forms Generator & Editor panel
  */
 function renderSettingsFormsTab() {
   const select = document.getElementById('form-select-template');
   if (!select) return;
 
+  const getTabLabel = (t) => t === 'cabin' ? (STATE.lang === 'uk' ? 'Кабінний' : 'Cabin') : (t === 'forms' ? (STATE.lang === 'uk' ? 'Форми' : 'Forms') : (STATE.lang === 'uk' ? 'Льотний' : 'Flight'));
+
   select.innerHTML = '';
   STATE.forms.forEach((f) => {
     const opt = document.createElement('option');
     opt.value = f.id;
-    opt.textContent = `${f.code || 'Form'} • ${f.name} [${f.crewType}]`;
+    const tabLbl = getTabLabel(f.targetTab || (f.crewType === 'Cabin' ? 'cabin' : 'flight'));
+    opt.textContent = `${f.code || 'Form'} • ${f.name} [${tabLbl}]`;
     if (STATE.editingFormId === f.id) opt.selected = true;
     select.appendChild(opt);
   });
@@ -4261,6 +4752,7 @@ function renderSettingsFormsTab() {
   }
 
   loadFormIntoBuilder(STATE.editingFormId);
+  renderSettingsPdfBlanksList();
 }
 
 function loadFormIntoBuilder(formId) {
@@ -4272,6 +4764,7 @@ function loadFormIntoBuilder(formId) {
   const titleInput = document.getElementById('form-builder-title');
   const codeInput = document.getElementById('form-builder-code');
   const subtitleInput = document.getElementById('form-builder-subtitle');
+  const targetTabSelect = document.getElementById('form-builder-target-tab');
   const sourceSelect = document.getElementById('form-builder-source');
   const logoSelect = document.getElementById('form-logo-select');
   const customLogoUpload = document.getElementById('form-custom-logo-upload');
@@ -4286,6 +4779,9 @@ function loadFormIntoBuilder(formId) {
   if (titleInput) titleInput.value = form.name || '';
   if (codeInput) codeInput.value = form.code || '';
   if (subtitleInput) subtitleInput.value = form.subtitle || '';
+  if (targetTabSelect) {
+    targetTabSelect.value = form.targetTab || (form.crewType === 'Cabin' ? 'cabin' : (form.id === 'form-uh-tr-01' ? 'forms' : 'flight'));
+  }
   if (sourceSelect) sourceSelect.value = form.crewType || 'Flight';
   
   if (logoSelect) {
@@ -4772,32 +5268,175 @@ function exportChangelogCsv() {
 }
 
 /**
- * BLANKS VIEW: Renders dynamic forms catalog on the "Бланки" page with Multi-Crew support
+ * Helper to determine which of the 3 tabs a form template belongs to
+ */
+function getFormTargetTab(form) {
+  if (!form) return 'flight';
+  if (form.targetTab) return form.targetTab;
+  if (form.id === 'form-uh-tr-01') return 'forms';
+  if (form.crewType === 'Cabin') return 'cabin';
+  return 'flight';
+}
+
+/**
+ * BLANKS VIEW: Renders dynamic forms catalog on the "Бланки" page with 3 Tabs and Multi-Crew support
+ * Tabs: 'flight' (Льотний екіпаж), 'cabin' (Кабінний екіпаж), 'forms' (Форми)
+ * Only ADMIN has rights to upload/manage blanks
  */
 function renderForms() {
   const container = document.getElementById('forms-list-container');
   if (!container) return;
 
+  const role = STATE.currentUser ? STATE.currentUser.role : 'ADMIN';
+  const isAdmin = role === ROLES.ADMIN;
+
+  // Header quick buttons visible strictly to ADMIN
   const btnGotoFormsBuilder = document.getElementById('btn-goto-forms-builder');
   if (btnGotoFormsBuilder) {
-    const role = STATE.currentUser ? STATE.currentUser.role : 'ADMIN';
-    btnGotoFormsBuilder.style.display = role === ROLES.ADMIN ? 'inline-flex' : 'none';
+    btnGotoFormsBuilder.style.display = isAdmin ? 'inline-flex' : 'none';
   }
 
+  const btnQuickUploadPdf = document.getElementById('btn-forms-quick-upload-pdf');
+  if (btnQuickUploadPdf) {
+    btnQuickUploadPdf.style.display = isAdmin ? 'inline-flex' : 'none';
+  }
+
+  // Active tab selection
+  if (!STATE.activeBlanksTab) {
+    STATE.activeBlanksTab = 'flight';
+  }
+  const currentTab = STATE.activeBlanksTab;
+
+  // Update tabs UI active state
+  document.querySelectorAll('.forms-tab-btn').forEach(btn => {
+    const tabKey = btn.getAttribute('data-forms-tab');
+    btn.classList.toggle('active', tabKey === currentTab);
+  });
+
+  // Calculate counts for each tab
+  const allForms = STATE.forms || [];
+  const allPdfs = STATE.pdfBlanks || [];
+
+  const flightForms = allForms.filter(f => getFormTargetTab(f) === 'flight');
+  const flightPdfs = allPdfs.filter(b => b.targetTab === 'flight');
+  const flightCount = flightForms.length + flightPdfs.length;
+
+  const cabinForms = allForms.filter(f => getFormTargetTab(f) === 'cabin');
+  const cabinPdfs = allPdfs.filter(b => b.targetTab === 'cabin');
+  const cabinCount = cabinForms.length + cabinPdfs.length;
+
+  const otherForms = allForms.filter(f => getFormTargetTab(f) === 'forms');
+  const otherPdfs = allPdfs.filter(b => b.targetTab === 'forms');
+  const formsCount = otherForms.length + otherPdfs.length;
+
+  const badgeFlight = document.getElementById('forms-tab-count-flight');
+  if (badgeFlight) badgeFlight.textContent = flightCount;
+  const badgeCabin = document.getElementById('forms-tab-count-cabin');
+  if (badgeCabin) badgeCabin.textContent = cabinCount;
+  const badgeForms = document.getElementById('forms-tab-count-forms');
+  if (badgeForms) badgeForms.textContent = formsCount;
+
+  // Items for the currently active tab
+  const tabPdfs = allPdfs.filter(b => b.targetTab === currentTab);
+  const tabForms = allForms.filter(f => getFormTargetTab(f) === currentTab);
+
   container.innerHTML = '';
-  if (!STATE.forms || STATE.forms.length === 0) {
-    const emptyMsg = STATE.lang === 'uk' 
-      ? 'Немає налаштованих форм. Натисніть «Конструктор та редактор форм», щоб створити першу форму.'
-      : 'No form templates configured. Click "Forms Generator & Editor" to create your first template.';
-    container.innerHTML = `<div style="text-align: center; color: var(--text-secondary); padding: 30px;">${emptyMsg}</div>`;
+
+  if (tabPdfs.length === 0 && tabForms.length === 0) {
+    const emptyMsg = TRANSLATIONS[STATE.lang].empty_tab_blanks || 'У цій вкладці ще немає бланків чи форм.';
+    container.innerHTML = `
+      <div style="text-align: center; color: var(--text-secondary); padding: 40px 20px; background: var(--bg-surface-alt); border-radius: var(--radius-md); border: 1px dashed var(--border-color);">
+        <div style="font-size: 14px; font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">${emptyMsg}</div>
+        ${isAdmin ? `
+          <div style="font-size: 12px; margin-top: 10px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap;">
+            <button class="btn btn-primary btn-sm btn-quick-jump-upload" style="height: 32px; font-size: 12px;">
+              <i data-lucide="file-up" style="width: 14px; height: 14px;"></i>
+              <span>Завантажити PDF бланк</span>
+            </button>
+            <button class="btn btn-secondary btn-sm btn-quick-jump-builder" style="height: 32px; font-size: 12px;">
+              <i data-lucide="sliders" style="width: 14px; height: 14px;"></i>
+              <span>Конструктор форм</span>
+            </button>
+          </div>
+        ` : ''}
+      </div>
+    `;
+    
+    // Quick buttons in empty state
+    container.querySelectorAll('.btn-quick-jump-upload').forEach(btn => {
+      btn.addEventListener('click', () => {
+        switchView('settings');
+        activateSettingsTab('forms');
+        const targetSelect = document.getElementById('pdf-blank-target-tab');
+        if (targetSelect) targetSelect.value = currentTab;
+        document.getElementById('settings-pdf-upload-card')?.scrollIntoView({ behavior: 'smooth' });
+      });
+    });
+
+    container.querySelectorAll('.btn-quick-jump-builder').forEach(btn => {
+      btn.addEventListener('click', () => {
+        switchView('settings');
+        activateSettingsTab('forms');
+      });
+    });
+
+    if (window.lucide) window.lucide.createIcons();
     return;
   }
 
+  // 1. Render Uploaded PDF Blanks in this tab
+  tabPdfs.forEach(pdfBlank => {
+    const card = document.createElement('div');
+    card.className = 'blank-card-item blank-card-pdf';
+
+    card.innerHTML = `
+      <div class="blank-card-header-row">
+        <div class="blank-card-meta">
+          <div class="pdf-icon-box">
+            <i data-lucide="file-text" style="width: 22px; height: 22px;"></i>
+          </div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <strong style="font-size: 15px; color: var(--text-primary);">${pdfBlank.name}</strong>
+              <span class="status-badge status-neutral" style="font-size: 10px; font-weight: 700;">${pdfBlank.code || 'PDF'}</span>
+              <span class="pdf-badge-tag"><i data-lucide="file-check" style="width:11px; height:11px;"></i> ${TRANSLATIONS[STATE.lang].badge_pdf_blank || 'PDF БЛАНК'}</span>
+              <span class="status-badge status-neutral" style="font-size: 10px;">${formatFileSize(pdfBlank.fileSize)}</span>
+            </div>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 3px;">
+              ${pdfBlank.description || (STATE.lang === 'uk' ? 'Стандартний PDF бланк для друку' : 'Standard printable PDF')} • ${pdfBlank.fileName || 'document.pdf'} ${pdfBlank.uploadDate ? ` • ${new Date(pdfBlank.uploadDate).toLocaleDateString()}` : ''}
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button class="btn btn-primary btn-view-pdf-blank" data-pdf-id="${pdfBlank.id}" style="height: 36px;">
+            <i data-lucide="eye"></i>
+            <span>${TRANSLATIONS[STATE.lang].btn_view_pdf || 'Відкрити PDF'}</span>
+          </button>
+
+          <button class="btn btn-secondary btn-download-pdf-blank" data-pdf-id="${pdfBlank.id}" style="height: 36px; padding: 0 12px;" title="${TRANSLATIONS[STATE.lang].btn_download_file || 'Завантажити файл'}">
+            <i data-lucide="download" style="width: 14px; height: 14px;"></i>
+            <span>${TRANSLATIONS[STATE.lang].btn_download_file || 'Завантажити'}</span>
+          </button>
+
+          ${isAdmin ? `
+          <button class="btn btn-secondary btn-delete-pdf-blank" data-pdf-id="${pdfBlank.id}" style="height: 36px; padding: 0 10px; color: var(--badge-expired-color);" title="${TRANSLATIONS[STATE.lang].btn_delete_blank || 'Видалити бланк'}">
+            <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+          </button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+
+    container.appendChild(card);
+  });
+
+  // 2. Render Dynamic Form Templates in this tab
   if (!STATE.formSelectedCrew) {
     STATE.formSelectedCrew = {};
   }
 
-  STATE.forms.forEach(form => {
+  tabForms.forEach(form => {
     if (!Array.isArray(STATE.formSelectedCrew[form.id])) {
       STATE.formSelectedCrew[form.id] = [];
     }
@@ -4865,9 +5504,11 @@ function renderForms() {
             <span>${printBtnLabel}</span>
           </button>
 
+          ${isAdmin ? `
           <button class="btn btn-secondary btn-edit-form-direct" data-form-id="${form.id}" style="height: 36px; padding: 0 10px;" title="${TRANSLATIONS[STATE.lang].btn_edit_form || 'Редагувати в генераторі'}">
             <i data-lucide="settings" style="width: 14px; height: 14px;"></i>
           </button>
+          ` : ''}
         </div>
       </div>
 
@@ -4908,7 +5549,47 @@ function renderForms() {
     container.appendChild(card);
   });
 
-  // Event handlers
+  // Attach PDF Handlers
+  container.querySelectorAll('.btn-view-pdf-blank').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const pdfId = e.currentTarget.getAttribute('data-pdf-id');
+      const blank = (STATE.pdfBlanks || []).find(b => b.id === pdfId);
+      if (blank) viewPdfBlank(blank);
+    });
+  });
+
+  container.querySelectorAll('.btn-download-pdf-blank').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const pdfId = e.currentTarget.getAttribute('data-pdf-id');
+      const blank = (STATE.pdfBlanks || []).find(b => b.id === pdfId);
+      if (blank) downloadPdfBlankFile(blank);
+    });
+  });
+
+  container.querySelectorAll('.btn-delete-pdf-blank').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const pdfId = e.currentTarget.getAttribute('data-pdf-id');
+      const blank = (STATE.pdfBlanks || []).find(b => b.id === pdfId);
+      if (!blank) return;
+      if (confirm(STATE.lang === 'uk' ? `Видалити PDF бланк «${blank.name}» з каталогу?` : `Delete PDF blank "${blank.name}"?`)) {
+        STATE.pdfBlanks = (STATE.pdfBlanks || []).filter(b => b.id !== pdfId);
+        STATE.changelog.unshift({
+          timestamp: new Date().toISOString(),
+          userEmail: STATE.currentUser ? STATE.currentUser.email : 'admin@ukr-helicopters.ua',
+          crewMember: blank.name,
+          crewType: 'Forms',
+          type: 'MANUAL_EDIT',
+          details: [{ field: 'pdf_blank_delete', oldValue: blank.name, newValue: 'Видалено' }]
+        });
+        saveStateToStorage();
+        renderForms();
+        renderSettingsPdfBlanksList();
+        showToast(STATE.lang === 'uk' ? 'PDF бланк успішно видалено' : 'PDF blank removed');
+      }
+    });
+  });
+
+  // Attach Dynamic Form Handlers
   container.querySelectorAll('.btn-add-crew-blank').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const formId = e.currentTarget.getAttribute('data-form-id');
@@ -6420,6 +7101,13 @@ function executeLogin(email, role) {
     btn.style.display = isEditor ? 'inline-flex' : 'none';
   });
 
+  // Blanks upload and form builder visible strictly to ADMIN
+  const canUploadBlanks = role === ROLES.ADMIN;
+  const btnFormsQuickUpload = document.getElementById('btn-forms-quick-upload-pdf');
+  if (btnFormsQuickUpload) btnFormsQuickUpload.style.display = canUploadBlanks ? 'inline-flex' : 'none';
+  const btnGotoFormsBuilder = document.getElementById('btn-goto-forms-builder');
+  if (btnGotoFormsBuilder) btnGotoFormsBuilder.style.display = canUploadBlanks ? 'inline-flex' : 'none';
+
   // Table Import buttons visible ONLY for ADMIN
   const canImport = role === ROLES.ADMIN;
   document.querySelectorAll('.action-btn-import').forEach(btn => {
@@ -6691,6 +7379,17 @@ async function bootstrapDatabase() {
     // Load custom forms & snapshots from storage
     const localForms = localStorage.getItem('aerocheck_forms');
     STATE.forms = localForms ? JSON.parse(localForms) : JSON.parse(JSON.stringify(DEFAULT_FORMS));
+    STATE.forms.forEach(f => {
+      if (!f.targetTab) {
+        if (f.id === 'form-uh-tr-01') f.targetTab = 'forms';
+        else if (f.crewType === 'Cabin') f.targetTab = 'cabin';
+        else f.targetTab = 'flight';
+      }
+    });
+
+    const localPdfBlanks = localStorage.getItem('aerocheck_pdf_blanks');
+    STATE.pdfBlanks = localPdfBlanks ? JSON.parse(localPdfBlanks) : [];
+
     const localSnapshots = localStorage.getItem('aerocheck_snapshots');
     STATE.snapshots = localSnapshots ? JSON.parse(localSnapshots) : [];
 
@@ -6709,6 +7408,7 @@ async function bootstrapDatabase() {
       STATE.cabinCrew = parsed.cabinCrew;
       STATE.flights = [];
       STATE.forms = JSON.parse(JSON.stringify(DEFAULT_FORMS));
+      STATE.pdfBlanks = [];
       STATE.snapshots = [];
       STATE.changelog = [{
         timestamp: new Date().toISOString(),
@@ -6993,11 +7693,43 @@ document.addEventListener('DOMContentLoaded', () => {
   // Add crew member button click listener
   document.getElementById('btn-add-crew-member').addEventListener('click', () => addCrewMemberCard());
   
-  // Setup listeners for time calculations
-  ['flight-pre-bgn', 'flight-pre-end', 'flight-post-bgn', 'flight-post-end'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener('input', updateTimeCalculations);
-  });
+  // Setup listeners for time calculations with auto-completion
+  const preBgnEl = document.getElementById('flight-pre-bgn');
+  const preEndEl = document.getElementById('flight-pre-end');
+  const postBgnEl = document.getElementById('flight-post-bgn');
+  const postEndEl = document.getElementById('flight-post-end');
+
+  if (preBgnEl) {
+    const handlePreBgn = () => {
+      if (preBgnEl.value && preBgnEl.value.length === 5) {
+        if (preEndEl) preEndEl.value = addMinutesToTime(preBgnEl.value, 60);
+      }
+      updateTimeCalculations();
+    };
+    preBgnEl.addEventListener('input', handlePreBgn);
+    preBgnEl.addEventListener('change', handlePreBgn);
+  }
+  
+  if (preEndEl) {
+    preEndEl.addEventListener('input', updateTimeCalculations);
+    preEndEl.addEventListener('change', updateTimeCalculations);
+  }
+  
+  if (postBgnEl) {
+    const handlePostBgn = () => {
+      if (postBgnEl.value && postBgnEl.value.length === 5) {
+        if (postEndEl) postEndEl.value = addMinutesToTime(postBgnEl.value, 30);
+      }
+      updateTimeCalculations();
+    };
+    postBgnEl.addEventListener('input', handlePostBgn);
+    postBgnEl.addEventListener('change', handlePostBgn);
+  }
+  
+  if (postEndEl) {
+    postEndEl.addEventListener('input', updateTimeCalculations);
+    postEndEl.addEventListener('change', updateTimeCalculations);
+  }
   
   // Initialize Settings Subnavigation tabs
   initSettingsSubnav();
@@ -7101,7 +7833,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Backup buttons
   document.getElementById('btn-backup-json').addEventListener('click', () => {
-    downloadBackupJson(STATE.flightCrew, STATE.cabinCrew, STATE.changelog, STATE.settings, STATE.flights, STATE.forms);
+    downloadBackupJson(STATE.flightCrew, STATE.cabinCrew, STATE.changelog, STATE.settings, STATE.flights, STATE.forms, STATE.pdfBlanks);
     showToast("Повну резервну копію (JSON) успішно збережено!");
   });
   
@@ -7128,7 +7860,8 @@ document.addEventListener('DOMContentLoaded', () => {
         cabinCrew: JSON.parse(JSON.stringify(STATE.cabinCrew)),
         flights: JSON.parse(JSON.stringify(STATE.flights)),
         changelog: JSON.parse(JSON.stringify(STATE.changelog)),
-        forms: JSON.parse(JSON.stringify(STATE.forms))
+        forms: JSON.parse(JSON.stringify(STATE.forms)),
+        pdfBlanks: JSON.parse(JSON.stringify(STATE.pdfBlanks || []))
       };
 
       STATE.snapshots.push(newSnapshot);
@@ -7160,6 +7893,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.flights) STATE.flights = data.flights;
             if (data.changelog) STATE.changelog = data.changelog;
             if (data.forms) STATE.forms = data.forms;
+            if (data.pdfBlanks) STATE.pdfBlanks = data.pdfBlanks;
             if (data.settings) STATE.settings = { ...STATE.settings, ...data.settings };
             saveStateToStorage();
             showToast("Базу даних та налаштування успішно відновлено!");
@@ -7410,6 +8144,61 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // ================= BLANKS VIEW: 3 TABS & QUICK UPLOAD LISTENERS =================
+  document.querySelectorAll('.forms-tab-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const tab = e.currentTarget.getAttribute('data-forms-tab');
+      if (tab) {
+        STATE.activeBlanksTab = tab;
+        renderForms();
+      }
+    });
+  });
+
+  const btnFormsQuickUpload = document.getElementById('btn-forms-quick-upload-pdf');
+  if (btnFormsQuickUpload) {
+    btnFormsQuickUpload.addEventListener('click', () => {
+      switchView('settings');
+      activateSettingsTab('forms');
+      const targetSelect = document.getElementById('pdf-blank-target-tab');
+      if (targetSelect && STATE.activeBlanksTab) {
+        targetSelect.value = STATE.activeBlanksTab;
+      }
+      setTimeout(() => {
+        document.getElementById('settings-pdf-upload-card')?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
+    });
+  }
+
+  // ================= TAB 4: PDF BLANKS UPLOAD LISTENERS =================
+  const pdfFileInput = document.getElementById('pdf-blank-file-input');
+  const pdfFileInfo = document.getElementById('pdf-blank-file-info');
+  const pdfNameInput = document.getElementById('pdf-blank-name');
+  if (pdfFileInput) {
+    pdfFileInput.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        if (pdfFileInfo) {
+          pdfFileInfo.style.display = 'block';
+          pdfFileInfo.textContent = `Обрано: ${file.name} (${formatFileSize(file.size)})`;
+        }
+        if (pdfNameInput && !pdfNameInput.value.trim()) {
+          pdfNameInput.value = file.name.replace(/\.[^/.]+$/, "");
+        }
+      } else {
+        if (pdfFileInfo) {
+          pdfFileInfo.style.display = 'none';
+          pdfFileInfo.textContent = '';
+        }
+      }
+    });
+  }
+
+  const btnSubmitPdfBlank = document.getElementById('btn-submit-pdf-blank');
+  if (btnSubmitPdfBlank) {
+    btnSubmitPdfBlank.addEventListener('click', handlePdfBlankUpload);
+  }
+
   // ================= TAB 4: FORMS BUILDER LISTENERS =================
   const formSelectTemplate = document.getElementById('form-select-template');
   if (formSelectTemplate) {
@@ -7428,6 +8217,7 @@ document.addEventListener('DOMContentLoaded', () => {
         code: `Форма UH-${Math.floor(10 + Math.random() * 90)}`,
         subtitle: 'Авіакомпанія «Українські вертольоти»',
         crewType: 'Flight',
+        targetTab: document.getElementById('form-builder-target-tab')?.value || 'flight',
         logo: 'PICS/LOGO_UH.png',
         logoPos: 'left',
         orientation: 'portrait',
@@ -7611,6 +8401,7 @@ document.addEventListener('DOMContentLoaded', () => {
         code: document.getElementById('form-builder-code')?.value || 'Форма UH-XX',
         subtitle: document.getElementById('form-builder-subtitle')?.value || '',
         crewType: document.getElementById('form-builder-source')?.value || 'Flight',
+        targetTab: document.getElementById('form-builder-target-tab')?.value || (document.getElementById('form-builder-source')?.value === 'Cabin' ? 'cabin' : 'flight'),
         logo: logoVal,
         logoPos: logoPos,
         orientation: orientation,
