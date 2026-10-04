@@ -728,26 +728,36 @@ function getFormColumnShortTitle(colKey, lang = 'uk') {
     case 'Rank':
       return lang === 'uk' ? 'Посада' : 'Rank';
     case 'Department':
-      return lang === 'uk' ? 'Підрозділ' : 'Department';
+      return lang === 'uk' ? 'Підрозділ' : 'Dept';
     case 'Name_Shrt_UA':
-      return lang === 'uk' ? 'ПІБ (скор.)' : 'Short Name';
+      return lang === 'uk' ? 'ПІБ' : 'Name';
     case 'Full_Name_UA':
-      return lang === 'uk' ? 'ПІБ' : 'Full Name';
+      return lang === 'uk' ? 'ПІБ (повне)' : 'Full Name';
     case 'Full_Name_EN':
       return lang === 'uk' ? 'ПІБ (англ.)' : 'Name (EN)';
-    case 'LICENSE':
-      return lang === 'uk' ? 'Свідоцтво' : 'License';
+    case 'OPC':
+      return 'OPC';
+    case 'OPC_NVG':
+      return 'OPC NVG';
+    case 'LPC':
+      return 'LPC';
     case 'Type':
     case 'CC_Type':
       return lang === 'uk' ? 'Тип ПС' : 'Type';
-    case 'OPC_NVG':
-      return 'OPC NVG';
-    case 'AV_SEC':
-      return 'AV SEC';
     case 'EMER_1':
       return lang === 'uk' ? 'EMER (1р)' : 'EMER (1y)';
     case 'EMER_3':
       return lang === 'uk' ? 'EMER (3р)' : 'EMER (3y)';
+    case 'DG':
+      return 'DG';
+    case 'AV_SEC':
+      return 'AV SEC';
+    case 'CRM':
+      return 'CRM';
+    case 'MED':
+      return 'MED';
+    case 'LICENSE':
+      return lang === 'uk' ? 'Свідоцтво' : 'License';
     case 'GI 275_T':
       return 'GI 275 (T)';
     case 'GI 275_PRCT':
@@ -779,6 +789,8 @@ function getFormColumnShortTitle(colKey, lang = 'uk') {
     default: {
       const customCol = [...(BILINGUAL_COLUMNS.Flight || []), ...(BILINGUAL_COLUMNS.Cabin || [])].find(c => c.key === colKey);
       if (customCol) {
+        if (customCol.shortTitle) return customCol.shortTitle;
+        if (customCol.key && customCol.key.length <= 15) return customCol.key;
         return lang === 'uk' ? customCol.ua : (customCol.en || customCol.ua);
       }
       return colKey;
@@ -1455,18 +1467,14 @@ function renderCrewTable(crewType) {
   const sysDate = STATE.settings.referenceDate;
   const dict = TRANSLATIONS[STATE.lang] || TRANSLATIONS.uk;
   
-  // Render Headers
+  // Render Headers with short names/abbreviations and full titles as tooltips
   tableHeaders.innerHTML = '';
   visibleHeaders.forEach(col => {
-    let headerLabel = col;
     const colDef = (BILINGUAL_COLUMNS[crewType] || []).find(c => c.key === col);
-    if (colDef) {
-      headerLabel = STATE.lang === 'uk' ? (colDef.ua || col) : (colDef.en || colDef.ua || col);
-    } else if (col === 'Name_Shrt_UA') headerLabel = STATE.lang === 'uk' ? 'Ім\'я' : 'Short Name';
-    else if (col === 'Full_Name_UA') headerLabel = STATE.lang === 'uk' ? 'Повне Ім\'я' : 'Full Name UA';
-    else if (col === 'Full_Name_EN') headerLabel = STATE.lang === 'uk' ? 'Ім\'я (Англ.)' : 'Full Name EN';
-    else if (col === 'Rank') headerLabel = STATE.lang === 'uk' ? 'Посада' : 'Rank';
-    else if (col === 'Department') headerLabel = STATE.lang === 'uk' ? 'Відділ' : 'Dept';
+    const headerLabel = getFormColumnShortTitle(col, STATE.lang);
+    const fullTooltip = colDef 
+      ? (STATE.lang === 'uk' ? (colDef.ua || col) : (colDef.en || colDef.ua || col))
+      : headerLabel;
     
     let sortIndicator = '';
     if (STATE.sort && STATE.sort.crewType === crewType && STATE.sort.column === col) {
@@ -1476,6 +1484,7 @@ function renderCrewTable(crewType) {
     const th = document.createElement('th');
     th.style.cursor = 'pointer';
     th.style.userSelect = 'none';
+    th.title = fullTooltip;
     th.innerHTML = `${headerLabel}${sortIndicator}`;
     th.addEventListener('click', () => handleHeaderSort(crewType, col));
     tableHeaders.appendChild(th);
@@ -6405,10 +6414,16 @@ function executeLogin(email, role) {
   document.getElementById('nav-btn-forms').style.display = (role === ROLES.ADMIN || role === ROLES.INSTRUCTOR || role === ROLES.OFFICE) ? 'flex' : 'none';
   document.getElementById('nav-btn-flights').style.display = (role === ROLES.ADMIN || role === ROLES.INSTRUCTOR) ? 'flex' : 'none';
   
-  // Hide action buttons in table lists for non-editors
+  // Hide action buttons in table lists for non-editors (Add crew member)
   const isEditor = role === ROLES.ADMIN || role === ROLES.INSTRUCTOR;
   document.querySelectorAll('.action-btn-admin').forEach(btn => {
     btn.style.display = isEditor ? 'inline-flex' : 'none';
+  });
+
+  // Table Import buttons visible ONLY for ADMIN
+  const canImport = role === ROLES.ADMIN;
+  document.querySelectorAll('.action-btn-import').forEach(btn => {
+    btn.style.display = canImport ? 'inline-flex' : 'none';
   });
 
   // Export buttons visible in ADMIN, INSTRUCTOR, and OFFICE
@@ -6550,6 +6565,11 @@ function renderImportReport(logs) {
  * Handles full database update Excel upload (merging both Flight and Cabin lists)
  */
 async function handleDatabaseExcelUpdate(e) {
+  if (!STATE.currentUser || STATE.currentUser.role !== ROLES.ADMIN) {
+    showToast(STATE.lang === 'uk' ? 'Тільки адміністратор має право імпортувати таблиці!' : 'Only administrators can import tables!', 'error');
+    if (e && e.target) e.target.value = '';
+    return;
+  }
   const file = e.target.files[0];
   if (!file) return;
   
@@ -7761,6 +7781,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Excel File Manual Imports
   const handleExcelImport = async (e, crewType) => {
+    if (!STATE.currentUser || STATE.currentUser.role !== ROLES.ADMIN) {
+      showToast(STATE.lang === 'uk' ? 'Тільки адміністратор має право імпортувати таблиці!' : 'Only administrators can import tables!', 'error');
+      if (e && e.target) e.target.value = '';
+      return;
+    }
     const file = e.target.files[0];
     if (!file) return;
     
@@ -7814,10 +7839,22 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (document.getElementById('btn-import-flight')) {
-    document.getElementById('btn-import-flight').addEventListener('click', () => fileFlight.click());
+    document.getElementById('btn-import-flight').addEventListener('click', () => {
+      if (!STATE.currentUser || STATE.currentUser.role !== ROLES.ADMIN) {
+        showToast(STATE.lang === 'uk' ? 'Тільки адміністратор має право імпортувати таблиці!' : 'Only administrators can import tables!', 'error');
+        return;
+      }
+      fileFlight.click();
+    });
   }
   if (document.getElementById('btn-import-cabin')) {
-    document.getElementById('btn-import-cabin').addEventListener('click', () => fileCabin.click());
+    document.getElementById('btn-import-cabin').addEventListener('click', () => {
+      if (!STATE.currentUser || STATE.currentUser.role !== ROLES.ADMIN) {
+        showToast(STATE.lang === 'uk' ? 'Тільки адміністратор має право імпортувати таблиці!' : 'Only administrators can import tables!', 'error');
+        return;
+      }
+      fileCabin.click();
+    });
   }
   
   if (fileFlight) fileFlight.addEventListener('change', (e) => handleExcelImport(e, 'Flight'));
