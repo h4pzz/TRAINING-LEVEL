@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>UH Training Level Dashboard v0.4</title>
+  <title>UH Training Level Dashboard v0.5</title>
   
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="PICS/favicon.svg">
@@ -11,9 +11,9 @@
   <link rel="apple-touch-icon" href="PICS/LOGO_UH.png">
   
   <!-- CSS Stylesheets -->
-  <link rel="stylesheet" href="css/variables.css?v=0.3">
-  <link rel="stylesheet" href="css/layout.css?v=0.3">
-  <link rel="stylesheet" href="css/components.css?v=0.3">
+  <link rel="stylesheet" href="css/variables.css?v=0.4">
+  <link rel="stylesheet" href="css/layout.css?v=0.4">
+  <link rel="stylesheet" href="css/components.css?v=0.4">
   
   <!-- SheetJS Library (CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -77,7 +77,7 @@
     <aside class="sidebar">
       <div class="logo-container">
         <img src="PICS/LOGO_UH.png" alt="Ukrainian Helicopters">
-        <span class="status-badge status-neutral" style="font-size: 10px; font-weight: 700; padding: 2px 6px; margin-top: 4px; letter-spacing: 0.5px;">v0.4</span>
+        <span class="status-badge status-neutral" style="font-size: 10px; font-weight: 700; padding: 2px 6px; margin-top: 4px; letter-spacing: 0.5px;">v0.5</span>
       </div>
       
       <nav class="nav-links">
@@ -138,12 +138,18 @@
       </div>
     </aside>
 
+    <!-- SIDEBAR BACKDROP FOR MOBILE -->
+    <div id="sidebar-backdrop" class="sidebar-backdrop"></div>
+
     <!-- MAIN WORKSPACE -->
     <main class="main-workspace">
       
       <!-- TOP HEADER -->
       <header class="main-header">
-        <div class="header-title-container">
+        <div class="header-title-container" style="display: flex; align-items: center; gap: 10px;">
+          <button id="mobile-menu-btn" class="mobile-menu-toggle" aria-label="Toggle navigation menu">
+            <i data-lucide="menu"></i>
+          </button>
           <h1 id="view-title" data-i18n="title_dashboard">Статистика</h1>
         </div>
         <div class="header-right">
@@ -945,7 +951,7 @@
                       <th style="width: 90px;" data-i18n="th_pers_type">Тип</th>
                       <th data-i18n="th_pers_name_ua">ПІБ (Укр.)</th>
                       <th data-i18n="th_pers_name_en">ПІБ (Англ.)</th>
-                      <th data-i18n="th_pers_rank_dept">Посада / Підрозділ</th>
+                      <th data-i18n="th_pers_rank_dept">Посада / Відділ</th>
                       <th data-i18n="th_pers_email">Email</th>
                       <th style="width: 100px;" data-i18n="th_pers_role">Роль</th>
                       <th style="width: 80px; text-align: center;" data-i18n="th_pers_actions">Дії</th>
@@ -1706,9 +1712,9 @@
         <!-- 7. PERSONAL PORTAL VIEW (CREW VIEW) -->
         <div class="view-panel" id="view-personal-portal">
           <div id="portal-back-btn-container"></div>
-          <div class="portal-layout-grid" style="display: grid; grid-template-columns: max-content 1fr; gap: var(--spacing-6); align-items: start;">
+          <div class="portal-layout-grid">
             <!-- Profile Info -->
-            <div class="card" id="portal-profile-card" style="width: max-content; max-width: 100%; box-sizing: border-box;">
+            <div class="card" id="portal-profile-card">
               <div class="portal-profile-header" style="position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: var(--spacing-3); min-height: 32px;">
                 <h3 data-i18n="portal_profile_title" style="font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 0; text-align: center; width: 100%;">Особистий профіль</h3>
                 <button id="btn-edit-portal-profile" class="btn btn-secondary" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); height: 32px; padding: 0 var(--spacing-2); display: none; align-items: center; gap: 4px;" title="Edit Profile">
@@ -1723,7 +1729,7 @@
             <div style="display: flex; flex-direction: column; gap: var(--spacing-6);">
               <!-- Qualifications & Expirations Grid -->
               <div class="card">
-                <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600;" data-i18n="portal_expiries_title">Терміни дії підготовок</h3>
+                <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; text-align: center; width: 100%; margin: 0 0 var(--spacing-3) 0;" data-i18n="portal_expiries_title">Терміни дії підготовок</h3>
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--spacing-4);" id="portal-expiries-grid">
                   <!-- Loaded dynamically -->
                 </div>
@@ -1731,21 +1737,19 @@
               
               <!-- Additional Trainings Grid -->
               <div class="card" id="portal-additional-card">
-                <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600;">
-                  <span data-i18n="portal_additional_title">Додаткові підготовки / Additional trainings</span>
-                </h3>
+                <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; text-align: center; width: 100%; margin: 0 0 var(--spacing-3) 0;" data-i18n="portal_additional_title">Додаткові підготовки</h3>
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--spacing-4);" id="portal-additional-grid">
                   <!-- Loaded dynamically -->
                 </div>
               </div>
               
               <!-- Scanned PDFs -->
-              <div class="card">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-3);">
-                  <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 0;" data-i18n="portal_scans_title">Завантажені скан-копії документів</h3>
-                  <button id="btn-scan-document" class="btn btn-secondary" style="height: 32px; padding: 0 var(--spacing-3); display: none; align-items: center; gap: 6px;">
+              <div class="card" id="portal-scans-card">
+                <div class="portal-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-2); margin-bottom: var(--spacing-3);">
+                  <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 0; min-width: 0;" data-i18n="portal_scans_title">Завантажені скан-копії документів</h3>
+                  <button id="btn-scan-document" class="btn btn-secondary" style="height: 32px; padding: 0 var(--spacing-3); display: none; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0;">
                     <i data-lucide="plus" style="width: 14px; height: 14px;"></i>
-                    <span style="font-size: 12px; font-weight: 600;">SCAN / Сканувати</span>
+                    <span style="font-size: 12px; font-weight: 600;" data-i18n="btn_scan">Сканувати</span>
                   </button>
                 </div>
                 <div style="display: flex; flex-direction: column; gap: var(--spacing-3);" id="portal-documents-list">
@@ -1860,7 +1864,7 @@
   <div id="scan-modal-backdrop" class="modal-backdrop">
     <div class="modal-content" style="width: 450px;">
       <div class="modal-header">
-        <h2 style="font-family: var(--font-display); font-size: 18px; font-weight: 600;">Сканувати документ / Scan Document</h2>
+        <h2 style="font-family: var(--font-display); font-size: 18px; font-weight: 600;" data-i18n="modal_scan_title">Сканувати документ</h2>
         <button class="modal-close-btn" id="btn-close-scan-modal">
           <i data-lucide="x"></i>
         </button>
@@ -1868,25 +1872,25 @@
       
       <form id="scan-modal-form" style="display: flex; flex-direction: column; gap: var(--spacing-4);">
         <div class="form-group">
-          <label for="scan-doc-type" style="font-weight:600; font-size:13px;">Тип підготовки / Training Type</label>
+          <label for="scan-doc-type" style="font-weight:600; font-size:13px;" data-i18n="label_scan_doc_type">Тип підготовки</label>
           <select id="scan-doc-type" class="form-input" required>
             <!-- Populated dynamically based on crew type -->
           </select>
         </div>
         
         <div class="form-group">
-          <label for="scan-doc-date" style="font-weight:600; font-size:13px;">Дата проходження / Completion Date</label>
+          <label for="scan-doc-date" style="font-weight:600; font-size:13px;" data-i18n="label_scan_doc_date">Дата проходження</label>
           <input type="date" id="scan-doc-date" class="form-input" required>
         </div>
         
         <div class="form-group">
-          <label for="scan-file-input" style="font-weight:600; font-size:13px;">Файл документа / Document File (PDF / Image)</label>
+          <label for="scan-file-input" style="font-weight:600; font-size:13px;" data-i18n="label_scan_file">Файл документа (PDF / Image)</label>
           <input type="file" id="scan-file-input" class="form-input" accept="application/pdf,image/*" required>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: var(--spacing-3); border-top: 1px solid var(--border-color); padding-top: var(--spacing-4); margin-top: var(--spacing-2);">
-          <button type="button" class="btn btn-secondary" id="btn-cancel-scan-modal">Скасувати / Cancel</button>
-          <button type="submit" class="btn btn-primary" id="btn-submit-scan">Сканувати / Scan</button>
+          <button type="button" class="btn btn-secondary" id="btn-cancel-scan-modal" data-i18n="btn_cancel">Скасувати</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-scan" data-i18n="btn_scan">Сканувати</button>
         </div>
       </form>
     </div>
@@ -2199,6 +2203,6 @@
   </div>
 
   <!-- Main SPA Application logic script -->
-  <script type="module" src="js/app.js?v=0.4"></script>
+  <script type="module" src="js/app.js?v=0.5"></script>
 </body>
 </html>

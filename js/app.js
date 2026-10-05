@@ -276,7 +276,7 @@ const TRANSLATIONS = {
     th_pers_type: "Тип",
     th_pers_name_ua: "ПІБ (Укр.)",
     th_pers_name_en: "ПІБ (Англ.)",
-    th_pers_rank_dept: "Посада / Підрозділ",
+    th_pers_rank_dept: "Посада / Відділ",
     th_pers_email: "Email",
     th_pers_role: "Роль",
     th_pers_actions: "Дії",
@@ -348,6 +348,11 @@ const TRANSLATIONS = {
     portal_expiries_title: "Терміни дії підготовок",
     portal_scans_title: "Завантажені скан-копії документів",
     portal_additional_title: "Додаткові підготовки",
+    btn_scan: "Сканувати",
+    modal_scan_title: "Сканувати документ",
+    label_scan_doc_type: "Тип підготовки",
+    label_scan_doc_date: "Дата проходження",
+    label_scan_file: "Файл документа (PDF / Image)",
     
     // Form prompts
     prompt_date_title: "Виберіть тип дати",
@@ -690,6 +695,11 @@ const TRANSLATIONS = {
     portal_expiries_title: "Training Expirations",
     portal_scans_title: "Attached Document Scans",
     portal_additional_title: "Additional Trainings",
+    btn_scan: "Scan",
+    modal_scan_title: "Scan Document",
+    label_scan_doc_type: "Training Type",
+    label_scan_doc_date: "Completion Date",
+    label_scan_file: "Document File (PDF / Image)",
     
     // Form prompts
     prompt_date_title: "Select Date Type",
@@ -777,7 +787,7 @@ const DEFAULT_FORMS = [
 const BILINGUAL_COLUMNS = {
   Flight: [
     { key: 'Rank', ua: 'Посада', en: 'Rank' },
-    { key: 'Department', ua: 'Підрозділ', en: 'Department' },
+    { key: 'Department', ua: 'Відділ', en: 'Department' },
     { key: 'Name_Shrt_UA', ua: 'ПІБ скорочено (Укр.)', en: 'Short Name UA' },
     { key: 'Full_Name_UA', ua: 'ПІБ повне (Укр.)', en: 'Full Name UA' },
     { key: 'Full_Name_EN', ua: 'ПІБ повне (Англ.)', en: 'Full Name EN' },
@@ -799,12 +809,13 @@ const BILINGUAL_COLUMNS = {
     { key: 'PALL', ua: 'PALL Фільтрація', en: 'PALL Filtration' },
     { key: 'HESLO_T', ua: 'HESLO Теорія (Зовнішня підвіска)', en: 'HESLO Theory (Sling Load)' },
     { key: 'HESLO_PRCT', ua: 'HESLO Практика (Зовнішня підвіска)', en: 'HESLO Practice (Sling Load)' },
+    { key: 'FFO', ua: 'FFO (Пожежогасіння)', en: 'FFO (Fire Fighting Operations)' },
     { key: 'HHO_T', ua: 'HHO Теорія (Лебідка)', en: 'HHO Theory (Hoist)' },
     { key: 'HHO_PRCT', ua: 'HHO Практика (Лебідка)', en: 'HHO Practice (Hoist)' }
   ],
   Cabin: [
     { key: 'Rank', ua: 'Посада', en: 'Rank' },
-    { key: 'Department', ua: 'Підрозділ', en: 'Department' },
+    { key: 'Department', ua: 'Відділ', en: 'Department' },
     { key: 'Name_Shrt_UA', ua: 'ПІБ скорочено (Укр.)', en: 'Short Name UA' },
     { key: 'Full_Name_UA', ua: 'ПІБ повне (Укр.)', en: 'Full Name UA' },
     { key: 'Full_Name_EN', ua: 'ПІБ повне (Англ.)', en: 'Full Name EN' },
@@ -835,7 +846,7 @@ function getFormColumnShortTitle(colKey, lang = 'uk') {
     case 'Rank':
       return lang === 'uk' ? 'Посада' : 'Rank';
     case 'Department':
-      return lang === 'uk' ? 'Підрозділ' : 'Dept';
+      return lang === 'uk' ? 'Відділ' : 'Dept';
     case 'Name_Shrt_UA':
       return lang === 'uk' ? 'ПІБ' : 'Name';
     case 'Full_Name_UA':
@@ -875,6 +886,8 @@ function getFormColumnShortTitle(colKey, lang = 'uk') {
       return 'HESLO (T)';
     case 'HESLO_PRCT':
       return 'HESLO (P)';
+    case 'FFO':
+      return 'FFO';
     case 'HHO_T':
       return 'HHO (T)';
     case 'HHO_PRCT':
@@ -906,7 +919,7 @@ function getFormColumnShortTitle(colKey, lang = 'uk') {
 }
 
 // ================= DEFAULT APP STATE =================
-export const APP_VERSION = '0.4';
+export const APP_VERSION = '0.5';
 
 const STATE = {
   version: APP_VERSION,
@@ -964,7 +977,7 @@ const STATE = {
     },
     visibleColumnsFlight: [
       'Rank', 'Department', 'Name_Shrt_UA', 'OPC', 'OPC_NVG', 'LPC', 'Type', 'EMER_1', 'EMER_3', 'DG', 'AV_SEC', 'CRM', 'MED', 'LICENSE',
-      'GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'HHO_T', 'HHO_PRCT'
+      'GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'FFO', 'HHO_T', 'HHO_PRCT'
     ],
     visibleColumnsCabin: [
       'Rank', 'Department', 'Name_Shrt_UA', 'OPC', 'LPC', 'CC_Type', 'EMER_1', 'EMER_3', 'DG', 'AV_SEC', 'CRM', 'MED',
@@ -1584,7 +1597,13 @@ function renderCrewTable(crewType) {
   
   // Render Headers with short names/abbreviations and full titles as tooltips
   tableHeaders.innerHTML = '';
-  visibleHeaders.forEach(col => {
+  
+  // Find index of last sticky column (up to Name / ПІБ)
+  const isNameCol = (k) => ['Name_Shrt_UA', 'Full_Name_UA', 'Full_Name_EN'].includes(k);
+  const nameColIdx = visibleHeaders.findIndex(isNameCol);
+  const lastStickyIdx = nameColIdx !== -1 ? nameColIdx : -1;
+
+  visibleHeaders.forEach((col, idx) => {
     const colDef = (BILINGUAL_COLUMNS[crewType] || []).find(c => c.key === col);
     const headerLabel = getFormColumnShortTitle(col, STATE.lang);
     const fullTooltip = colDef 
@@ -1602,6 +1621,11 @@ function renderCrewTable(crewType) {
     th.title = fullTooltip;
     th.innerHTML = `${headerLabel}${sortIndicator}`;
     th.addEventListener('click', () => handleHeaderSort(crewType, col));
+    
+    if (idx <= lastStickyIdx) {
+      th.classList.add('col-sticky');
+    }
+    
     tableHeaders.appendChild(th);
   });
   // Add edit column for editors
@@ -1696,8 +1720,11 @@ function renderCrewTable(crewType) {
       tr.style.opacity = '0.5'; // inactive crew
     }
     
-    visibleHeaders.forEach(col => {
+    visibleHeaders.forEach((col, idx) => {
       const td = document.createElement('td');
+      if (idx <= lastStickyIdx) {
+        td.classList.add('col-sticky');
+      }
       const val = member[col] || '';
       
       // Determine if this cell column is one of the expiring preparations
@@ -1712,7 +1739,7 @@ function renderCrewTable(crewType) {
         
         td.className = `cell-status cell-${status.toLowerCase()}`;
         td.innerHTML = `<span style="font-size:13px; font-weight:600;">${displayDate}</span>`;
-      } else if (col.endsWith('_T') || col.endsWith('_PRCT') || (colDef && colDef.type === 'DATE_NEUTRAL') || ['GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'HHO_T', 'HHO_PRCT', 'Resc', 'Rappel', 'Hoist', 'EOIR', 'NAIROBI'].includes(col)) {
+      } else if (col.endsWith('_T') || col.endsWith('_PRCT') || (colDef && colDef.type === 'DATE_NEUTRAL') || ['GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'FFO', 'HHO_T', 'HHO_PRCT', 'Resc', 'Rappel', 'Hoist', 'EOIR', 'NAIROBI'].includes(col)) {
         // Render neutral gray badge for completion dates
         if (val) {
           td.innerHTML = `
@@ -1768,6 +1795,48 @@ function renderCrewTable(crewType) {
     }
     
     tableBody.appendChild(tr);
+  });
+
+  // Calculate and apply precise sticky left offsets for all pinned columns
+  updateTableStickyOffsets(crewType, lastStickyIdx);
+}
+
+/**
+ * Calculates and sets exact horizontal sticky positions (left: Xpx) for pinned columns
+ */
+function updateTableStickyOffsets(crewType, lastStickyIdx) {
+  if (lastStickyIdx < 0) return;
+  const table = document.getElementById(`${crewType.toLowerCase()}-crew-table`);
+  if (!table) return;
+
+  // Use requestAnimationFrame to ensure table layout is computed
+  requestAnimationFrame(() => {
+    const headerRow = table.querySelector('thead tr');
+    if (!headerRow) return;
+    const headerThs = headerRow.querySelectorAll('th');
+    
+    const offsets = [];
+    let currentLeft = 0;
+    
+    for (let i = 0; i <= lastStickyIdx && i < headerThs.length; i++) {
+      offsets[i] = currentLeft;
+      // offsetWidth + 3px (for border-spacing: 3px)
+      currentLeft += headerThs[i].offsetWidth + 3;
+    }
+
+    // Apply left positions to headers
+    for (let i = 0; i <= lastStickyIdx && i < headerThs.length; i++) {
+      headerThs[i].style.left = `${offsets[i]}px`;
+    }
+
+    // Apply left positions to each row's sticky cells
+    const rows = table.querySelectorAll('tbody tr');
+    rows.forEach(tr => {
+      const tds = tr.querySelectorAll('td');
+      for (let i = 0; i <= lastStickyIdx && i < tds.length; i++) {
+        tds[i].style.left = `${offsets[i]}px`;
+      }
+    });
   });
 }
 
@@ -1880,7 +1949,7 @@ function openCrewEditModal(member) {
   
   const crewConfig = CREW_COMPLIANCE_RULES.CREW_TYPES[crewType];
   const additionalCols = crewType === 'Flight' 
-    ? ['GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'HHO_T', 'HHO_PRCT']
+    ? ['GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'FFO', 'HHO_T', 'HHO_PRCT']
     : ['Resc', 'Rappel', 'Hoist', 'EOIR', 'NAIROBI'];
   
   const allDateFields = [...Object.keys(crewConfig.columnMapping), ...additionalCols];
@@ -2190,6 +2259,7 @@ function updateTrainingTypesLayout(cardNode, crewType) {
       { value: 'GI_275_PRCT', label: 'GI_275_PRCT' },
       { value: 'NVG', label: 'NVG' },
       { value: 'HESLO_PRCT', label: 'HESLO_PRCT' },
+      { value: 'FFO', label: 'FFO' },
       { value: 'LPC', label: 'LPC' },
       { value: 'OPC', label: 'OPC' },
       { value: 'PALL', label: 'PALL' },
@@ -2320,7 +2390,7 @@ function addCrewMemberCard() {
           <!-- Block 4: Type of Training (Checkboxes) - Placed after Instructor Time -->
           <div class="crew-time-block crew-training-types-block" style="border: 1px solid var(--border-color); padding: var(--spacing-3); border-radius: var(--radius-sm); background-color: var(--bg-surface); display: flex; flex-direction: column; gap: var(--spacing-2);">
             <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; border-bottom: 1px solid var(--border-color); padding-bottom: 2px; text-align: center;">Type of Training</span>
-            <div class="training-types-grid" style="display: flex; flex-direction: column; gap: 4px; max-height: 160px; overflow-y: auto; padding-right: 2px;">
+            <div class="training-types-grid" style="display: flex; flex-direction: column; gap: 4px; max-height: 185px; overflow-y: auto; padding-right: 2px;">
               <!-- Dynamic Checkboxes Injection -->
             </div>
           </div>
@@ -3304,6 +3374,7 @@ function saveFlightRecord(flightRecord) {
       'GI_275_PRCT': 'GI 275_PRCT',
       'NVG': 'OPC_NVG',
       'HESLO_PRCT': 'HESLO_PRCT',
+      'FFO': 'FFO',
       'LPC': 'LPC',
       'OPC': 'OPC',
       'PALL': 'PALL',
@@ -5902,7 +5973,7 @@ function openFormPrintWindow(form, memberIds = null) {
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
           <div><strong>${STATE.lang === 'uk' ? 'ПІБ:' : 'Name:'}</strong> ${getCrewShortNameWithInitials(single)}</div>
           <div><strong>${STATE.lang === 'uk' ? 'Посада:' : 'Rank:'}</strong> ${single.Rank || '-'}</div>
-          <div><strong>${STATE.lang === 'uk' ? 'Підрозділ:' : 'Dept:'}</strong> ${single.Department || '-'}</div>
+          <div><strong>${STATE.lang === 'uk' ? 'Відділ:' : 'Dept:'}</strong> ${single.Department || '-'}</div>
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-top: 4px; color: #475569; font-size: 11px;">
           <div><strong>${STATE.lang === 'uk' ? 'Категорія:' : 'Category:'}</strong> ${form.crewType === 'Cabin' ? (STATE.lang === 'uk' ? 'Кабінний склад' : 'Cabin Crew') : (STATE.lang === 'uk' ? 'Льотний склад' : 'Flight Crew')}</div>
@@ -5916,7 +5987,7 @@ function openFormPrintWindow(form, memberIds = null) {
       <div style="background-color: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 8px 12px; margin: 12px 0; font-size: 11.5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; box-sizing: border-box;">
         <div>
           <strong>${STATE.lang === 'uk' ? 'Склад групи:' : 'Roster group:'}</strong> ${members.length} ${STATE.lang === 'uk' ? 'осіб' : 'crew members'} • 
-          <strong>${STATE.lang === 'uk' ? 'Підрозділ:' : 'Dept:'}</strong> ${form.crewType === 'Cabin' ? 'CABIN CREW' : 'FLIGHT CREW'}
+          <strong>${STATE.lang === 'uk' ? 'Відділ:' : 'Dept:'}</strong> ${form.crewType === 'Cabin' ? 'CABIN CREW' : 'FLIGHT CREW'}
         </div>
         <div style="color: #64748b; font-size: 11px;">
           ${STATE.lang === 'uk' ? 'Дата формування відомості:' : 'Generated on:'} ${new Date().toLocaleDateString(STATE.lang === 'uk' ? 'uk-UA' : 'en-GB')}
@@ -6386,8 +6457,8 @@ function renderPersonalPortal() {
     profileDetails.innerHTML = `
       ${avatarHtml}
       <form id="portal-profile-edit-form" style="display: flex; flex-direction: column; gap: var(--spacing-3); width: 100%;">
-        <div id="portal-profile-name-row" style="white-space: nowrap;"><span class="profile-name-text-measure"><strong>Прізвище Ім'я:</strong> ${member.Full_Name_UA}</span></div>
-        <div style="white-space: nowrap;"><strong>Name:</strong> ${member.Full_Name_EN}</div>
+        <div id="portal-profile-name-row"><strong>Прізвище Ім'я:</strong> ${member.Full_Name_UA}</div>
+        <div><strong>Name:</strong> ${member.Full_Name_EN}</div>
         
         <div class="form-group">
           <label style="font-weight: 600; font-size: 13px;">Посада / Rank:</label>
@@ -6480,11 +6551,11 @@ function renderPersonalPortal() {
     // Render static profile details
     profileDetails.innerHTML = `
       ${avatarHtml}
-      <div id="portal-profile-name-row" style="white-space: nowrap;"><span class="profile-name-text-measure"><strong>Прізвище Ім'я:</strong> ${member.Full_Name_UA}</span></div>
-      <div style="white-space: nowrap;"><strong>Name:</strong> ${member.Full_Name_EN}</div>
+      <div id="portal-profile-name-row"><strong>Прізвище Ім'я:</strong> ${member.Full_Name_UA}</div>
+      <div><strong>Name:</strong> ${member.Full_Name_EN}</div>
       <div><strong>Посада / Rank:</strong> <span class="status-badge status-neutral">${member.Rank}</span></div>
       <div><strong>Відділ / Dept:</strong> ${member.Department}</div>
-      <div><strong>Email:</strong> ${member.Email}</div>
+      <div style="word-break: break-all;"><strong>Email:</strong> ${member.Email}</div>
       <div><strong>Phone:</strong> ${member.Phone || '-'}</div>
       ${member.LICENSE ? `<div><strong>License:</strong> <code>${member.LICENSE}</code></div>` : ''}
       <div style="margin-top: 8px; padding: 10px; background-color: var(--bg-surface-alt); border-radius: var(--radius-md); border: 1px solid var(--border-color); font-size: 12px; box-sizing: border-box; max-width: 100%;">
@@ -6644,7 +6715,7 @@ function renderPersonalPortal() {
     additionalGrid.innerHTML = '';
     
     const additionalCols = member.crewType === 'Flight' 
-      ? ['GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'HHO_T', 'HHO_PRCT']
+      ? ['GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'FFO', 'HHO_T', 'HHO_PRCT']
       : ['Resc', 'Rappel', 'Hoist', 'EOIR', 'NAIROBI'];
       
     additionalCols.forEach(colName => {
@@ -6692,27 +6763,42 @@ function renderPersonalPortal() {
 
   // Render scans list
   documentsList.innerHTML = '';
-  member.scans.forEach((scan, scanIdx) => {
-    documentsList.insertAdjacentHTML('beforeend', `
-      <div style="display:flex; justify-content:space-between; align-items:center; padding:var(--spacing-3); border:1px solid var(--border-color); border-radius:var(--radius-md); font-size:13px; background-color: var(--bg-surface-alt);">
-        <div style="display:flex; align-items:center; gap:8px;">
-          <i data-lucide="file-text" style="color:var(--accent);"></i>
-          <span style="font-weight: 500;">${scan.name}</span>
-          <span style="font-size:11px; color:var(--text-secondary);">(${scan.fileName})</span>
-        </div>
-        <div style="display:flex; gap: var(--spacing-2);">
-          <button class="btn btn-secondary" style="height:32px; padding:0 8px;" onclick="alert('Скачування скан-копії: ${scan.fileName} ...')">
-            <i data-lucide="download" style="width:14px; height:14px;"></i>
-          </button>
-          ${role === ROLES.ADMIN ? `
-          <button class="btn btn-secondary btn-delete-scan" data-index="${scanIdx}" style="height:32px; padding:0 8px; border-color: var(--danger-color); color: var(--danger-color);" title="Delete scan">
-            <i data-lucide="trash-2" style="width:14px; height:14px;"></i>
-          </button>
-          ` : ''}
-        </div>
+  if (!member.scans || member.scans.length === 0) {
+    documentsList.innerHTML = `
+      <div style="text-align: center; color: var(--text-secondary); font-size: 13px; padding: var(--spacing-3); font-style: italic;">
+        ${STATE.lang === 'uk' ? 'Скан-копії відсутні' : 'No scanned documents uploaded'}
       </div>
-    `);
-  });
+    `;
+  } else {
+    member.scans.forEach((scan, scanIdx) => {
+      const downloadTitle = STATE.lang === 'uk' ? 'Завантажити скан-копію' : 'Download scan copy';
+      const deleteTitle = STATE.lang === 'uk' ? 'Видалити скан-копію' : 'Delete scan copy';
+      
+      documentsList.insertAdjacentHTML('beforeend', `
+        <div class="portal-doc-item">
+          <div class="portal-doc-content">
+            <div class="portal-doc-icon">
+              <i data-lucide="file-text" style="width: 18px; height: 18px;"></i>
+            </div>
+            <div class="portal-doc-info">
+              <span class="portal-doc-title" title="${scan.name}">${scan.name}</span>
+              <span class="portal-doc-filename" title="${scan.fileName}">(${scan.fileName})</span>
+            </div>
+          </div>
+          <div class="portal-doc-actions">
+            <button class="btn btn-secondary portal-doc-btn" onclick="alert('Скачування скан-копії: ${scan.fileName} ...')" title="${downloadTitle}">
+              <i data-lucide="download" style="width: 14px; height: 14px;"></i>
+            </button>
+            ${role === ROLES.ADMIN ? `
+            <button class="btn btn-secondary portal-doc-btn btn-delete-scan" data-index="${scanIdx}" style="border-color: var(--danger-color); color: var(--danger-color);" title="${deleteTitle}">
+              <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+            </button>
+            ` : ''}
+          </div>
+        </div>
+      `);
+    });
+  }
 
   // Attach delete handlers for scans
   if (role === ROLES.ADMIN) {
@@ -6747,11 +6833,31 @@ function renderPersonalPortal() {
   const scanBtn = document.getElementById('btn-scan-document');
   if (scanBtn) {
     scanBtn.style.display = role === ROLES.ADMIN ? 'inline-flex' : 'none';
+    const scanBtnSpan = scanBtn.querySelector('span');
+    if (scanBtnSpan) {
+      scanBtnSpan.textContent = STATE.lang === 'uk' ? 'Сканувати' : 'Scan';
+    }
     
     const newScanBtn = scanBtn.cloneNode(true);
     scanBtn.parentNode.replaceChild(newScanBtn, scanBtn);
     
     newScanBtn.addEventListener('click', () => {
+      // Update modal titles & labels to match current language
+      const modalTitle = document.querySelector('#scan-modal-backdrop h2');
+      if (modalTitle) modalTitle.textContent = STATE.lang === 'uk' ? 'Сканувати документ' : 'Scan Document';
+      
+      const labelDocType = document.querySelector('label[for="scan-doc-type"]');
+      if (labelDocType) labelDocType.textContent = STATE.lang === 'uk' ? 'Тип підготовки' : 'Training Type';
+      
+      const labelDocDate = document.querySelector('label[for="scan-doc-date"]');
+      if (labelDocDate) labelDocDate.textContent = STATE.lang === 'uk' ? 'Дата проходження' : 'Completion Date';
+      
+      const labelFileInput = document.querySelector('label[for="scan-file-input"]');
+      if (labelFileInput) labelFileInput.textContent = STATE.lang === 'uk' ? 'Файл документа (PDF / Image)' : 'Document File (PDF / Image)';
+      
+      const cancelBtn = document.getElementById('btn-cancel-scan-modal');
+      if (cancelBtn) cancelBtn.textContent = STATE.lang === 'uk' ? 'Скасувати' : 'Cancel';
+
       // Dynamically populate select dropdown based on crew type
       const docTypeSelect = document.getElementById('scan-doc-type');
       if (docTypeSelect) {
@@ -6764,7 +6870,7 @@ function renderPersonalPortal() {
         
         // Additional columns
         const additionalCols = member.crewType === 'Flight' 
-          ? ['GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'HHO_T', 'HHO_PRCT']
+          ? ['GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'FFO', 'HHO_T', 'HHO_PRCT']
           : ['Resc', 'Rappel', 'Hoist', 'EOIR', 'NAIROBI'];
           
         const allTypes = [...expiringKeys, ...additionalCols];
@@ -6916,8 +7022,16 @@ function renderPersonalPortal() {
   // Adjust card width so it strictly equals the name row width + exact left and right padding
   const adjustProfileCardWidth = () => {
     const card = document.getElementById('portal-profile-card');
+    if (!card) return;
+    if (window.innerWidth <= 900) {
+      card.style.width = '';
+      card.style.minWidth = '';
+      card.style.maxWidth = '';
+      card.style.flexShrink = '';
+      return;
+    }
     const nameRow = document.getElementById('portal-profile-name-row');
-    if (card && nameRow) {
+    if (nameRow) {
       const nameTextSpan = nameRow.querySelector('.profile-name-text-measure');
       const textWidth = nameTextSpan ? nameTextSpan.getBoundingClientRect().width : nameRow.scrollWidth;
       if (textWidth > 50) {
@@ -7354,10 +7468,15 @@ async function bootstrapDatabase() {
       if (STATE.settings.backupRetention === undefined) { STATE.settings.backupRetention = 5; settingsUpdated = true; }
 
       // Auto-migration: ensure the new flight columns are added if missing
-      const newCols = ['GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'HHO_T', 'HHO_PRCT'];
+      const newCols = ['GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'FFO', 'HHO_T', 'HHO_PRCT'];
       newCols.forEach(col => {
         if (!STATE.settings.visibleColumnsFlight.includes(col)) {
-          STATE.settings.visibleColumnsFlight.push(col);
+          const hesloIdx = STATE.settings.visibleColumnsFlight.indexOf('HESLO_PRCT');
+          if (col === 'FFO' && hesloIdx !== -1) {
+            STATE.settings.visibleColumnsFlight.splice(hesloIdx + 1, 0, 'FFO');
+          } else {
+            STATE.settings.visibleColumnsFlight.push(col);
+          }
           settingsUpdated = true;
         }
       });
@@ -7470,11 +7589,39 @@ document.addEventListener('DOMContentLoaded', () => {
     switchView(STATE.currentView);
   });
   
+  // Helper to close mobile drawer
+  function closeMobileSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    if (sidebar) sidebar.classList.remove('mobile-open');
+    if (backdrop) backdrop.classList.remove('active');
+  }
+
+  // Mobile drawer hamburger toggle
+  const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+  const sidebarBackdrop = document.getElementById('sidebar-backdrop');
+  if (mobileMenuBtn) {
+    mobileMenuBtn.addEventListener('click', () => {
+      const sidebar = document.querySelector('.sidebar');
+      if (sidebar) {
+        sidebar.classList.toggle('mobile-open');
+        if (sidebarBackdrop) {
+          sidebarBackdrop.classList.toggle('active', sidebar.classList.contains('mobile-open'));
+        }
+      }
+    });
+  }
+
+  if (sidebarBackdrop) {
+    sidebarBackdrop.addEventListener('click', closeMobileSidebar);
+  }
+
   // Tab Routing
   document.querySelectorAll('.nav-item').forEach(btn => {
     btn.addEventListener('click', () => {
       const view = btn.getAttribute('data-view');
       switchView(view);
+      closeMobileSidebar();
     });
   });
   
@@ -8105,7 +8252,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (type === 'Flight') {
         STATE.settings.visibleColumnsFlight = [
           'Rank', 'Department', 'Name_Shrt_UA', 'OPC', 'OPC_NVG', 'LPC', 'Type', 'EMER_1', 'EMER_3', 'DG', 'AV_SEC', 'CRM', 'MED', 'LICENSE',
-          'GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'HHO_T', 'HHO_PRCT'
+          'GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'FFO', 'HHO_T', 'HHO_PRCT'
         ];
       } else {
         STATE.settings.visibleColumnsCabin = [
@@ -8687,6 +8834,17 @@ document.addEventListener('DOMContentLoaded', () => {
   // Update translation text
   updateTranslations();
   
+  // Resize listener to recalculate sticky column offsets
+  window.addEventListener('resize', () => {
+    if (STATE.currentView === 'flight-crew') {
+      const idx = STATE.settings.visibleColumnsFlight.findIndex(k => ['Name_Shrt_UA', 'Full_Name_UA', 'Full_Name_EN'].includes(k));
+      updateTableStickyOffsets('Flight', idx);
+    } else if (STATE.currentView === 'cabin-crew') {
+      const idx = STATE.settings.visibleColumnsCabin.findIndex(k => ['Name_Shrt_UA', 'Full_Name_UA', 'Full_Name_EN'].includes(k));
+      updateTableStickyOffsets('Cabin', idx);
+    }
+  });
+
   // Set up spinner styling animation in headers
   const style = document.createElement('style');
   style.innerHTML = `
