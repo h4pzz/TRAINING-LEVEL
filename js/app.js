@@ -3761,16 +3761,16 @@ function renderSettingsPersonnelTab() {
       const assignedRole = m.Email && userRoles[m.Email.toLowerCase()] ? userRoles[m.Email.toLowerCase()] : (m.Email ? 'CREW' : '—');
       
       tr.innerHTML = `
-        <td>
+        <td style="text-align: center;">
           <span class="status-badge status-neutral" style="font-size: 10px; font-weight: 700;">
             ${m.crewType === 'Flight' ? '✈ FLIGHT' : '👥 CABIN'}
           </span>
         </td>
-        <td style="font-weight: 600;">${m.Full_Name_UA || m.Name_Shrt_UA || '-'}</td>
-        <td style="color: var(--text-secondary);">${m.Full_Name_EN || '-'}</td>
-        <td>${m.Rank || '-'} <span style="font-size: 11px; color: var(--text-secondary);">(${m.Department || '-'})</span></td>
-        <td style="font-family: monospace; font-size: 11px;">${m.Email || '<span style="color:var(--text-secondary)">—</span>'}</td>
-        <td><span class="status-badge ${assignedRole === 'ADMIN' ? 'status-expired' : 'status-neutral'}" style="font-size: 10px;">${assignedRole}</span></td>
+        <td class="col-pers-content" style="font-weight: 600; text-align: left; white-space: nowrap; min-width: max-content; width: max-content; padding-left: 16px; padding-right: 16px;">${m.Full_Name_UA || m.Name_Shrt_UA || '-'}</td>
+        <td class="col-pers-content" style="color: var(--text-secondary); text-align: left; white-space: nowrap; min-width: max-content; width: max-content; padding-left: 16px; padding-right: 16px;">${m.Full_Name_EN || '-'}</td>
+        <td class="col-pers-content" style="text-align: left; white-space: nowrap; min-width: max-content; width: max-content; padding-left: 16px; padding-right: 16px;">${m.Rank || '-'} <span style="font-size: 11px; color: var(--text-secondary);">(${m.Department || '-'})</span></td>
+        <td class="col-pers-content" style="font-family: monospace; font-size: 11px; text-align: left; white-space: nowrap; min-width: max-content; width: max-content; padding-left: 16px; padding-right: 16px;">${m.Email || '<span style="color:var(--text-secondary)">—</span>'}</td>
+        <td style="text-align: center;"><span class="status-badge ${assignedRole === 'ADMIN' ? 'status-expired' : 'status-neutral'}" style="font-size: 10px;">${assignedRole}</span></td>
         <td style="text-align: center;">
           <div style="display: flex; gap: 4px; justify-content: center;">
             <button class="btn btn-secondary btn-edit-crew-member" data-id="${m.id}" data-type="${m.crewType}" style="height: 28px; width: 28px; padding: 0;" title="Редагувати">

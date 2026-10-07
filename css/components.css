@@ -214,6 +214,19 @@
   border-radius: var(--radius-sm);
 }
 
+/* Settings Personnel Table: content-based minimal width and symmetric indents */
+#settings-personnel-table th.col-pers-content,
+#settings-personnel-table td.col-pers-content,
+.col-pers-content {
+  text-align: left !important;
+  white-space: nowrap !important;
+  min-width: max-content !important;
+  width: max-content !important;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+  box-sizing: border-box !important;
+}
+
 /* Sticky Columns up to Name (ПІБ) on Horizontal Scroll */
 .data-table th.col-sticky,
 .data-table td.col-sticky {
