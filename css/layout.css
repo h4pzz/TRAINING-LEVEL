@@ -105,50 +105,24 @@ html, body {
 .sidebar-footer {
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-4);
   border-top: 1px solid var(--border-color);
-  padding-top: var(--spacing-4);
-  margin-top: var(--spacing-4);
-}
-
-.footer-controls {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--spacing-2);
-}
-
-.footer-btn {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  width: 38px;
-  height: 38px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
-  background: var(--bg-surface-alt);
-  color: var(--text-sidebar);
-  cursor: pointer;
-  transition: all var(--transition-fast);
-}
-
-.footer-btn:hover {
-  background: var(--border-color);
-  color: var(--text-sidebar-hover);
-}
-
-.footer-btn svg {
-  width: 18px;
-  height: 18px;
-  stroke: currentColor;
-  fill: none;
+  padding-top: var(--spacing-3);
+  margin-top: auto;
 }
 
 .system-date-indicator {
   font-size: 11px;
   color: var(--text-sidebar);
   text-align: center;
-  opacity: 0.7;
+  padding: 8px var(--spacing-2);
+  border-radius: var(--radius-md);
+  transition: all var(--transition-fast);
+  opacity: 0.85;
+}
+
+.system-date-indicator:hover {
+  background: var(--bg-sidebar-hover-highlight);
+  opacity: 1;
 }
 
 /* Main Content Workspace */
@@ -182,25 +156,164 @@ html, body {
 .header-right {
   display: flex;
   align-items: center;
-  gap: var(--spacing-4);
+  gap: var(--spacing-3);
 }
 
-.user-badge {
+/* Header Quick Actions (Theme & Language) */
+.header-actions {
   display: flex;
   align-items: center;
-  gap: var(--spacing-2);
-  padding: var(--spacing-2) var(--spacing-4);
-  background-color: var(--bg-surface-alt);
-  border-radius: var(--radius-full);
-  font-size: 13px;
-  font-weight: 500;
+  gap: 6px;
 }
 
-.user-badge svg {
+.header-btn {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface-alt);
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.header-btn:hover {
+  background: var(--border-color);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.header-btn svg {
   width: 16px;
   height: 16px;
   stroke: currentColor;
   fill: none;
+}
+
+.header-lang-btn {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+/* User Account & Dropdown */
+.user-menu-container {
+  position: relative;
+  display: inline-block;
+}
+
+.user-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: 5px 12px;
+  background-color: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.user-badge:hover,
+.user-menu-container.open .user-badge {
+  background-color: var(--bg-surface);
+  border-color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.user-badge svg {
+  width: 15px;
+  height: 15px;
+  stroke: currentColor;
+  fill: none;
+  flex-shrink: 0;
+}
+
+.user-menu-container.open .user-dropdown-arrow {
+  transform: rotate(180deg);
+}
+
+.user-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 230px;
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 6px;
+  z-index: 1050;
+  animation: fadeIn var(--transition-fast) ease-out;
+}
+
+.user-menu-container.open .user-dropdown-menu {
+  display: block;
+}
+
+.user-dropdown-header {
+  padding: 8px 12px;
+}
+
+.user-dropdown-name {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+.user-dropdown-role {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 3px;
+}
+
+.user-dropdown-divider {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 4px 0;
+}
+
+.user-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color var(--transition-fast), color var(--transition-fast);
+  box-sizing: border-box;
+}
+
+.user-dropdown-item:hover {
+  background-color: var(--bg-surface-alt);
+}
+
+.user-dropdown-item-danger {
+  color: var(--danger-color);
+}
+
+.user-dropdown-item-danger:hover {
+  background-color: rgba(239, 68, 68, 0.08);
+  color: var(--danger-color);
 }
 
 /* Views Container */
@@ -299,8 +412,8 @@ html, body {
   pointer-events: auto;
 }
 
-/* Responsive Media Queries (<768px Mobile & Tablet) */
-@media (max-width: 768px) {
+/* Responsive Media Queries: Tablet & Mobile (<=1024px, plus touch tablets in landscape <=1200px) */
+@media (max-width: 1024px), (hover: none) and (pointer: coarse) and (max-width: 1200px) {
   .mobile-menu-toggle {
     display: inline-flex;
   }
@@ -327,11 +440,32 @@ html, body {
 
   .main-header {
     height: 56px;
+    padding: 0 var(--spacing-4);
+  }
+
+  .views-container {
+    padding: var(--spacing-4);
+    padding-bottom: calc(var(--spacing-6) + env(safe-area-inset-bottom, 16px));
+  }
+}
+
+/* Specific smaller screen tweaks (<=768px Phones & Small Tablets) */
+@media (max-width: 768px) {
+  .main-header {
     padding: 0 var(--spacing-3);
   }
 
   .header-title-container h1 {
     font-size: 17px;
+  }
+
+  .header-right {
+    gap: 6px;
+  }
+
+  .header-btn {
+    width: 32px;
+    height: 32px;
   }
 
   .user-badge {
@@ -361,7 +495,6 @@ html, body {
 
   .views-container {
     padding: var(--spacing-3);
-    padding-bottom: calc(var(--spacing-6) + env(safe-area-inset-bottom, 16px));
   }
 }
 
@@ -370,12 +503,38 @@ html, body {
     font-size: 15px;
   }
 
+  .header-right {
+    gap: 4px;
+  }
+
+  .header-actions {
+    gap: 4px;
+  }
+
+  .header-btn {
+    width: 28px;
+    height: 28px;
+  }
+
+  .header-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .header-lang-btn {
+    font-size: 11px;
+  }
+
   .user-badge #user-email-display {
     display: none;
   }
 
   .user-badge {
     padding: 4px 6px;
+  }
+
+  .user-dropdown-menu {
+    min-width: 190px;
   }
 
   .views-container {
@@ -573,4 +732,417 @@ html, body {
   .grid-4cols {
     grid-template-columns: 1fr;
   }
+}
+
+/* ================= TRAINING FLIGHTS: TABS & ARCHIVE ================= */
+
+/* Navigation Tabs */
+.flights-tabs-nav {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
+}
+
+.flights-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.flights-tab-btn i,
+.flights-tab-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke: currentColor;
+  fill: none;
+}
+
+.flights-tab-btn:hover {
+  background: var(--bg-surface-alt);
+  color: var(--text-primary);
+}
+
+.flights-tab-btn.active {
+  background: var(--bg-surface);
+  color: var(--accent);
+  border-color: var(--border-color);
+  box-shadow: var(--shadow-xs);
+}
+
+.flights-archive-count-badge {
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border-color);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 12px;
+  margin-left: 4px;
+}
+
+/* Editing Mode Banner */
+.flight-editing-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: var(--radius-md);
+  color: #d97706;
+}
+
+[data-theme="dark"] .flight-editing-banner {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+}
+
+.flight-editing-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+/* Recent Flights Card */
+.recent-flights-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 9px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.recent-flights-item:hover {
+  border-color: var(--accent);
+  background: var(--bg-surface-alt);
+  transform: translateY(-1px);
+}
+
+.recent-flights-item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.recent-flights-item-reg {
+  color: var(--accent);
+}
+
+.recent-flights-item-crew {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Flight Trend Chart Card */
+.flight-trend-card {
+  overflow: hidden;
+}
+
+.flight-trend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  display: inline-block;
+}
+
+.flight-trend-title {
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-primary);
+}
+
+.flight-trend-stat-item {
+  color: var(--text-secondary);
+}
+
+.trend-hours-accent {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: var(--accent);
+  margin-left: 4px;
+}
+
+.trend-hours-emerald {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  color: #10b981;
+  margin-left: 4px;
+}
+
+.btn-toggle-trend {
+  cursor: pointer;
+  border: 1px solid var(--border-color);
+  background: var(--bg-surface-alt);
+  color: var(--text-primary);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.btn-toggle-trend:hover {
+  background: var(--border-color);
+  color: var(--accent);
+}
+
+/* Month Accordions */
+.month-accordion-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-xs);
+  transition: border-color var(--transition-fast);
+}
+
+.month-accordion-header {
+  padding: 12px 16px;
+  background: var(--bg-surface-alt);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color var(--transition-fast);
+}
+
+.month-accordion-header:hover {
+  background: var(--border-color);
+}
+
+.month-accordion-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.month-accordion-chevron {
+  font-size: 10px;
+  color: var(--accent);
+  transition: transform var(--transition-normal);
+  display: inline-block;
+}
+
+.month-accordion-card.open .month-accordion-chevron {
+  transform: rotate(90deg);
+}
+
+.month-accordion-count-badge {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 12px;
+}
+
+.month-accordion-stats {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.month-accordion-body {
+  display: none;
+  padding: 12px;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 1px solid var(--border-color);
+}
+
+.month-accordion-card.open .month-accordion-body {
+  display: flex;
+}
+
+/* Archive Flight Card */
+.archive-flight-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.archive-flight-card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.archive-flight-header {
+  padding: 10px 14px;
+  background: var(--bg-surface-alt);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.archive-flight-left-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.archive-flight-date-badge {
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+}
+
+.archive-flight-reg {
+  font-family: var(--font-display);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.03em;
+}
+
+.archive-flight-task {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.archive-flight-times {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.archive-flight-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.btn-edit-flight-action {
+  background: #f59e0b;
+  color: #ffffff;
+  border: none;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background-color var(--transition-fast);
+}
+
+.btn-edit-flight-action:hover {
+  background: #d97706;
+}
+
+.btn-delete-flight-action {
+  background: transparent;
+  color: var(--danger-color);
+  border: none;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color var(--transition-fast);
+}
+
+.btn-delete-flight-action:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* Crew Table in Archive Card */
+.archive-crew-table-wrapper {
+  overflow-x: auto;
+}
+
+.archive-crew-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  text-align: left;
+}
+
+.archive-crew-table th {
+  padding: 7px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+  background: var(--bg-surface-alt);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.archive-crew-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+}
+
+.archive-crew-table tr:last-child td {
+  border-bottom: none;
+}
+
+.archive-crew-table tr:hover td {
+  background-color: rgba(37, 99, 235, 0.03);
+}
+
+[data-theme="dark"] .archive-crew-table tr:hover td {
+  background-color: rgba(59, 130, 246, 0.06);
+}
+
+.archive-flight-footer {
+  padding: 6px 14px;
+  background: var(--bg-surface-alt);
+  border-top: 1px solid var(--border-color);
+  font-size: 11px;
+  color: var(--text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
 }

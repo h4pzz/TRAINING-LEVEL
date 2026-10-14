@@ -120,20 +120,9 @@
       </nav>
       
       <div class="sidebar-footer">
-        <div class="footer-controls">
-          <button class="footer-btn" id="theme-toggle" title="Змінити тему">
-            <i data-lucide="moon" id="theme-icon"></i>
-          </button>
-          <button class="footer-btn" id="lang-toggle" style="font-family: var(--font-display); font-size: 13px; font-weight: 700;">
-            EN
-          </button>
-          <button class="footer-btn" id="logout-btn" title="Вийти">
-            <i data-lucide="log-out"></i>
-          </button>
-        </div>
-        <div class="system-date-indicator">
+        <div class="system-date-indicator" id="sidebar-ref-date-container" style="cursor: pointer;" title="Натисніть для зміни розрахункової дати у Налаштуваннях">
           <span data-i18n="sys_date_label">Розрахункова дата:</span>
-          <div id="sidebar-ref-date" style="font-weight: 600; margin-top: 2px;">2026-07-12</div>
+          <div id="sidebar-ref-date" style="font-weight: 600; margin-top: 2px;"></div>
         </div>
       </div>
     </aside>
@@ -158,10 +147,38 @@
             <div style="width: 8px; height: 8px; border-radius: 50%; background-color: var(--badge-neutral-color); margin-right: 6px;" id="sync-status-dot"></div>
             <span id="sync-status-text" data-i18n="sync_offline">Офлайн режим</span>
           </div>
-          <div class="user-badge">
-            <i data-lucide="user"></i>
-            <span id="user-email-display">admin@ukr-helicopters.ua</span>
-            <span id="user-role-display" class="status-badge status-neutral" style="margin-left: 8px; font-size: 10px;">ADMIN</span>
+
+          <!-- Quick Actions: Theme & Language -->
+          <div class="header-actions">
+            <button class="header-btn" id="theme-toggle" title="Змінити тему" aria-label="Toggle theme">
+              <i data-lucide="moon" id="theme-icon"></i>
+            </button>
+            <button class="header-btn header-lang-btn" id="lang-toggle" title="Змінити мову" aria-label="Toggle language">
+              EN
+            </button>
+          </div>
+
+          <!-- User Account with Dropdown Menu -->
+          <div class="user-menu-container" id="user-menu-container">
+            <button class="user-badge" id="user-badge-btn" aria-haspopup="true" aria-expanded="false" title="Профіль та меню користувача">
+              <i data-lucide="user"></i>
+              <span id="user-email-display">admin@ukr-helicopters.ua</span>
+              <span id="user-role-display" class="status-badge status-neutral" style="margin-left: 6px; font-size: 10px;">ADMIN</span>
+              <i data-lucide="chevron-down" class="user-dropdown-arrow" style="width: 14px; height: 14px; margin-left: 2px;"></i>
+            </button>
+
+            <!-- Dropdown Menu -->
+            <div class="user-dropdown-menu" id="user-dropdown-menu">
+              <div class="user-dropdown-header">
+                <div class="user-dropdown-name" id="dropdown-user-email">admin@ukr-helicopters.ua</div>
+                <div class="user-dropdown-role" id="dropdown-user-role">ADMIN</div>
+              </div>
+              <div class="user-dropdown-divider"></div>
+              <button class="user-dropdown-item user-dropdown-item-danger" id="logout-btn">
+                <i data-lucide="log-out" style="width: 16px; height: 16px;"></i>
+                <span data-i18n="btn_logout">Вийти з акаунту</span>
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -391,12 +408,40 @@
 
         <!-- 4. TRAINING FLIGHTS VIEW -->
         <div class="view-panel" id="view-training-flights">
-          <div class="training-flights-layout">
-            
-            <!-- Left Card: Form -->
-            <div class="card" style="width: 100%;">
-              <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600;" data-i18n="flights_title">Training Flight Log</h3>
-              <form id="training-flight-form" style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+          
+          <!-- Вкладки розділу «Тренувальні польоти» -->
+          <div class="flights-tabs-nav">
+            <button type="button" id="btn-flights-tab-entry" class="flights-tab-btn active" onclick="switchTrainingFlightsTab('entry')">
+              <i data-lucide="edit-3"></i>
+              <span data-i18n="tab_flights_entry">Внесення польоту</span>
+            </button>
+            <button type="button" id="btn-flights-tab-archive" class="flights-tab-btn" onclick="switchTrainingFlightsTab('archive')">
+              <i data-lucide="archive"></i>
+              <span data-i18n="tab_flights_archive">Архів польотів за місяцями</span>
+              <span id="flights-archive-badge" class="flights-archive-count-badge">0</span>
+            </button>
+          </div>
+
+          <!-- ВКЛАДКА 1: Внесення польоту -->
+          <div id="flights-tab-entry">
+            <!-- Банер режиму редагування польоту -->
+            <div id="flight-editing-banner" class="flight-editing-banner" style="display: none;">
+              <div class="flight-editing-info">
+                <i data-lucide="edit-2"></i>
+                <span><strong data-i18n="editing_mode_title">Режим редагування:</strong> <span id="editing-flight-summary-text"></span></span>
+              </div>
+              <button type="button" id="btn-cancel-flight-edit" class="btn btn-secondary btn-sm" onclick="cancelFlightEditMode()">
+                <i data-lucide="x"></i>
+                <span data-i18n="btn_cancel_edit">Скасувати / Новий політ</span>
+              </button>
+            </div>
+
+            <div class="training-flights-layout">
+              
+              <!-- Left Card: Form -->
+              <div class="card" style="width: 100%;">
+                <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600;" data-i18n="flights_title">Training Flight Log</h3>
+                <form id="training-flight-form" style="display: flex; flex-direction: column; gap: var(--spacing-4);">
                 
                 <!-- GROUP 1: General Information / Загальна інформація -->
                 <div class="form-group-section" id="form-group-1" style="border: 1px solid var(--border-color); border-radius: var(--radius-md); background-color: var(--bg-surface); overflow: hidden;">
@@ -586,36 +631,88 @@
               </form>
             </div>
             
-            <!-- Right Card: Logged Flights List -->
-            <div class="card" style="width: 100%; max-height: 85vh; overflow-y: auto; padding: 12px; box-sizing: border-box;">
-              <h3 data-i18n="logged_flights_title" style="font-family: var(--font-display); font-size: 14.5px; font-weight: 700; border-bottom: 1px solid var(--border-color); padding-bottom: var(--spacing-2); margin: 0; text-align: center;">Перелік польотів</h3>
-              
-              <!-- Month Filter and Stats Container -->
-              <div style="display: flex; flex-direction: column; gap: 6px; margin: 10px 0; padding: 8px; background-color: var(--bg-surface-alt); border-radius: var(--radius-md); border: 1px solid var(--border-color);">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px;">
-                  <label for="flight-month-filter" data-i18n="label_month_filter" style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin: 0; white-space: nowrap;">Місяць:</label>
-                  <select id="flight-month-filter" class="form-input" style="padding: 2px 4px; font-size: 11px; height: 26px; width: auto; max-width: 135px; margin: 0; cursor: pointer; background-color: var(--bg-surface);">
-                    <option value="all" data-i18n="opt_all_months">Всі місяці</option>
-                  </select>
+            <!-- Right Card: Крайні польоти (3) -->
+            <div class="card recent-flights-card" style="width: 100%; max-height: 85vh; overflow-y: auto; padding: 14px; box-sizing: border-box; display: flex; flex-direction: column; justify-content: space-between;">
+              <div>
+                <div class="recent-flights-header" style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border-color); padding-bottom: 8px; margin-bottom: 10px;">
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <i data-lucide="clock" style="width: 15px; height: 15px; color: var(--accent);"></i>
+                    <h3 data-i18n="recent_flights_title" style="font-family: var(--font-display); font-size: 13.5px; font-weight: 700; margin: 0; text-transform: uppercase; letter-spacing: 0.03em;">Крайні польоти (3)</h3>
+                  </div>
+                  <span class="recent-badge" style="background: var(--bg-surface-alt); border: 1px solid var(--border-color); font-size: 11px; padding: 2px 7px; border-radius: 4px; font-weight: 600; color: var(--accent);" data-i18n="badge_recent">Останні</span>
                 </div>
-                <div style="display: flex; justify-content: space-between; font-size: 10.5px; font-weight: 600; color: var(--text-primary); border-top: 1px solid var(--border-color); padding-top: 4px; margin-top: 1px;">
-                  <div>
-                    <span style="color: var(--text-secondary);" data-i18n="stat_ttl_flight">Польоти:</span>
-                    <span id="month-stat-flight" style="font-weight: 700; color: var(--accent); margin-left: 2px;">00:00</span>
-                  </div>
-                  <div>
-                    <span style="color: var(--text-secondary);" data-i18n="stat_ttl_block">Блок:</span>
-                    <span id="month-stat-block" style="font-weight: 700; color: var(--accent); margin-left: 2px;">00:00</span>
-                  </div>
+
+                <!-- Container for 3 recent flights -->
+                <div id="recent-flights-list" style="display: flex; flex-direction: column; gap: 8px;">
+                  <!-- Dynamically populated in JS -->
                 </div>
               </div>
 
-              <div id="logged-flights-list" style="display: flex; flex-direction: column; gap: 6px; padding-right: 2px;">
-                <!-- Dynamically populated in JS -->
-              </div>
+              <!-- Button to jump to archive -->
+              <button type="button" id="btn-jump-to-archive" class="btn-goto-archive" onclick="switchTrainingFlightsTab('archive')" style="margin-top: 14px; width: 100%; padding: 8px 12px; background: var(--bg-surface-alt); border: 1px solid var(--border-color); border-radius: var(--radius-md); font-size: 12px; font-weight: 600; color: var(--accent); display: flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; transition: all var(--transition-fast);">
+                <span data-i18n="btn_view_all_archive">Переглянути всі польоти в архіві</span>
+                <i data-lucide="arrow-right" style="width: 14px; height: 14px;"></i>
+              </button>
             </div>
 
           </div>
+        </div><!-- #flights-tab-entry -->
+
+        <!-- ВКЛАДКА 2: Архів польотів за місяцями -->
+        <div id="flights-tab-archive" style="display: none; flex-direction: column; gap: 14px;">
+          
+          <!-- 1. Лінійний графік нальоту -->
+          <div class="card flight-trend-card" id="flight-trend-card" style="padding: 14px 16px;">
+            <div class="flight-trend-header" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: inline-block;"></span>
+                <span style="font-family: var(--font-display); font-size: 13.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;" data-i18n="trend_chart_title">Динаміка тренувального нальоту за місяцями</span>
+              </div>
+              
+              <div style="display: flex; align-items: center; gap: 14px; font-size: 12px;">
+                <div>
+                  <span style="color: var(--text-secondary);" data-i18n="trend_current_month">У поточному місяці:</span>
+                  <span id="trend-current-month-hours" style="font-family: var(--font-mono); font-weight: 700; color: var(--accent); margin-left: 4px;">00:00 год</span>
+                </div>
+                <div class="hidden-mobile">
+                  <span style="color: var(--text-secondary);" data-i18n="trend_year_total">Всього за рік:</span>
+                  <span id="trend-yearly-hours" style="font-family: var(--font-mono); font-weight: 700; color: #10b981; margin-left: 4px;">00:00 год</span>
+                </div>
+                <button type="button" id="btn-toggle-flight-trend" class="btn btn-secondary btn-sm" onclick="toggleFlightTrendChart()" style="padding: 3px 8px; font-size: 11px; height: 26px; display: inline-flex; align-items: center; gap: 4px;">
+                  <span id="trend-btn-text" data-i18n="btn_collapse_chart">Згорнути графік</span>
+                  <span id="trend-chevron">▲</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Тіло графіка (SVG ламана лінія) -->
+            <div id="flight-trend-chart-body" style="padding-top: 12px; width: 100%; overflow-x: auto;">
+              <!-- SVG dynamically rendered by JS -->
+            </div>
+          </div>
+
+          <!-- 2. Панель інструментів (Пошук та Експорт) -->
+          <div class="card flight-archive-toolbar" style="padding: 10px 14px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;">
+            <div class="flight-search-wrapper" style="position: relative; display: flex; align-items: center; flex: 1; min-width: 260px; max-width: 450px;">
+              <i data-lucide="search" style="position: absolute; left: 10px; width: 15px; height: 15px; color: var(--text-secondary);"></i>
+              <input type="text" id="flight-archive-search" class="form-input" style="padding-left: 32px; height: 34px; font-size: 12.5px; width: 100%; margin: 0;" placeholder="Пошук за прізвищем пілота, бортом UR-..., завданням..." data-i18n-placeholder="search_archive_placeholder">
+              <button type="button" id="btn-clear-archive-search" style="display: none; position: absolute; right: 8px; background: transparent; border: none; cursor: pointer; color: var(--text-secondary); padding: 2px;" onclick="clearArchiveSearch()">
+                <i data-lucide="x" style="width: 14px; height: 14px;"></i>
+              </button>
+            </div>
+            <div class="flight-toolbar-actions" style="display: flex; gap: 8px; align-items: center;">
+              <button type="button" id="btn-archive-export-xlsx" class="btn btn-secondary" style="height: 34px; padding: 0 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;" title="Завантажити всі записи у форматі Excel (.xlsx)">
+                <i data-lucide="file-spreadsheet" style="width: 15px; height: 15px; color: #10b981;"></i>
+                <span data-i18n="btn_export_excel">Експорт Excel</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 3. Помісячні акордеони рейсів -->
+          <div id="flights-archive-months" style="display: flex; flex-direction: column; gap: 12px;">
+            <!-- Dynamically populated in JS -->
+          </div>
+
         </div>
 
         <!-- 5. FORMS VIEW (БЛАНКИ) -->
@@ -752,27 +849,111 @@
 
                 <!-- Sync Frequency / Interval -->
                 <div class="card">
-                  <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; margin: 0;">
-                    <i data-lucide="clock" style="color: var(--accent);"></i>
-                    <span data-i18n="label_sync_interval_card">Періодичність синхронізації</span>
-                  </h3>
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; margin: 0;">
+                      <i data-lucide="clock" style="color: var(--accent);"></i>
+                      <span data-i18n="label_sync_interval_card">Періодичність синхронізації</span>
+                    </h3>
+                    <span id="sync-schedule-mode-badge" class="status-badge status-neutral" style="font-size: 11px;">Тільки вручну</span>
+                  </div>
                   
-                  <div style="display: flex; flex-direction: column; gap: var(--spacing-4);">
+                  <div style="display: flex; flex-direction: column; gap: var(--spacing-4); margin-top: var(--spacing-3);">
                     <div class="form-group">
-                      <label for="settings-sync-interval" data-i18n="label_sync_interval" style="font-weight: 600; font-size: 13px;">Автоматична синхронізація</label>
+                      <label for="settings-sync-interval" data-i18n="label_sync_interval" style="font-weight: 600; font-size: 13px;">Режим синхронізації</label>
                       <select id="settings-sync-interval" class="form-select">
-                        <option value="manual">Тільки вручну (Manual)</option>
-                        <option value="5">Кожні 5 хвилин</option>
-                        <option value="15">Кожні 15 хвилин</option>
-                        <option value="30">Кожні 30 хвилин</option>
-                        <option value="60">Щогодини (60 хв)</option>
-                        <option value="1440">Щодня (раз на добу)</option>
+                        <option value="manual" selected>Тільки ручна синхронізація (Рекомендовано / Manual only)</option>
+                        <option value="5">Автоматично: кожні 5 хвилин</option>
+                        <option value="15">Автоматично: кожні 15 хвилин</option>
+                        <option value="30">Автоматично: кожні 30 хвилин</option>
+                        <option value="60">Автоматично: щогодини (60 хв)</option>
+                        <option value="1440">Автоматично: щодня (раз на добу)</option>
                       </select>
+                    </div>
+
+                    <!-- Zero Deletion Guarantee Banner -->
+                    <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(59, 130, 246, 0.08) 100%); border: 1px solid rgba(16, 185, 129, 0.35); border-radius: var(--radius-md); padding: var(--spacing-3); display: flex; flex-direction: column; gap: 4px;">
+                      <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 12.5px; color: var(--badge-valid-color);">
+                        <i data-lucide="shield-check" style="width: 16px; height: 16px;"></i>
+                        <span>Гарантія захисту бази сайту (Zero-Deletion Guarantee)</span>
+                      </div>
+                      <div style="font-size: 11.5px; color: var(--text-secondary); line-height: 1.45;">
+                        • <strong>Члени екіпажу не видаляються:</strong> При ручній чи автосинхронізації персонал на сайті <u>ніколи</u> не видаляється. Видалення можливе лише на Google Диску або вручну адміністратором на сайті.<br>
+                        • <strong>Дати кваліфікацій захищені:</strong> Жодна дата на сайті не стирається і не видаляється при синхронізації. Оновлюються тільки валідні новіші дати.
+                      </div>
                     </div>
 
                     <div style="background-color: var(--bg-surface-alt); padding: var(--spacing-3); border-radius: var(--radius-md); font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
                       <span style="color: var(--text-secondary);" data-i18n="label_last_sync">Остання синхронізація:</span>
                       <strong id="last-sync-timestamp-display">Ще не виконувалась</strong>
+                    </div>
+
+                    <div style="display: flex; gap: var(--spacing-2); flex-wrap: wrap;">
+                      <button class="btn btn-primary" id="btn-save-sync-interval" style="flex: 1 1 140px;">
+                        <i data-lucide="save"></i>
+                        <span>Зберегти режим</span>
+                      </button>
+                      <button class="btn btn-secondary" id="btn-trigger-sync-now" style="flex: 1 1 140px;">
+                        <i data-lucide="refresh-cw"></i>
+                        <span>Синхронізувати зараз</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Weekly Flights Email Dispatch Card -->
+                <div class="card">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; margin: 0;">
+                      <i data-lucide="mail" style="color: var(--accent);"></i>
+                      <span data-i18n="flights_email_card_title">Щотижнева розсилка бази польотів</span>
+                    </h3>
+                    <span class="status-badge status-valid" style="font-size: 11px;" id="flights-email-status-badge">1 раз на тиждень</span>
+                  </div>
+                  
+                  <div style="display: flex; flex-direction: column; gap: var(--spacing-4); margin-top: var(--spacing-3);">
+                    <div class="form-group">
+                      <label for="settings-flights-email-recipients" data-i18n="label_flights_email_recipients" style="font-weight: 600; font-size: 13px;">Поштові скриньки для отримання (через кому)</label>
+                      <input type="text" id="settings-flights-email-recipients" class="form-input" placeholder="training.dept@ukr-helicopters.ua, chief.pilot@ukr-helicopters.ua" style="font-size: 12px;">
+                    </div>
+
+                    <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; user-select: none;">
+                      <input type="checkbox" id="settings-flights-email-enabled" checked style="width: 14px; height: 14px; cursor: pointer;">
+                      <span data-i18n="label_flights_email_enabled">Автоматично відправляти звіт 1 раз на тиждень</span>
+                    </label>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-3);">
+                      <div class="form-group">
+                        <label for="settings-flights-email-scope" data-i18n="label_flights_email_scope" style="font-weight: 600; font-size: 12px;">Обсяг даних</label>
+                        <select id="settings-flights-email-scope" class="form-select" style="font-size: 12px;">
+                          <option value="all" data-i18n="opt_scope_all">Вся база польотів</option>
+                          <option value="last" data-i18n="opt_scope_last">Тільки останній політ</option>
+                        </select>
+                      </div>
+
+                      <div class="form-group">
+                        <label for="settings-flights-email-format" data-i18n="label_flights_email_format" style="font-weight: 600; font-size: 12px;">Формат файлу</label>
+                        <select id="settings-flights-email-format" class="form-select" style="font-size: 12px;">
+                          <option value="both" data-i18n="opt_fmt_both">Обидва (CSV + XLSX)</option>
+                          <option value="xlsx" data-i18n="opt_fmt_xlsx">Тільки Excel (.xlsx)</option>
+                          <option value="csv" data-i18n="opt_fmt_csv">Тільки CSV (.csv)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div style="background-color: var(--bg-surface-alt); padding: var(--spacing-3); border-radius: var(--radius-md); font-size: 12px; display: flex; justify-content: space-between; align-items: center;">
+                      <span style="color: var(--text-secondary);" data-i18n="label_last_dispatch">Остання відправка:</span>
+                      <strong id="flights-last-email-dispatch-text">Ще не виконувалась</strong>
+                    </div>
+
+                    <div style="display: flex; gap: var(--spacing-2); flex-wrap: wrap;">
+                      <button class="btn btn-primary" id="btn-save-flights-email-settings" style="flex: 1 1 140px;">
+                        <i data-lucide="save"></i>
+                        <span data-i18n="btn_save_email_settings">Зберегти налаштування</span>
+                      </button>
+                      <button class="btn btn-secondary" id="btn-send-flights-email-now" style="flex: 1 1 140px;">
+                        <i data-lucide="send"></i>
+                        <span data-i18n="btn_send_flights_email_now">Надіслати зараз (Тест)</span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -818,17 +999,36 @@
                       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
                         <strong style="font-size: 13px; display: flex; align-items: center; gap: 6px;">
                           <i data-lucide="plane" style="width: 14px; height: 14px; color: var(--accent);"></i>
-                          <span data-i18n="label_sheet_flights">2. Таблиця польотів (Training Flights)</span>
+                          <span data-i18n="label_sheet_flights">2. База польотів (Training Flights)</span>
                         </strong>
                         <span class="status-badge status-neutral" style="font-size: 10px;" data-i18n="badge_sheets_flights">Аркуш: Training_Flights</span>
                       </div>
                       <div class="form-group">
+                        <label for="settings-google-sheet-flights-id" style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary);" data-i18n="label_google_sheet_flights_id">Google Sheets ID польотів:</label>
                         <input type="text" id="settings-google-sheet-flights-id" class="form-input" placeholder="Google Sheet ID польотів (напр. 1gHkl924Ksd...)" style="font-family: monospace; font-size: 12px;" data-i18n-placeholder="placeholder_sheet_flights">
                       </div>
-                      <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
-                        <button class="btn btn-secondary" id="btn-sync-flights" style="height: 32px; font-size: 12px;">
+                      <div class="form-group" style="margin-top: 8px;">
+                        <label for="settings-google-drive-flights-folder-id" style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary);" data-i18n="label_flights_drive_folder">Окрема папка на Google Drive для бази польотів (Folder ID або назва):</label>
+                        <input type="text" id="settings-google-drive-flights-folder-id" class="form-input" placeholder="Training_Flights_Backups" style="font-family: monospace; font-size: 12px;">
+                      </div>
+                      <div style="display: flex; gap: var(--spacing-2); flex-wrap: wrap; margin-top: 8px;">
+                        <button class="btn btn-secondary" id="btn-sync-flights-drive" style="flex: 1 1 160px; height: 32px; font-size: 12px; border-color: var(--accent); color: var(--accent);">
+                          <i data-lucide="cloud-upload" style="width: 13px; height: 13px;"></i>
+                          <span data-i18n="btn_sync_flights_drive">Дублювати на Google Drive</span>
+                        </button>
+                        <button class="btn btn-secondary" id="btn-sync-flights" style="flex: 1 1 140px; height: 32px; font-size: 12px;">
                           <i data-lucide="refresh-cw" style="width: 13px; height: 13px;"></i>
-                          <span data-i18n="btn_sync_flights">Синхронізувати польоти</span>
+                          <span data-i18n="btn_sync_flights">Синхронізація Sheets</span>
+                        </button>
+                      </div>
+                      <div style="display: flex; gap: var(--spacing-2); margin-top: 6px;">
+                        <button class="btn btn-secondary" id="btn-export-flights-xlsx" style="flex: 1; height: 28px; font-size: 11px;">
+                          <i data-lucide="file-spreadsheet" style="width: 12px; height: 12px;"></i>
+                          <span>Експорт бази (XLSX)</span>
+                        </button>
+                        <button class="btn btn-secondary" id="btn-export-flights-csv" style="flex: 1; height: 28px; font-size: 11px;">
+                          <i data-lucide="file-text" style="width: 12px; height: 12px;"></i>
+                          <span>Експорт бази (CSV)</span>
                         </button>
                       </div>
                     </div>
@@ -1174,8 +1374,20 @@
                   </div>
 
                   <div class="form-group">
-                    <label for="settings-ref-date" style="font-weight: 600; font-size: 13px;" data-i18n="label_ref_date_calc">Розрахункова системна дата</label>
-                    <input type="date" id="settings-ref-date" class="form-input" value="2026-07-12">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                      <label for="settings-ref-date" style="font-weight: 600; font-size: 13px;" data-i18n="label_ref_date_calc">Розрахункова системна дата</label>
+                      <button type="button" class="btn btn-secondary" id="btn-set-today-ref-date" style="height: 24px; padding: 0 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" title="Встановити поточну дату">
+                        <i data-lucide="calendar" style="width: 12px; height: 12px;"></i>
+                        <span data-i18n="btn_today">Сьогодні</span>
+                      </button>
+                    </div>
+                    <input type="date" id="settings-ref-date" class="form-input" value="">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+                      <input type="checkbox" id="settings-auto-today-date" checked style="width: 16px; height: 16px; cursor: pointer;">
+                      <label for="settings-auto-today-date" style="font-size: 12px; color: var(--text-secondary); cursor: pointer;" data-i18n="label_auto_today_date">
+                        Автоматично встановлювати сьогоднішню дату (оновлюється щодня)
+                      </label>
+                    </div>
                   </div>
 
                   <div style="display: flex; justify-content: space-between; align-items: center;">
