@@ -1,7 +1,11 @@
 /**
  * Evaluates whether an imported date should overwrite a cached date.
- * An overwrite happens if the imported date is valid and either the cached date
- * is empty, or the imported date is chronologically newer.
+ * CRITICAL RULE: Dates on the website can NEVER be deleted, erased, or reverted.
+ * An overwrite happens ONLY if the imported date is a valid date AND either:
+ * - the cached date was previously empty, OR
+ * - the imported date is chronologically NEWER than the cached date.
+ * 
+ * Empty, null, missing, or older dates from Google Drive/Sheets will NEVER overwrite local dates.
  * @param {string} cachedDateStr 
  * @param {string} importedDateStr 
  * @returns {boolean}
@@ -10,31 +14,44 @@ export function shouldOverwriteDate(cachedDateStr, importedDateStr) {
   const cleanCached = (cachedDateStr || '').trim();
   const cleanImported = (importedDateStr || '').trim();
   
-  if (cleanImported === '' || cleanImported === '-') return false;
-  if (cleanCached === '' || cleanCached === '-') return true;
+  // Under NO circumstances can an empty/dash/invalid imported date wipe an existing cached date!
+  if (cleanImported === '' || cleanImported === '-' || cleanImported === 'null' || cleanImported === 'undefined') {
+    return false;
+  }
+  
+  const importedTime = new Date(cleanImported).getTime();
+  if (isNaN(importedTime)) return false; // Invalid incoming date cannot overwrite anything
+  
+  // If local date is empty or invalid, fill it with the valid imported date
+  if (cleanCached === '' || cleanCached === '-' || cleanCached === 'null' || cleanCached === 'undefined') {
+    return true;
+  }
   
   const cachedTime = new Date(cleanCached).getTime();
-  const importedTime = new Date(cleanImported).getTime();
-  
-  if (isNaN(importedTime)) return false;
   if (isNaN(cachedTime)) return true;
   
+  // Overwrite ONLY if incoming date is strictly newer
   return importedTime > cachedTime;
 }
 
 /**
- * Smart Merges imported Excel crew data with the current cached local data.
- * Matches crew members by English or Ukrainian full names.
- * Overwrites training dates only if the imported date is chronologically newer.
- * Logs all changes into changelog entries.
+ * Smart Merges imported Excel/Drive crew data with the current cached local data.
  * 
- * @param {Array<object>} cachedList - The current crew database from cache
- * @param {Array<object>} importedList - The newly parsed crew list from Excel
+ * CRITICAL ZERO-DELETION GUARANTEES:
+ * 1. Existing crew members on the website are NEVER deleted during sync.
+ *    Any member present in cachedList is preserved even if omitted or deleted in remote Google Drive / Sheets.
+ *    Crew members can only be removed directly in Google Drive or via explicit local Admin deletion.
+ * 2. Existing dates on the website are NEVER deleted, cleared, or replaced with empty values.
+ *    Only valid and newer dates take effect.
+ * 
+ * @param {Array<object>} cachedList - The current crew database from local cache
+ * @param {Array<object>} importedList - The newly parsed crew list from Excel / Drive
  * @param {string} userEmail - The email of the user triggering the merge
  * @returns {object} { mergedList: Array, changelogEntries: Array }
  */
 export function mergeCrewData(cachedList, importedList, userEmail = 'system@aerocheck.com') {
-  const mergedList = JSON.parse(JSON.stringify(cachedList)); // deep clone
+  // Deep clone to ensure all local members are retained by default
+  const mergedList = JSON.parse(JSON.stringify(cachedList || []));
   const changelogEntries = [];
   const timestamp = new Date().toISOString();
   

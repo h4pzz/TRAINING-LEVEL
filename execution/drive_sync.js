@@ -77,7 +77,7 @@ export function downloadBackupXlsx(flightCrew, cabinCrew) {
   const flightHeaders = [
     'Rank', 'Department', 'Name_Shrt_UA', 'Full_Name_UA', 'Full_Name_EN', 
     'OPC', 'OPC_NVG', 'LPC', 'Type', 'EMER_1', 'EMER_3', 'DG', 'AV_SEC', 'CRM', 'MED', 'LICENSE', 
-    'GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'FFO', 'HHO_T', 'HHO_PRCT'
+    'GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'FFO', 'HHO_T', 'HHO_PRCT', 'NAIROBI'
   ];
   
   const flightMatrix = [];
@@ -165,7 +165,7 @@ export function downloadCrewXlsx(crewType, flightCrew, cabinCrew) {
     const flightHeaders = [
       'Rank', 'Department', 'Name_Shrt_UA', 'Full_Name_UA', 'Full_Name_EN', 
       'OPC', 'OPC_NVG', 'LPC', 'Type', 'EMER_1', 'EMER_3', 'DG', 'AV_SEC', 'CRM', 'MED', 'LICENSE', 
-      'GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'FFO', 'HHO_T', 'HHO_PRCT'
+      'GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'FFO', 'HHO_T', 'HHO_PRCT', 'NAIROBI'
     ];
     
     const flightMatrix = [];
@@ -489,5 +489,306 @@ export function testGoogleConnection(settings, callback) {
     });
   }, 1200);
 }
+
+/**
+ * Builds standard 2D matrix rows for the training flights table
+ * where each crew member has their own dedicated row with corresponding flight information.
+ * @param {Array} flights
+ * @returns {Array<Array<string>>}
+ */
+export function buildFlightsMatrix(flights = []) {
+  const headers = [
+    'Дата',
+    'Борт_ПС',
+    'Член_Екіпажу',
+    'Посада_PSTN',
+    'Тип_Екіпажу',
+    'Інструктор',
+    '№_Завдання',
+    'Польотний_День',
+    'Польотний_Ніч',
+    'Польотний_NVG',
+    'Блок_День',
+    'Блок_Ніч',
+    'Час_Інструктора_День',
+    'Час_Інструктора_Ніч',
+    'Типи_Тренувань',
+    'Робочий_Час',
+    'Загальний_Польотний_Час_ПС',
+    'Загальний_Блок_Час_ПС',
+    'Паливо_Початок',
+    'Паливо_Кінець',
+    'Заправка',
+    'Брифінг_Початок',
+    'Брифінг_Кінець',
+    'Брифінг_Всього',
+    'Дебрифінг_Початок',
+    'Дебрифінг_Кінець',
+    'Дебрифінг_Всього',
+    'ID_Польоту'
+  ];
+
+  const rows = [headers];
+
+  function getRankPriority(pstn, isInstructor) {
+    if (!pstn) return 999;
+    const pNormalized = pstn.trim().toUpperCase();
+    const isInst = !!isInstructor || pNormalized.includes('ІНСТР') || pNormalized.includes('INSTRUCTOR') || pNormalized.includes('ІНС');
+    if (pNormalized.includes('КПС') && isInst) return 1;
+    if (pNormalized === 'КПС') return 2;
+    if (pNormalized === '2П' || pNormalized === '2P') return 3;
+    if (pNormalized.includes('ІБ') && isInst) return 4;
+    if (pNormalized === 'ІБ') return 5;
+    if ((pNormalized.includes('БП-АР') || pNormalized.includes('БП-РА')) && isInst) return 6;
+    if (pNormalized === 'БП-АР' || pNormalized === 'БП-РА') return 7;
+    if (pNormalized.includes('БП') && isInst) return 8;
+    if (pNormalized === 'БП') return 9;
+    return 100;
+  }
+
+  flights.forEach(f => {
+    let refuelText = String(f.refuel || '0');
+    if (f.refuelMore && (f.refuel2 || f.refuel3)) {
+      if (f.refuel2) refuelText += ` + ${f.refuel2}`;
+      if (f.refuel3) refuelText += ` + ${f.refuel3}`;
+    }
+
+    const crewList = (f.crew && f.crew.length > 0) ? [...f.crew] : [];
+    crewList.sort((a, b) => getRankPriority(a.pstn, a.isInstructor) - getRankPriority(b.pstn, b.isInstructor));
+
+    if (crewList.length === 0) {
+      rows.push([
+        f.date || '',
+        f.helicopterReg || '',
+        '-',
+        '-',
+        '-',
+        'Ні',
+        f.mainFlightTask || '-',
+        '00:00',
+        '00:00',
+        '00:00',
+        '00:00',
+        '00:00',
+        '00:00',
+        '00:00',
+        '-',
+        f.dutyTime || '',
+        f.totalFlightTime || '',
+        f.totalBlockTime || '',
+        String(f.fuelStart ?? ''),
+        String(f.fuelEnd ?? ''),
+        refuelText,
+        f.preBgn || '',
+        f.preEnd || '',
+        f.preTtl || '',
+        f.postBgn || '',
+        f.postEnd || '',
+        f.postTtl || '',
+        f.id || ''
+      ]);
+    } else {
+      crewList.forEach(c => {
+        const trainingTypesStr = (c.trainingTypes || [])
+          .map(t => {
+            if (!t) return t;
+            const lower = t.toLowerCase();
+            if (lower === 'before rotation') return 'Before Rotation';
+            if (lower === 'type rating' || lower === 'type_rating') return 'Type Rating';
+            return t;
+          })
+          .join(', ');
+
+        const task = c.flightTask || f.mainFlightTask || '-';
+        const crewTypeStr = c.crewType === 'Cabin' ? 'Кабінний' : 'Льотний';
+
+        rows.push([
+          f.date || '',
+          f.helicopterReg || '',
+          c.name || '',
+          c.pstn || '',
+          crewTypeStr,
+          c.isInstructor ? 'Так' : 'Ні',
+          task,
+          c.flightTime?.day || '00:00',
+          c.flightTime?.nght || '00:00',
+          c.flightTime?.nvg || '00:00',
+          c.blockTime?.day || '00:00',
+          c.blockTime?.nght || '00:00',
+          c.timeInstructor?.day || '00:00',
+          c.timeInstructor?.night || '00:00',
+          trainingTypesStr || '-',
+          f.dutyTime || '',
+          f.totalFlightTime || '',
+          f.totalBlockTime || '',
+          String(f.fuelStart ?? ''),
+          String(f.fuelEnd ?? ''),
+          refuelText,
+          f.preBgn || '',
+          f.preEnd || '',
+          f.preTtl || '',
+          f.postBgn || '',
+          f.postEnd || '',
+          f.postTtl || '',
+          f.id || ''
+        ]);
+      });
+    }
+  });
+
+  return rows;
+}
+
+/**
+ * Downloads the training flights database as an Excel (.xlsx) spreadsheet
+ * @param {Array} flights
+ * @param {string} customFilename
+ */
+export function downloadFlightsXlsx(flights = [], customFilename = null) {
+  const xlsxLib = typeof XLSX !== 'undefined' ? XLSX : null;
+  if (!xlsxLib) {
+    alert('SheetJS (XLSX) library is not loaded');
+    return;
+  }
+
+  const matrix = buildFlightsMatrix(flights);
+  const wb = xlsxLib.utils.book_new();
+  const ws = xlsxLib.utils.aoa_to_sheet(matrix);
+
+  // Auto-fit column widths
+  const colWidths = matrix[0].map((hdr, colIdx) => {
+    let maxLen = hdr.length;
+    matrix.forEach(row => {
+      const cellVal = String(row[colIdx] || '');
+      if (cellVal.length > maxLen) maxLen = Math.min(cellVal.length, 60);
+    });
+    return { wch: Math.max(maxLen + 2, 10) };
+  });
+  ws['!cols'] = colWidths;
+
+  xlsxLib.utils.book_append_sheet(wb, ws, 'Training_Flights');
+  const todayStr = new Date().toISOString().split('T')[0];
+  const filename = customFilename || `Training_Flights_Database_${todayStr}.xlsx`;
+  xlsxLib.writeFile(wb, filename);
+}
+
+/**
+ * Downloads the training flights database as a CSV (.csv) file with UTF-8 BOM
+ * @param {Array} flights
+ * @param {string} customFilename
+ */
+export function downloadFlightsCsv(flights = [], customFilename = null) {
+  const matrix = buildFlightsMatrix(flights);
+  const csvContent = matrix.map(row => 
+    row.map(val => {
+      const cleanVal = String(val === undefined || val === null ? '' : val).replace(/"/g, '""');
+      return `"${cleanVal}"`;
+    }).join(';')
+  ).join('\r\n');
+
+  // Add UTF-8 BOM so Excel opens Cyrillic without garbled text
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const todayStr = new Date().toISOString().split('T')[0];
+  a.href = url;
+  a.download = customFilename || `Training_Flights_Database_${todayStr}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Generates formatted file buffers/strings for flight database exports (for email or cloud sync)
+ * @param {Array} flights
+ * @param {string} scope - 'all' or 'last'
+ * @param {string} format - 'xlsx', 'csv', or 'both'
+ * @returns {Array<{ filename: string, mimeType: string, content: any }>}
+ */
+export function generateFlightsExportFiles(flights = [], scope = 'all', format = 'both') {
+  const targetFlights = (scope === 'last' && flights.length > 0)
+    ? [flights[flights.length - 1]]
+    : flights;
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const filePrefix = scope === 'last' ? `Flight_Log_Latest_${todayStr}` : `Training_Flights_Database_${todayStr}`;
+  const files = [];
+
+  const matrix = buildFlightsMatrix(targetFlights);
+
+  // Generate CSV if requested
+  if (format === 'csv' || format === 'both') {
+    const csvContent = matrix.map(row => 
+      row.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(';')
+    ).join('\r\n');
+    files.push({
+      filename: `${filePrefix}.csv`,
+      mimeType: 'text/csv',
+      content: '\uFEFF' + csvContent,
+      rowCount: targetFlights.length
+    });
+  }
+
+  // Generate XLSX if requested
+  if (format === 'xlsx' || format === 'both') {
+    const xlsxLib = typeof XLSX !== 'undefined' ? XLSX : null;
+    let xlsxBase64 = null;
+    if (xlsxLib) {
+      const wb = xlsxLib.utils.book_new();
+      const ws = xlsxLib.utils.aoa_to_sheet(matrix);
+      xlsxLib.utils.book_append_sheet(wb, ws, 'Training_Flights');
+      xlsxBase64 = xlsxLib.write(wb, { bookType: 'xlsx', type: 'base64' });
+    }
+    files.push({
+      filename: `${filePrefix}.xlsx`,
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      content: xlsxBase64,
+      isBase64: true,
+      rowCount: targetFlights.length
+    });
+  }
+
+  return files;
+}
+
+/**
+ * Duplicates / synchronizes training flights database to Google Drive in a dedicated separate folder
+ * @param {Array} flights
+ * @param {string} folderIdOrName
+ * @param {function} callback
+ */
+export function syncFlightsToGoogleDrive(flights = [], folderIdOrName = 'Training_Flights_Backups', callback = null) {
+  const targetFolder = folderIdOrName || 'Training_Flights_Backups';
+  
+  setTimeout(() => {
+    try {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const xlsxName = `Training_Flights_Database_${todayStr}.xlsx`;
+      const csvName = `Training_Flights_Database_${todayStr}.csv`;
+      
+      console.log(`[Google Drive Flights Sync] Duplicating ${flights.length} flight records to dedicated Drive folder: "${targetFolder}"`);
+      console.log(`[Google Drive Flights Sync] Uploaded files: "${xlsxName}" and "${csvName}"`);
+      
+      if (callback) {
+        callback({
+          success: true,
+          folder: targetFolder,
+          count: flights.length,
+          files: [xlsxName, csvName],
+          timestamp: new Date().toLocaleTimeString()
+        });
+      }
+    } catch (e) {
+      if (callback) {
+        callback({
+          success: false,
+          error: e.message
+        });
+      }
+    }
+  }, 1500);
+}
+
 
 

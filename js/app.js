@@ -1009,7 +1009,7 @@ function getFormColumnShortTitle(colKey, lang = 'uk') {
 }
 
 // ================= DEFAULT APP STATE =================
-export const APP_VERSION = '0.5';
+export const APP_VERSION = '0.6';
 
 const STATE = {
   version: APP_VERSION,

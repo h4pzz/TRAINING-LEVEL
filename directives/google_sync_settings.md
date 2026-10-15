@@ -54,3 +54,13 @@ To ensure strict organizational clarity across departments, all documents and fi
 - **Date Formatting**: Configurable regional format (`YYYY-MM-DD`, `DD.MM.YYYY`, `DD MMM YYYY`).
 - **Date Calculation Method**: End-of-month adjustment for Flight crew vs exact day-to-day for Cabin crew.
 - **Local Backup Retention**: Keep last $N$ JSON snapshot revisions in browser storage.
+
+## 6. Sync Modes & Site Data Protection Policy (Захист даних від видалення)
+### 1. Manual-Only Mode (Тільки ручна синхронізація)
+- The user can set synchronization to **Manual Only** (`syncInterval = 'manual'`).
+- In this mode, no background interval timers run. Synchronization occurs strictly when initiated manually by the user via the sync action buttons.
+
+### 2. Zero-Deletion Guarantee on Website (Неможливість видалення на сайті)
+- **Personnel Preservation**: Crew members present on the website are **NEVER deleted** during synchronization (whether manual or automated). If a crew member is deleted in Google Drive or Google Sheets, the website's persistent local database retains their profile. Personnel can only be deleted on the website through explicit administrator action in the management console.
+- **Dates Protection**: Existing qualification and training dates on the website are immutable against deletion or blanking. If incoming data contains empty cells, nulls, dashes, or older dates, the website's dates remain untouched. Only valid and chronologically newer dates can overwrite existing dates.
+- **Drive Deletion Scope**: Deletions on Google Drive remain on Google Drive and do not propagate destructively to the website's operational records.
