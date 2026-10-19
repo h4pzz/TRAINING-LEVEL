@@ -269,7 +269,16 @@ CRITICAL OCR RULES:
 4. Detect training checkboxes: Look at the headers or handwritten notes for TRI (Type Rating Instructor), NVG (Night Vision Goggles), LPC, OPC, GI 275, HESLO, HHO, MSB, Before Rotation, Type Rating. Include all detected training types in the trainingTypes array for each crew member.
 5. If the document has a header date like "16.10.2026", convert it to ISO format "2026-10-16".
 6. If the helicopter registration says "UR-UHB" or similar, extract the full registration "UR-UHB".
-7. Return ONLY valid JSON, with NO preamble or extra markdown outside the JSON.
+7. Block Time vs Flight Time rules:
+   - Extract "totalBlockTime" (Час блоку / Total Block Time).
+   - In Ukrainian Helicopters training flight sheets, Block Time is always greater than or equal to Flight Time.
+   - For each crew member, extract blockDay and blockNght if written in the columns.
+   - If blockDay and blockNght are not separated in the row:
+     * If flightNght is "00:00" and flightDay > "00:00", set blockDay to totalBlockTime (or >= flightDay) and blockNght to "00:00".
+     * If flightDay is "00:00" and flightNght > "00:00", set blockNght to totalBlockTime (or >= flightNght) and blockDay to "00:00".
+     * If both flightDay > 0 and flightNght > 0, distribute block time proportionally so blockDay >= flightDay and blockNght >= flightNght.
+     * Block Day must NEVER be less than Flight Day, and Block Night must NEVER be less than Flight Night. If block time is missing, default blockDay = flightDay and blockNght = flightNght.
+8. Return ONLY valid JSON, with NO preamble or extra markdown outside the JSON.
 `;
 
 /**
@@ -627,6 +636,79 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
 }
 
 /**
+ * Normalizes and derives crew blockDay and blockNght values.
+ * Ensures Block Time >= Flight Time and auto-derives block times if missing or "00:00".
+ */
+export function normalizeParsedFlightBlockTimes(parsedData) {
+  if (!parsedData) return parsedData;
+
+  const toMins = (t) => {
+    if (!t || typeof t !== 'string' || !t.includes(':')) return 0;
+    const parts = t.split(':');
+    return (parseInt(parts[0], 10) || 0) * 60 + (parseInt(parts[1], 10) || 0);
+  };
+  const toDuration = (m) => {
+    const safe = Math.max(0, Math.round(m || 0));
+    const h = Math.floor(safe / 60);
+    const min = safe % 60;
+    return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+  };
+
+  const totalFltMins = toMins(parsedData.totalFlightTime || '00:00');
+  let totalBlkMins = toMins(parsedData.totalBlockTime || '00:00');
+
+  // If totalBlockTime is missing or "00:00", fallback to totalFlightTime
+  if (totalBlkMins === 0 && totalFltMins > 0) {
+    totalBlkMins = totalFltMins;
+    parsedData.totalBlockTime = parsedData.totalFlightTime;
+  }
+
+  if (Array.isArray(parsedData.crew)) {
+    parsedData.crew.forEach(c => {
+      const fltDayMins = toMins(c.flightDay || '00:00');
+      const fltNghtMins = toMins(c.flightNght || '00:00');
+      let blkDayMins = toMins(c.blockDay || '00:00');
+      let blkNghtMins = toMins(c.blockNght || '00:00');
+
+      // If both blockDay and blockNght are 0, derive from flight times & total block time
+      if (blkDayMins === 0 && blkNghtMins === 0) {
+        if (fltNghtMins === 0 && fltDayMins > 0) {
+          blkDayMins = totalBlkMins > 0 ? totalBlkMins : fltDayMins;
+          blkNghtMins = 0;
+        } else if (fltDayMins === 0 && fltNghtMins > 0) {
+          blkNghtMins = totalBlkMins > 0 ? totalBlkMins : fltNghtMins;
+          blkDayMins = 0;
+        } else if (fltDayMins > 0 && fltNghtMins > 0) {
+          const sumFlt = fltDayMins + fltNghtMins;
+          if (totalBlkMins >= sumFlt && sumFlt > 0) {
+            blkDayMins = Math.round(fltDayMins + (totalBlkMins - sumFlt) * (fltDayMins / sumFlt));
+            blkNghtMins = totalBlkMins - blkDayMins;
+          } else {
+            blkDayMins = fltDayMins;
+            blkNghtMins = fltNghtMins;
+          }
+        }
+      }
+
+      // Enforce Block Time >= Flight Time constraint
+      if (blkDayMins < fltDayMins) {
+        blkDayMins = fltDayMins;
+      }
+      if (blkNghtMins < fltNghtMins) {
+        blkNghtMins = fltNghtMins;
+      }
+
+      c.blockDay = toDuration(blkDayMins);
+      c.blockNght = toDuration(blkNghtMins);
+      c.flightDay = toDuration(fltDayMins);
+      c.flightNght = toDuration(fltNghtMins);
+    });
+  }
+
+  return parsedData;
+}
+
+/**
  * Checks if a parsed flight record already exists in the local database.
  * @param {object} parsedFlight 
  * @param {Array} existingFlights 
@@ -691,6 +773,9 @@ export async function processScanBatch(files, apiKey, flightCrew, cabinCrew, exi
           if (onProgress) onProgress(itemResult, i, total, statusMsg);
         }
       );
+      
+      // Auto-normalize & derive crew block times if missing or zero
+      normalizeParsedFlightBlockTimes(parsedData);
       
       // Perform crew fuzzy matching
       if (Array.isArray(parsedData.crew)) {

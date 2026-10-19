@@ -3490,17 +3490,17 @@ function openFlightDetailWindow(flight, autoPrint = false) {
       <td>${displayPstn}</td>
       <td><strong>${c.name}</strong></td>
       <td style="white-space: nowrap; line-height: 1.25;">
-        DAY: ${c.flightTime.day || '00:00'}<br>
-        NIGHT: ${c.flightTime.nght || '00:00'}<br>
-        NVG: ${c.flightTime.nvg || '00:00'}
+        DAY: ${(c.flightTime && c.flightTime.day) || c.flightDay || '00:00'}<br>
+        NIGHT: ${(c.flightTime && c.flightTime.nght) || c.flightNght || '00:00'}<br>
+        NVG: ${(c.flightTime && c.flightTime.nvg) || c.flightNvg || '00:00'}
       </td>
       <td style="white-space: nowrap; line-height: 1.25;">
-        DAY: ${c.blockTime.day || '00:00'}<br>
-        NIGHT: ${c.blockTime.nght || '00:00'}
+        DAY: ${(c.blockTime && c.blockTime.day) || c.blockDay || '00:00'}<br>
+        NIGHT: ${(c.blockTime && c.blockTime.nght) || c.blockNght || '00:00'}
       </td>
       <td style="white-space: nowrap; line-height: 1.25;">
-        DAY: ${c.timeInstructor.day || '00:00'}<br>
-        NIGHT: ${c.timeInstructor.night || '00:00'}
+        DAY: ${(c.timeInstructor && c.timeInstructor.day) || c.instDay || '00:00'}<br>
+        NIGHT: ${(c.timeInstructor && (c.timeInstructor.night || c.timeInstructor.nght)) || c.instNght || '00:00'}
       </td>
       <td>${c.flightTask || '-'}</td>
       <td>${(c.trainingTypes || []).map(t => {
@@ -3741,15 +3741,15 @@ window.startEditingFlight = function(flightId) {
       headerNameText.textContent = c.name || 'New Member';
     }
     
-    card.querySelector('.crew-flight-day').value = c.flightTime.day || '00:00';
-    card.querySelector('.crew-flight-nght').value = c.flightTime.nght || '00:00';
-    card.querySelector('.crew-flight-nvg').value = c.flightTime.nvg || '00:00';
+    card.querySelector('.crew-flight-day').value = (c.flightTime && c.flightTime.day) || c.flightDay || '00:00';
+    card.querySelector('.crew-flight-nght').value = (c.flightTime && c.flightTime.nght) || c.flightNght || '00:00';
+    card.querySelector('.crew-flight-nvg').value = (c.flightTime && c.flightTime.nvg) || c.flightNvg || '00:00';
     
-    card.querySelector('.crew-block-day').value = c.blockTime.day || '00:00';
-    card.querySelector('.crew-block-nght').value = c.blockTime.nght || '00:00';
+    card.querySelector('.crew-block-day').value = (c.blockTime && c.blockTime.day) || c.blockDay || '00:00';
+    card.querySelector('.crew-block-nght').value = (c.blockTime && c.blockTime.nght) || c.blockNght || '00:00';
     
-    card.querySelector('.crew-inst-day').value = c.timeInstructor.day || '00:00';
-    card.querySelector('.crew-inst-nght').value = c.timeInstructor.night || '00:00';
+    card.querySelector('.crew-inst-day').value = (c.timeInstructor && c.timeInstructor.day) || c.instDay || '00:00';
+    card.querySelector('.crew-inst-nght').value = (c.timeInstructor && (c.timeInstructor.night || c.timeInstructor.nght)) || c.instNght || '00:00';
     
     card.querySelector('.crew-task-input').value = c.flightTask || '';
     
@@ -5485,6 +5485,7 @@ function selectOcrItem(index) {
 
   // Fill general fields
   const p = item.parsedData;
+  normalizeOcrBlockTimes(p);
   setInputValue('ocr-field-date', p.date || '');
   setInputValue('ocr-field-reg', p.helicopterReg || '');
   setInputValue('ocr-field-task', p.mainFlightTask || '');
@@ -5502,6 +5503,53 @@ function selectOcrItem(index) {
   setInputValue('ocr-field-post-ttl', p.postTtl || '');
 
   renderOcrCrewCards(p.crew || []);
+}
+
+function normalizeOcrBlockTimes(p) {
+  if (!p) return;
+  const totalFltMins = parseDurationToMinutes(p.totalFlightTime || '00:00');
+  let totalBlkMins = parseDurationToMinutes(p.totalBlockTime || '00:00');
+
+  if (totalBlkMins === 0 && totalFltMins > 0) {
+    totalBlkMins = totalFltMins;
+    p.totalBlockTime = p.totalFlightTime;
+  }
+
+  if (Array.isArray(p.crew)) {
+    p.crew.forEach(c => {
+      const fltDayMins = parseDurationToMinutes(c.flightDay || '00:00');
+      const fltNghtMins = parseDurationToMinutes(c.flightNght || '00:00');
+      let blkDayMins = parseDurationToMinutes(c.blockDay || '00:00');
+      let blkNghtMins = parseDurationToMinutes(c.blockNght || '00:00');
+
+      if (blkDayMins === 0 && blkNghtMins === 0) {
+        if (fltNghtMins === 0 && fltDayMins > 0) {
+          blkDayMins = totalBlkMins > 0 ? totalBlkMins : fltDayMins;
+          blkNghtMins = 0;
+        } else if (fltDayMins === 0 && fltNghtMins > 0) {
+          blkNghtMins = totalBlkMins > 0 ? totalBlkMins : fltNghtMins;
+          blkDayMins = 0;
+        } else if (fltDayMins > 0 && fltNghtMins > 0) {
+          const sumFlt = fltDayMins + fltNghtMins;
+          if (totalBlkMins >= sumFlt && sumFlt > 0) {
+            blkDayMins = Math.round(fltDayMins + (totalBlkMins - sumFlt) * (fltDayMins / sumFlt));
+            blkNghtMins = totalBlkMins - blkDayMins;
+          } else {
+            blkDayMins = fltDayMins;
+            blkNghtMins = fltNghtMins;
+          }
+        }
+      }
+
+      if (blkDayMins < fltDayMins) blkDayMins = fltDayMins;
+      if (blkNghtMins < fltNghtMins) blkNghtMins = fltNghtMins;
+
+      c.blockDay = formatMinutesToDuration(blkDayMins);
+      c.blockNght = formatMinutesToDuration(blkNghtMins);
+      c.flightDay = formatMinutesToDuration(fltDayMins);
+      c.flightNght = formatMinutesToDuration(fltNghtMins);
+    });
+  }
 }
 
 function setInputValue(id, val) {
@@ -5600,18 +5648,26 @@ function renderOcrCrewCards(crewList) {
         </div>
 
         <!-- Times grid -->
-        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; font-size:11px;">
+        <div style="display:grid; grid-template-columns: repeat(6, 1fr); gap:6px; font-size:11px;">
           <div>
             <label style="color:var(--text-secondary); font-size:10px;">Flt Day</label>
-            <input type="time" class="form-input ocr-time-input" data-crew-idx="${idx}" data-field="flightDay" value="${c.flightDay || '00:00'}" style="height:26px; font-size:11px;">
+            <input type="time" class="form-input ocr-time-input" data-crew-idx="${idx}" data-field="flightDay" value="${c.flightDay || '00:00'}" onchange="handleOcrFlightTimeChange(${idx}, 'day', this.value)" style="height:26px; font-size:11px;">
           </div>
           <div>
             <label style="color:var(--text-secondary); font-size:10px;">Flt Nght</label>
-            <input type="time" class="form-input ocr-time-input" data-crew-idx="${idx}" data-field="flightNght" value="${c.flightNght || '00:00'}" style="height:26px; font-size:11px;">
+            <input type="time" class="form-input ocr-time-input" data-crew-idx="${idx}" data-field="flightNght" value="${c.flightNght || '00:00'}" onchange="handleOcrFlightTimeChange(${idx}, 'nght', this.value)" style="height:26px; font-size:11px;">
           </div>
           <div>
             <label style="color:var(--text-secondary); font-size:10px;">Flt NVG</label>
             <input type="time" class="form-input ocr-time-input" data-crew-idx="${idx}" data-field="flightNvg" value="${c.flightNvg || '00:00'}" style="height:26px; font-size:11px;">
+          </div>
+          <div>
+            <label style="color:#10b981; font-weight:600; font-size:10px;" title="Block Time Day">Blk Day</label>
+            <input type="time" class="form-input ocr-time-input" data-crew-idx="${idx}" data-field="blockDay" value="${c.blockDay || '00:00'}" style="height:26px; font-size:11px; border-color:rgba(16,185,129,0.5); font-weight:600;">
+          </div>
+          <div>
+            <label style="color:#10b981; font-weight:600; font-size:10px;" title="Block Time Night">Blk Nght</label>
+            <input type="time" class="form-input ocr-time-input" data-crew-idx="${idx}" data-field="blockNght" value="${c.blockNght || '00:00'}" style="height:26px; font-size:11px; border-color:rgba(16,185,129,0.5); font-weight:600;">
           </div>
           <div>
             <label style="color:var(--text-secondary); font-size:10px;">Inst Nght</label>
@@ -5700,18 +5756,36 @@ function readCurrentOcrFormValues() {
     const getCrewTime = field => document.querySelector(`.ocr-time-input[data-crew-idx="${idx}"][data-field="${field}"]`)?.value || '00:00';
     const pstn = document.querySelector(`.ocr-crew-pstn[data-crew-idx="${idx}"]`)?.value || c.pstn || 'PIC';
 
+    const fltDay = getCrewTime('flightDay');
+    const fltNght = getCrewTime('flightNght');
+    const fltNvg = getCrewTime('flightNvg');
+    let blkDay = getCrewTime('blockDay');
+    let blkNght = getCrewTime('blockNght');
+    const instNght = getCrewTime('instNght');
+    const instDay = c.instDay || '00:00';
+
+    if (parseDurationToMinutes(blkDay) < parseDurationToMinutes(fltDay)) {
+      blkDay = fltDay;
+    }
+    if (parseDurationToMinutes(blkNght) < parseDurationToMinutes(fltNght)) {
+      blkNght = fltNght;
+    }
+
     return {
       crewId: c.matchedCrewId || `unassigned_${Date.now()}_${idx}`,
       crewType: c.matchedCrewType || 'Flight',
       name: c.matchedCrewName || c.name || 'Unknown',
       pstn: pstn,
-      flightDay: getCrewTime('flightDay'),
-      flightNght: getCrewTime('flightNght'),
-      flightNvg: getCrewTime('flightNvg'),
-      blockDay: c.blockDay || '00:00',
-      blockNght: c.blockNght || '00:00',
-      instDay: c.instDay || '00:00',
-      instNght: getCrewTime('instNght'),
+      flightTime: { day: fltDay, nght: fltNght, nvg: fltNvg },
+      blockTime: { day: blkDay, nght: blkNght },
+      timeInstructor: { day: instDay, night: instNght },
+      flightDay: fltDay,
+      flightNght: fltNght,
+      flightNvg: fltNvg,
+      blockDay: blkDay,
+      blockNght: blkNght,
+      instDay: instDay,
+      instNght: instNght,
       flightTask: getVal('ocr-field-task') || c.flightTask || '',
       trainingTypes: trainingTypes,
       isInstructor: !!c.isInstructor || (pstn && pstn.toLowerCase().includes('instr'))
@@ -5808,22 +5882,36 @@ function saveAllReadyOcrFlights() {
         postEnd: p.postEnd || '',
         postTtl: p.postTtl || '',
         sourceScanFile: item.fileName,
-        crew: (p.crew || []).map((c, cIdx) => ({
-          crewId: c.matchedCrewId || `unassigned_${Date.now()}_${cIdx}`,
-          crewType: c.matchedCrewType || 'Flight',
-          name: c.matchedCrewName || c.name || 'Unknown',
-          pstn: c.pstn || 'PIC',
-          flightDay: c.flightDay || '00:00',
-          flightNght: c.flightNght || '00:00',
-          flightNvg: c.flightNvg || '00:00',
-          blockDay: c.blockDay || '00:00',
-          blockNght: c.blockNght || '00:00',
-          instDay: c.instDay || '00:00',
-          instNght: c.instNght || '00:00',
-          flightTask: p.mainFlightTask || c.flightTask || '',
-          trainingTypes: c.trainingTypes || [],
-          isInstructor: !!c.isInstructor
-        }))
+        crew: (p.crew || []).map((c, cIdx) => {
+          const fltDay = c.flightDay || '00:00';
+          const fltNght = c.flightNght || '00:00';
+          const fltNvg = c.flightNvg || '00:00';
+          let blkDay = c.blockDay || '00:00';
+          let blkNght = c.blockNght || '00:00';
+          if (parseDurationToMinutes(blkDay) < parseDurationToMinutes(fltDay)) blkDay = fltDay;
+          if (parseDurationToMinutes(blkNght) < parseDurationToMinutes(fltNght)) blkNght = fltNght;
+          const instDay = c.instDay || '00:00';
+          const instNght = c.instNght || '00:00';
+          return {
+            crewId: c.matchedCrewId || `unassigned_${Date.now()}_${cIdx}`,
+            crewType: c.matchedCrewType || 'Flight',
+            name: c.matchedCrewName || c.name || 'Unknown',
+            pstn: c.pstn || 'PIC',
+            flightTime: { day: fltDay, nght: fltNght, nvg: fltNvg },
+            blockTime: { day: blkDay, nght: blkNght },
+            timeInstructor: { day: instDay, night: instNght },
+            flightDay: fltDay,
+            flightNght: fltNght,
+            flightNvg: fltNvg,
+            blockDay: blkDay,
+            blockNght: blkNght,
+            instDay: instDay,
+            instNght: instNght,
+            flightTask: p.mainFlightTask || c.flightTask || '',
+            trainingTypes: c.trainingTypes || [],
+            isInstructor: !!c.isInstructor
+          };
+        })
       };
     }
 
@@ -5949,11 +6037,34 @@ function initOcrScanImport() {
     });
   }
 
+function handleOcrFlightTimeChange(crewIdx, timeType, newVal) {
+  if (timeType === 'day') {
+    const blkDayInput = document.querySelector(`.ocr-time-input[data-crew-idx="${crewIdx}"][data-field="blockDay"]`);
+    if (blkDayInput) {
+      const fltMins = parseDurationToMinutes(newVal);
+      const blkMins = parseDurationToMinutes(blkDayInput.value);
+      if (blkMins < fltMins) {
+        blkDayInput.value = newVal;
+      }
+    }
+  } else if (timeType === 'nght') {
+    const blkNghtInput = document.querySelector(`.ocr-time-input[data-crew-idx="${crewIdx}"][data-field="blockNght"]`);
+    if (blkNghtInput) {
+      const fltMins = parseDurationToMinutes(newVal);
+      const blkMins = parseDurationToMinutes(blkNghtInput.value);
+      if (blkMins < fltMins) {
+        blkNghtInput.value = newVal;
+      }
+    }
+  }
+}
+
   // Export functions to window for inline onclick handlers
   window.selectOcrItem = selectOcrItem;
   window.removeOcrItem = removeOcrItem;
   window.handleOcrCrewChange = handleOcrCrewChange;
   window.removeOcrCrewMember = removeOcrCrewMember;
+  window.handleOcrFlightTimeChange = handleOcrFlightTimeChange;
 }
 
 /**
