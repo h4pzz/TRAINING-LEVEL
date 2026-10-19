@@ -308,15 +308,15 @@ export async function getBestAvailableGeminiModel(apiKey) {
         if (models.length > 0) {
           candidateNames = models.map(m => m.name.replace(/^models\//, ''));
 
-          // Preferred models in priority order for OCR Vision tasks (Gemini 3.x series)
+          // Preferred models in priority order for OCR Vision tasks (Flash models first for 1500 RPD)
           const preferredPatterns = [
-            /^gemini-3\.1-pro-preview/i,
             /^gemini-3\.\d+-flash/i,
             /^gemini-3-flash/i,
-            /^gemini-3\.\d+-pro/i,
             /^gemini-2\.5-flash/i,
             /^gemini-2\.0-flash/i,
             /flash/i,
+            /^gemini-3\.1-pro-preview/i,
+            /^gemini-3\.\d+-pro/i,
             /pro/i,
             /gemini/i
           ];
@@ -338,17 +338,19 @@ export async function getBestAvailableGeminiModel(apiKey) {
     }
   }
 
-  // Static fallback list with modern Gemini 3.x models
+  // Static fallback list with high-quota Gemini 3.x Flash models
   return { 
     apiVersion: 'v1beta', 
-    modelName: 'gemini-3.1-pro-preview', 
+    modelName: 'gemini-3.8-flash', 
     apiKey: cleanKey, 
     allAvailable: [
-      'gemini-3.1-pro-preview',
       'gemini-3.8-flash',
       'gemini-3.5-flash',
       'gemini-3-flash-preview',
-      'gemini-3.5-flash-lite'
+      'gemini-3.5-flash-lite',
+      'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-3.1-pro-preview'
     ] 
   };
 }
@@ -454,12 +456,26 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
   const isVisionCapable = (name) => name.toLowerCase().includes('gemini') || name.toLowerCase().includes('paligemma');
   const candidateList = [];
 
-  // 1. If currently selected model is vision capable, put it first
-  if (isVisionCapable(modelInfo.modelName)) {
+  // Prioritize high-quota Flash models (1,500 RPD) over Pro models (50 RPD)
+  const flashPriorityModels = [
+    'gemini-3.8-flash',
+    'gemini-3.5-flash',
+    'gemini-3-flash-preview',
+    'gemini-3.5-flash-lite',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash'
+  ];
+
+  for (const name of flashPriorityModels) {
+    candidateList.push({ ver: 'v1beta', name });
+  }
+
+  // Next: model from ListModels if vision capable
+  if (isVisionCapable(modelInfo.modelName) && !candidateList.some(c => c.name === modelInfo.modelName)) {
     candidateList.push({ ver: modelInfo.apiVersion, name: modelInfo.modelName });
   }
 
-  // 2. Add other vision-capable models reported by user's account
+  // Next: other vision models from user's account
   if (Array.isArray(modelInfo.allAvailable)) {
     for (const name of modelInfo.allAvailable) {
       if (isVisionCapable(name) && !candidateList.some(c => c.name === name)) {
@@ -468,16 +484,9 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
     }
   }
 
-  // 3. Modern Gemini 3.x and 2.x vision endpoints
-  for (const name of ['gemini-3.1-pro-preview', 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-3.5-flash-lite', 'gemini-2.0-flash']) {
-    if (!candidateList.some(c => c.name === name)) {
-      candidateList.push({ ver: 'v1beta', name });
-    }
-  }
-
-  // 4. Last resort: whatever model was cached
-  if (candidateList.length === 0) {
-    candidateList.push({ ver: modelInfo.apiVersion, name: modelInfo.modelName });
+  // Pro model as last resort due to strict 50 RPD daily quota
+  if (!candidateList.some(c => c.name === 'gemini-3.1-pro-preview')) {
+    candidateList.push({ ver: 'v1beta', name: 'gemini-3.1-pro-preview' });
   }
 
   let rateLimitError = null;
@@ -519,29 +528,36 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
       if (response.status === 429) {
         const errJson = await response.json().catch(() => ({}));
         const googleMsg = errJson.error?.message || 'Resource Exhausted';
-        rateLimitError = new Error(`Перевищено ліміт запитів Gemini (Rate Limit 429): ${googleMsg}. Будь ласка, зачекайте 1-2 хвилини.`);
 
         let waitMs = 15000;
         const retryInfo = errJson.error?.details?.find(d => d.retryDelay);
         if (retryInfo && retryInfo.retryDelay) {
           const parsedSec = parseFloat(retryInfo.retryDelay);
           if (!isNaN(parsedSec)) {
-            waitMs = Math.ceil(parsedSec * 1000) + 2000;
+            waitMs = Math.ceil(parsedSec * 1000) + 1000;
           }
         } else {
           const retryHeader = response.headers?.get ? response.headers.get('retry-after') : null;
           if (retryHeader) {
             const sec = parseFloat(retryHeader);
-            if (!isNaN(sec)) waitMs = Math.ceil(sec * 1000) + 2000;
+            if (!isNaN(sec)) waitMs = Math.ceil(sec * 1000) + 1000;
           } else {
-            // Progressive wait: 15s, 25s, 40s, 60s
-            waitMs = [15000, 25000, 40000, 60000][retryCount] || 60000;
+            waitMs = [12000, 20000, 30000][retryCount] || 30000;
           }
         }
 
-        if (retryCount < 4) {
+        // If wait time is > 35 seconds, this is a DAILY quota exhaustion (RPD), NOT a per-minute limit.
+        // DO NOT block the user for hours! Skip to the next candidate model immediately!
+        if (waitMs > 35000) {
+          console.warn(`[Gemini OCR] Model ${model} daily quota exhausted (retryDelay: ${Math.round(waitMs / 1000)}s). Skipping immediately to next model...`);
+          rateLimitError = new Error(`Вичерпано добову квоту безкоштовного тарифу для ${model} (добовий ліміт RPD). Спробуйте інший API ключ або зачекайте оновлення добової квоти.`);
+          continue;
+        }
+
+        // Normal per-minute burst limit (<= 35 seconds): wait and retry
+        if (retryCount < 3) {
           const secText = Math.round(waitMs / 1000);
-          console.warn(`[Gemini OCR] 429 Quota limit hit on ${model}. Waiting ${secText}s... (Attempt ${retryCount + 1}/4)`);
+          console.warn(`[Gemini OCR] 429 Minute rate limit hit on ${model}. Waiting ${secText}s... (Attempt ${retryCount + 1}/3)`);
           
           if (onStatusUpdate) {
             for (let s = secText; s > 0; s--) {
@@ -555,8 +571,8 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
           return callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCount + 1, onStatusUpdate);
         }
 
-        // Exceeded retries on this model: try next model in candidateList
         console.warn(`Model ${ver}/${model} rate limited after retries. Trying next candidate model...`);
+        rateLimitError = new Error(`Перевищено ліміт запитів Gemini (Rate Limit 429): ${googleMsg}.`);
         continue;
       }
 
