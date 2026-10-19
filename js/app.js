@@ -17,8 +17,15 @@ import {
   getMemberFolderPath,
   verifyAndCreateCrewFolders,
   testGoogleConnection
-} from '../execution/drive_sync.js';
 import { dispatchFlightLogEmail, dispatchFlightsWeeklyEmail } from '../execution/email_dispatcher.js';
+import { 
+  testGeminiApiKey, 
+  processScanBatch, 
+  callGeminiVisionAPI, 
+  fileToBase64, 
+  matchCrewMember, 
+  checkFlightDuplicate 
+} from '../execution/scan_ocr_parser.js';
  
 /**
  * Returns today's date formatted as YYYY-MM-DD in local time
@@ -1049,6 +1056,7 @@ const STATE = {
     referenceDate: getTodayDateStr(),
     syncMode: 'mock',
     googleApiKey: '',
+    geminiApiKey: '',
     googleClientId: '',
     googleSpreadsheetId: '',
     googleSpreadsheetIdPersonnel: '',
@@ -4434,6 +4442,20 @@ function renderSettingsSyncTab() {
     }
   }
 
+  // Populate Gemini AI OCR Key & Status
+  const geminiKeyInput = document.getElementById('settings-gemini-api-key');
+  const geminiBadge = document.getElementById('gemini-conn-status-badge');
+  if (geminiKeyInput) geminiKeyInput.value = STATE.settings.geminiApiKey || '';
+  if (geminiBadge) {
+    if (STATE.settings.geminiApiKey) {
+      geminiBadge.className = 'status-badge status-valid';
+      geminiBadge.textContent = 'Ключ збережено';
+    } else {
+      geminiBadge.className = 'status-badge status-neutral';
+      geminiBadge.textContent = 'Не налаштовано';
+    }
+  }
+
   renderSnapshotsList();
 }
 
@@ -5187,6 +5209,750 @@ function deleteCustomColumn(category, colKey) {
   }
 
   showToast(isUk ? `Стовпчик "${colKey}" видалено` : `Column "${colKey}" deleted`);
+}
+
+// ================= AI OCR SCAN IMPORT CONTROLLER =================
+let OCR_STATE = {
+  items: [],
+  activeIndex: -1,
+  zoomScale: 1.0,
+  isProcessing: false
+};
+
+const OCR_TRAINING_TYPES = [
+  'TRI', 'NVG', 'LPC', 'OPC', 'GI_275_PRCT', 'HESLO_PRCT', 'HHO_PRCT', 'MSB', 'PALL', 'Before Rotation', 'Type Rating'
+];
+
+function openOcrImportModal() {
+  const modal = document.getElementById('modal-ocr-import');
+  if (!modal) return;
+
+  // Check if Gemini API Key is configured
+  if (!STATE.settings.geminiApiKey || STATE.settings.geminiApiKey.trim() === '') {
+    const enteredKey = prompt(
+      STATE.lang === 'uk'
+        ? "Для оптичного розпізнавання сканів потрібен API Ключ Google Gemini.\nБудь ласка, введіть ваш Gemini API Key:"
+        : "Google Gemini API Key is required for scanning documents.\nPlease enter your Gemini API Key:"
+    );
+    if (enteredKey && enteredKey.trim()) {
+      STATE.settings.geminiApiKey = enteredKey.trim();
+      saveStateToStorage();
+      const keyInput = document.getElementById('settings-gemini-api-key');
+      if (keyInput) keyInput.value = STATE.settings.geminiApiKey;
+      const badge = document.getElementById('gemini-conn-status-badge');
+      if (badge) {
+        badge.className = 'status-badge status-valid';
+        badge.textContent = 'Ключ збережено';
+      }
+      showToast(STATE.lang === 'uk' ? "API Ключ Gemini успішно збережено!" : "Gemini API Key saved!");
+    } else {
+      showToast(
+        STATE.lang === 'uk' 
+          ? "Вкажіть API Ключ у Налаштуваннях (Синхронізація) для використання ШІ-розпізнавання" 
+          : "Please configure Gemini API Key in Settings to use OCR import",
+        "warning"
+      );
+      return;
+    }
+  }
+
+  modal.classList.add('active');
+  if (window.lucide) window.lucide.createIcons();
+  
+  if (OCR_STATE.items.length === 0) {
+    const fileInput = document.getElementById('ocr-file-input');
+    if (fileInput) fileInput.click();
+  }
+}
+
+function closeOcrImportModal() {
+  const modal = document.getElementById('modal-ocr-import');
+  if (modal) modal.classList.remove('active');
+}
+
+async function handleOcrFilesSelected(fileList) {
+  if (!fileList || fileList.length === 0) return;
+  
+  const files = Array.from(fileList).filter(f => {
+    const ext = f.name.toLowerCase();
+    return ext.endsWith('.pdf') || ext.endsWith('.png') || ext.endsWith('.jpg') || ext.endsWith('.jpeg') || ext.endsWith('.webp');
+  });
+
+  if (files.length === 0) {
+    showToast(STATE.lang === 'uk' ? "Виберіть файли PDF або зображення (JPG/PNG)" : "Please select PDF or image files", "warning");
+    return;
+  }
+
+  const progressBox = document.getElementById('ocr-batch-progress-box');
+  const progressBar = document.getElementById('ocr-progress-bar');
+  const progressLabel = document.getElementById('ocr-progress-label');
+  const progressCount = document.getElementById('ocr-progress-count');
+
+  if (progressBox) progressBox.style.display = 'flex';
+  OCR_STATE.isProcessing = true;
+
+  // Process batch using processScanBatch
+  await processScanBatch(
+    files,
+    STATE.settings.geminiApiKey,
+    STATE.flightCrew,
+    STATE.cabinCrew,
+    STATE.flights,
+    (itemResult, index, total) => {
+      // Check if already in OCR_STATE.items
+      const existingIdx = OCR_STATE.items.findIndex(it => it.id === itemResult.id);
+      if (existingIdx !== -1) {
+        OCR_STATE.items[existingIdx] = itemResult;
+      } else {
+        OCR_STATE.items.push(itemResult);
+      }
+
+      // Update progress
+      const percent = Math.round(((index + 1) / total) * 100);
+      if (progressBar) progressBar.style.width = `${percent}%`;
+      if (progressCount) progressCount.textContent = `${index + 1}/${total}`;
+      if (progressLabel) progressLabel.textContent = `Обробка: ${itemResult.fileName}...`;
+
+      updateOcrQueueUI();
+
+      // If activeIndex is -1 or itemResult is current active, select it
+      if (OCR_STATE.activeIndex === -1 && itemResult.parsedData) {
+        selectOcrItem(OCR_STATE.items.length - 1);
+      } else if (OCR_STATE.activeIndex === existingIdx && itemResult.parsedData) {
+        selectOcrItem(existingIdx);
+      }
+    }
+  );
+
+  OCR_STATE.isProcessing = false;
+  if (progressBox) progressBox.style.display = 'none';
+  showToast(STATE.lang === 'uk' ? `Обробку завершено. Розпізнано ${files.length} файлів.` : `Processing complete for ${files.length} files.`, 'success');
+}
+
+function updateOcrQueueUI() {
+  const container = document.getElementById('ocr-queue-list');
+  const emptyPlaceholder = document.getElementById('ocr-queue-empty');
+  if (!container) return;
+
+  if (OCR_STATE.items.length === 0) {
+    if (emptyPlaceholder) emptyPlaceholder.style.display = 'block';
+    return;
+  }
+  if (emptyPlaceholder) emptyPlaceholder.style.display = 'none';
+
+  let total = OCR_STATE.items.length;
+  let ready = 0;
+  let review = 0;
+  let dup = 0;
+
+  let html = '';
+  OCR_STATE.items.forEach((item, idx) => {
+    if (item.status === 'ready' || item.isSaved) ready++;
+    else if (item.status === 'needs_review') review++;
+    else if (item.status === 'duplicate') dup++;
+
+    let badgeClass = 'status-neutral';
+    let badgeText = 'В черзі';
+    if (item.isSaved) {
+      badgeClass = 'status-valid';
+      badgeText = '✓ Збережено';
+    } else if (item.status === 'processing') {
+      badgeClass = 'status-warning';
+      badgeText = 'ШІ читає...';
+    } else if (item.status === 'ready') {
+      badgeClass = 'status-valid';
+      badgeText = '🟢 Готово';
+    } else if (item.status === 'needs_review') {
+      badgeClass = 'status-warning';
+      badgeText = '🟡 Увага';
+    } else if (item.status === 'duplicate') {
+      badgeClass = 'status-danger';
+      badgeText = '⚠️ Дублікат';
+    } else if (item.status === 'error') {
+      badgeClass = 'status-danger';
+      badgeText = '🔴 Помилка';
+    }
+
+    const isActive = idx === OCR_STATE.activeIndex;
+    const isPdf = item.mimeType === 'application/pdf' || item.fileName.toLowerCase().endsWith('.pdf');
+    const iconName = isPdf ? 'file-text' : 'image';
+
+    html += `
+      <div class="ocr-queue-item ${isActive ? 'active' : ''}" onclick="selectOcrItem(${idx})">
+        <i data-lucide="${iconName}" style="width: 18px; height: 18px; flex-shrink: 0; color: ${isPdf ? '#ef4444' : '#3b82f6'};"></i>
+        <div class="ocr-queue-item-info">
+          <div class="ocr-queue-item-name" title="${item.fileName}">${item.fileName}</div>
+          <div class="ocr-queue-item-meta">
+            <span class="status-badge ${badgeClass}" style="font-size: 9.5px; padding: 1px 5px;">${badgeText}</span>
+            ${item.parsedData?.date ? `<span>${item.parsedData.date}</span>` : ''}
+            ${item.parsedData?.helicopterReg ? `<span>${item.parsedData.helicopterReg}</span>` : ''}
+          </div>
+        </div>
+        <button type="button" class="btn btn-sm" onclick="event.stopPropagation(); removeOcrItem(${idx});" style="background:transparent; border:none; padding:2px; color:var(--text-secondary);" title="Видалити зі списку">
+          <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
+        </button>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+  if (window.lucide) window.lucide.createIcons();
+
+  // Update stats
+  const statTotal = document.getElementById('ocr-stat-total');
+  const statReady = document.getElementById('ocr-stat-ready');
+  const statReview = document.getElementById('ocr-stat-review');
+  const statDup = document.getElementById('ocr-stat-dup');
+  const saveAllBtnText = document.getElementById('btn-ocr-save-all-text');
+
+  if (statTotal) statTotal.textContent = total;
+  if (statReady) statReady.textContent = ready;
+  if (statReview) statReview.textContent = review;
+  if (statDup) statDup.textContent = dup;
+
+  const unsavedReady = OCR_STATE.items.filter(it => (it.status === 'ready' || it.status === 'needs_review') && !it.isSaved && it.status !== 'duplicate').length;
+  if (saveAllBtnText) saveAllBtnText.textContent = `Зберегти всі готові (${unsavedReady})`;
+}
+
+function selectOcrItem(index) {
+  if (index < 0 || index >= OCR_STATE.items.length) return;
+  OCR_STATE.activeIndex = index;
+  const item = OCR_STATE.items[index];
+
+  updateOcrQueueUI();
+
+  // 1. Update Preview Pane
+  const previewFilename = document.getElementById('ocr-preview-filename');
+  const previewPlaceholder = document.getElementById('ocr-preview-placeholder');
+  const previewIframe = document.getElementById('ocr-preview-iframe');
+  const previewImg = document.getElementById('ocr-preview-img');
+  const openExternal = document.getElementById('ocr-open-external');
+
+  if (previewFilename) previewFilename.textContent = item.fileName;
+
+  if (item.fileBlob) {
+    const objectUrl = URL.createObjectURL(item.fileBlob);
+    if (openExternal) openExternal.href = objectUrl;
+
+    const isPdf = item.mimeType === 'application/pdf' || item.fileName.toLowerCase().endsWith('.pdf');
+    if (previewPlaceholder) previewPlaceholder.style.display = 'none';
+
+    if (isPdf) {
+      if (previewImg) previewImg.style.display = 'none';
+      if (previewIframe) {
+        previewIframe.style.display = 'block';
+        previewIframe.src = objectUrl;
+      }
+    } else {
+      if (previewIframe) previewIframe.style.display = 'none';
+      if (previewImg) {
+        previewImg.style.display = 'block';
+        previewImg.src = objectUrl;
+        previewImg.style.transform = `scale(${OCR_STATE.zoomScale})`;
+      }
+    }
+  }
+
+  // 2. Update Form Pane
+  const formEmpty = document.getElementById('ocr-form-empty');
+  const editForm = document.getElementById('ocr-edit-form');
+  const dupBanner = document.getElementById('ocr-duplicate-banner');
+  const dupDesc = document.getElementById('ocr-duplicate-desc');
+
+  if (!item.parsedData) {
+    if (formEmpty) {
+      formEmpty.style.display = 'block';
+      formEmpty.innerHTML = item.status === 'processing' 
+        ? `<div style="font-size: 14px; font-weight:600;"><i data-lucide="loader" class="spin"></i> ШІ розпізнає документ...</div>`
+        : `<div style="color: #ef4444; font-size: 14px; font-weight:600;">Помилка: ${item.error || 'Дані не розпізнано'}</div>`;
+    }
+    if (editForm) editForm.style.display = 'none';
+    if (window.lucide) window.lucide.createIcons();
+    return;
+  }
+
+  if (formEmpty) formEmpty.style.display = 'none';
+  if (editForm) editForm.style.display = 'flex';
+
+  // Duplicate Banner
+  if (item.duplicateInfo?.isDuplicate) {
+    if (dupBanner) dupBanner.style.display = 'flex';
+    if (dupDesc) dupDesc.textContent = ` (ID: ${item.duplicateInfo.duplicateId}, Дата: ${item.parsedData.date}, Борт: ${item.parsedData.helicopterReg})`;
+  } else {
+    if (dupBanner) dupBanner.style.display = 'none';
+  }
+
+  // Fill general fields
+  const p = item.parsedData;
+  setInputValue('ocr-field-date', p.date || '');
+  setInputValue('ocr-field-reg', p.helicopterReg || '');
+  setInputValue('ocr-field-task', p.mainFlightTask || '');
+  setInputValue('ocr-field-fuel-start', p.fuelStart || '');
+  setInputValue('ocr-field-fuel-end', p.fuelEnd || '');
+  setInputValue('ocr-field-refuel', p.refuel || '');
+  setInputValue('ocr-field-duty-time', p.dutyTime || '00:00');
+  setInputValue('ocr-field-flight-time', p.totalFlightTime || '00:00');
+  setInputValue('ocr-field-block-time', p.totalBlockTime || '00:00');
+  setInputValue('ocr-field-pre-bgn', p.preBgn || '');
+  setInputValue('ocr-field-pre-end', p.preEnd || '');
+  setInputValue('ocr-field-pre-ttl', p.preTtl || '');
+  setInputValue('ocr-field-post-bgn', p.postBgn || '');
+  setInputValue('ocr-field-post-end', p.postEnd || '');
+  setInputValue('ocr-field-post-ttl', p.postTtl || '');
+
+  renderOcrCrewCards(p.crew || []);
+}
+
+function setInputValue(id, val) {
+  const el = document.getElementById(id);
+  if (el) el.value = val;
+}
+
+function renderOcrCrewCards(crewList) {
+  const container = document.getElementById('ocr-crew-cards-container');
+  const countEl = document.getElementById('ocr-crew-count');
+  if (countEl) countEl.textContent = crewList.length;
+  if (!container) return;
+
+  if (crewList.length === 0) {
+    container.innerHTML = `<div style="font-size:12px; color:var(--text-secondary); text-align:center; padding:12px;">Членів екіпажу не виявлено. Натисніть «Додати члена екіпажу».</div>`;
+    return;
+  }
+
+  const allFlightCrew = STATE.flightCrew || [];
+  const allCabinCrew = STATE.cabinCrew || [];
+
+  let html = '';
+  crewList.forEach((c, idx) => {
+    const cardClass = c.matchConfidence === 'exact' 
+      ? 'matched-exact' 
+      : (c.matchConfidence === 'fuzzy' ? 'matched-fuzzy' : 'matched-none');
+    
+    const badgeText = c.matchConfidence === 'exact' 
+      ? '🟢 100% співпадіння' 
+      : (c.matchConfidence === 'fuzzy' ? '🟡 Схоже прізвище' : '⚪ Не знайдено');
+
+    // Build crew selector options
+    let selectOptionsHtml = `<option value="">-- Виберіть члена екіпажу --</option>`;
+
+    // If candidates exist, put them first
+    if (c.candidates && c.candidates.length > 0) {
+      selectOptionsHtml += `<optgroup label="Рекомендовані кандидати">`;
+      c.candidates.forEach(cand => {
+        const selected = cand.id === c.matchedCrewId ? 'selected' : '';
+        const name = cand.Full_Name_EN || cand.Full_Name_UA;
+        selectOptionsHtml += `<option value="${cand.id}" data-type="${cand.crewType || 'Flight'}" ${selected}>⭐ ${name} (${cand.Rank || ''})</option>`;
+      });
+      selectOptionsHtml += `</optgroup>`;
+    }
+
+    // Flight Crew optgroup
+    selectOptionsHtml += `<optgroup label="Льотний склад (Flight Crew)">`;
+    allFlightCrew.forEach(m => {
+      const selected = m.id === c.matchedCrewId ? 'selected' : '';
+      selectOptionsHtml += `<option value="${m.id}" data-type="Flight" ${selected}>${m.Full_Name_EN || m.Full_Name_UA} (${m.Rank || 'Pilot'})</option>`;
+    });
+    selectOptionsHtml += `</optgroup>`;
+
+    // Cabin Crew optgroup
+    selectOptionsHtml += `<optgroup label="Кабінний склад (Cabin Crew)">`;
+    allCabinCrew.forEach(m => {
+      const selected = m.id === c.matchedCrewId ? 'selected' : '';
+      selectOptionsHtml += `<option value="${m.id}" data-type="Cabin" ${selected}>${m.Full_Name_EN || m.Full_Name_UA} (${m.Rank || 'Cabin'})</option>`;
+    });
+    selectOptionsHtml += `</optgroup>`;
+
+    // Checkboxes for training types
+    const currentTypes = Array.isArray(c.trainingTypes) ? c.trainingTypes : [];
+    let checkboxesHtml = '';
+    OCR_TRAINING_TYPES.forEach(tType => {
+      const isChecked = currentTypes.includes(tType) || (tType === 'TRI' && currentTypes.some(t => t.toUpperCase() === 'TRI'));
+      checkboxesHtml += `
+        <label style="display:inline-flex; align-items:center; gap:4px; font-size:11px; cursor:pointer; background:var(--bg-surface); border:1px solid var(--border-color); padding:2px 6px; border-radius:4px;">
+          <input type="checkbox" class="ocr-training-check" data-crew-idx="${idx}" value="${tType}" ${isChecked ? 'checked' : ''} style="width:12px; height:12px;">
+          <span>${tType}</span>
+        </label>
+      `;
+    });
+
+    html += `
+      <div class="ocr-crew-card ${cardClass}" id="ocr-crew-card-${idx}">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="text" class="form-input ocr-crew-pstn" data-crew-idx="${idx}" value="${c.pstn || 'PIC'}" style="width:75px; height:26px; font-size:11.5px; font-weight:700; text-align:center;">
+            <span style="font-size:12.5px; font-weight:700; color:var(--text-primary);">"${c.name || 'Невідомо'}"</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span class="status-badge" style="font-size:10px;">${badgeText}</span>
+            <button type="button" onclick="removeOcrCrewMember(${idx})" class="btn btn-sm" style="background:transparent; border:none; color:var(--text-secondary); padding:2px;" title="Видалити рядок">
+              <i data-lucide="x" style="width:14px; height:14px;"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Database member linkage -->
+        <div class="form-group" style="margin-top:2px;">
+          <label style="font-size:11px; font-weight:600; color:var(--text-secondary);">Зв'язати з особою в базі даних:</label>
+          <select class="form-select ocr-crew-select" data-crew-idx="${idx}" onchange="handleOcrCrewChange(${idx}, this)" style="height:30px; font-size:12px;">
+            ${selectOptionsHtml}
+          </select>
+        </div>
+
+        <!-- Times grid -->
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:6px; font-size:11px;">
+          <div>
+            <label style="color:var(--text-secondary); font-size:10px;">Flt Day</label>
+            <input type="time" class="form-input ocr-time-input" data-crew-idx="${idx}" data-field="flightDay" value="${c.flightDay || '00:00'}" style="height:26px; font-size:11px;">
+          </div>
+          <div>
+            <label style="color:var(--text-secondary); font-size:10px;">Flt Nght</label>
+            <input type="time" class="form-input ocr-time-input" data-crew-idx="${idx}" data-field="flightNght" value="${c.flightNght || '00:00'}" style="height:26px; font-size:11px;">
+          </div>
+          <div>
+            <label style="color:var(--text-secondary); font-size:10px;">Flt NVG</label>
+            <input type="time" class="form-input ocr-time-input" data-crew-idx="${idx}" data-field="flightNvg" value="${c.flightNvg || '00:00'}" style="height:26px; font-size:11px;">
+          </div>
+          <div>
+            <label style="color:var(--text-secondary); font-size:10px;">Inst Nght</label>
+            <input type="time" class="form-input ocr-time-input" data-crew-idx="${idx}" data-field="instNght" value="${c.instNght || '00:00'}" style="height:26px; font-size:11px;">
+          </div>
+        </div>
+
+        <!-- Training types -->
+        <div style="margin-top:4px;">
+          <div style="font-size:10.5px; font-weight:600; margin-bottom:3px; color:var(--text-secondary);">Типи тренувань (Training Types):</div>
+          <div style="display:flex; flex-wrap:wrap; gap:4px;">
+            ${checkboxesHtml}
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function handleOcrCrewChange(idx, selectEl) {
+  if (OCR_STATE.activeIndex === -1) return;
+  const item = OCR_STATE.items[OCR_STATE.activeIndex];
+  if (!item || !item.parsedData?.crew?.[idx]) return;
+
+  const crewObj = item.parsedData.crew[idx];
+  const selectedOpt = selectEl.options[selectEl.selectedIndex];
+  
+  if (selectEl.value) {
+    crewObj.matchedCrewId = selectEl.value;
+    crewObj.matchedCrewType = selectedOpt.getAttribute('data-type') || 'Flight';
+    crewObj.matchedCrewName = selectedOpt.textContent.replace('⭐ ', '').split(' (')[0];
+    crewObj.matchConfidence = 'exact';
+  } else {
+    crewObj.matchedCrewId = null;
+    crewObj.matchConfidence = 'none';
+  }
+
+  // Update card border & badge
+  renderOcrCrewCards(item.parsedData.crew);
+  updateOcrQueueUI();
+}
+
+function removeOcrCrewMember(idx) {
+  if (OCR_STATE.activeIndex === -1) return;
+  const item = OCR_STATE.items[OCR_STATE.activeIndex];
+  if (!item || !item.parsedData?.crew) return;
+
+  item.parsedData.crew.splice(idx, 1);
+  renderOcrCrewCards(item.parsedData.crew);
+  updateOcrQueueUI();
+}
+
+function removeOcrItem(idx) {
+  OCR_STATE.items.splice(idx, 1);
+  if (OCR_STATE.activeIndex >= OCR_STATE.items.length) {
+    OCR_STATE.activeIndex = OCR_STATE.items.length - 1;
+  }
+  updateOcrQueueUI();
+  if (OCR_STATE.activeIndex !== -1) {
+    selectOcrItem(OCR_STATE.activeIndex);
+  } else {
+    document.getElementById('ocr-form-empty').style.display = 'block';
+    document.getElementById('ocr-edit-form').style.display = 'none';
+    document.getElementById('ocr-preview-placeholder').style.display = 'block';
+    document.getElementById('ocr-preview-iframe').style.display = 'none';
+    document.getElementById('ocr-preview-img').style.display = 'none';
+  }
+}
+
+function readCurrentOcrFormValues() {
+  if (OCR_STATE.activeIndex === -1) return null;
+  const item = OCR_STATE.items[OCR_STATE.activeIndex];
+  if (!item) return null;
+
+  const getVal = id => document.getElementById(id)?.value.trim() || '';
+
+  const crew = (item.parsedData?.crew || []).map((c, idx) => {
+    // Read training type checkboxes
+    const checks = document.querySelectorAll(`.ocr-training-check[data-crew-idx="${idx}"]:checked`);
+    const trainingTypes = Array.from(checks).map(cb => cb.value);
+
+    // Read times
+    const getCrewTime = field => document.querySelector(`.ocr-time-input[data-crew-idx="${idx}"][data-field="${field}"]`)?.value || '00:00';
+    const pstn = document.querySelector(`.ocr-crew-pstn[data-crew-idx="${idx}"]`)?.value || c.pstn || 'PIC';
+
+    return {
+      crewId: c.matchedCrewId || `unassigned_${Date.now()}_${idx}`,
+      crewType: c.matchedCrewType || 'Flight',
+      name: c.matchedCrewName || c.name || 'Unknown',
+      pstn: pstn,
+      flightDay: getCrewTime('flightDay'),
+      flightNght: getCrewTime('flightNght'),
+      flightNvg: getCrewTime('flightNvg'),
+      blockDay: c.blockDay || '00:00',
+      blockNght: c.blockNght || '00:00',
+      instDay: c.instDay || '00:00',
+      instNght: getCrewTime('instNght'),
+      flightTask: getVal('ocr-field-task') || c.flightTask || '',
+      trainingTypes: trainingTypes,
+      isInstructor: !!c.isInstructor || (pstn && pstn.toLowerCase().includes('instr'))
+    };
+  });
+
+  const flightRecord = {
+    id: `fl_import_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    date: getVal('ocr-field-date'),
+    helicopterReg: getVal('ocr-field-reg'),
+    mainFlightTask: getVal('ocr-field-task'),
+    fuelStart: getVal('ocr-field-fuel-start'),
+    fuelEnd: getVal('ocr-field-fuel-end'),
+    refuel: getVal('ocr-field-refuel'),
+    dutyTime: getVal('ocr-field-duty-time'),
+    totalFlightTime: getVal('ocr-field-flight-time'),
+    totalBlockTime: getVal('ocr-field-block-time'),
+    preBgn: getVal('ocr-field-pre-bgn'),
+    preEnd: getVal('ocr-field-pre-end'),
+    preTtl: getVal('ocr-field-pre-ttl'),
+    postBgn: getVal('ocr-field-post-bgn'),
+    postEnd: getVal('ocr-field-post-end'),
+    postTtl: getVal('ocr-field-post-ttl'),
+    sourceScanFile: item.fileName,
+    crew: crew
+  };
+
+  return flightRecord;
+}
+
+function saveCurrentOcrFlight() {
+  if (OCR_STATE.activeIndex === -1) return;
+  const item = OCR_STATE.items[OCR_STATE.activeIndex];
+  if (!item) return;
+
+  const record = readCurrentOcrFormValues();
+  if (!record || !record.date || !record.helicopterReg) {
+    showToast(STATE.lang === 'uk' ? "Будь ласка, заповніть дату та борт вертольота!" : "Please fill in Date and Helicopter Reg!", "warning");
+    return;
+  }
+
+  // Save via saveFlightRecord
+  saveFlightRecord(record);
+  saveStateToStorage();
+
+  item.isSaved = true;
+  item.status = 'saved';
+  showToast(STATE.lang === 'uk' ? `Політ від ${record.date} (${record.helicopterReg}) збережено в базу!` : `Flight ${record.date} saved!`, "success");
+
+  // Re-render views
+  renderRecentFlightsList();
+  renderMonthlyArchive();
+  renderFlightTrendChart();
+
+  // Advance to next unsaved item
+  const nextIdx = OCR_STATE.items.findIndex((it, idx) => idx > OCR_STATE.activeIndex && !it.isSaved && it.status !== 'duplicate');
+  if (nextIdx !== -1) {
+    selectOcrItem(nextIdx);
+  } else {
+    updateOcrQueueUI();
+  }
+}
+
+function saveAllReadyOcrFlights() {
+  const readyItems = OCR_STATE.items.filter(it => (it.status === 'ready' || it.status === 'needs_review') && !it.isSaved && it.status !== 'duplicate');
+  if (readyItems.length === 0) {
+    showToast(STATE.lang === 'uk' ? "Немає готових до збереження польотів" : "No ready flights to save", "warning");
+    return;
+  }
+
+  let savedCount = 0;
+  readyItems.forEach(item => {
+    // If it's the currently active item, read fresh form values; otherwise build from parsedData
+    let record;
+    if (OCR_STATE.items[OCR_STATE.activeIndex] === item) {
+      record = readCurrentOcrFormValues();
+    } else {
+      const p = item.parsedData;
+      record = {
+        id: `fl_import_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        date: p.date,
+        helicopterReg: p.helicopterReg,
+        mainFlightTask: p.mainFlightTask || '',
+        fuelStart: p.fuelStart || '',
+        fuelEnd: p.fuelEnd || '',
+        refuel: p.refuel || '',
+        dutyTime: p.dutyTime || '00:00',
+        totalFlightTime: p.totalFlightTime || '00:00',
+        totalBlockTime: p.totalBlockTime || '00:00',
+        preBgn: p.preBgn || '',
+        preEnd: p.preEnd || '',
+        preTtl: p.preTtl || '',
+        postBgn: p.postBgn || '',
+        postEnd: p.postEnd || '',
+        postTtl: p.postTtl || '',
+        sourceScanFile: item.fileName,
+        crew: (p.crew || []).map((c, cIdx) => ({
+          crewId: c.matchedCrewId || `unassigned_${Date.now()}_${cIdx}`,
+          crewType: c.matchedCrewType || 'Flight',
+          name: c.matchedCrewName || c.name || 'Unknown',
+          pstn: c.pstn || 'PIC',
+          flightDay: c.flightDay || '00:00',
+          flightNght: c.flightNght || '00:00',
+          flightNvg: c.flightNvg || '00:00',
+          blockDay: c.blockDay || '00:00',
+          blockNght: c.blockNght || '00:00',
+          instDay: c.instDay || '00:00',
+          instNght: c.instNght || '00:00',
+          flightTask: p.mainFlightTask || c.flightTask || '',
+          trainingTypes: c.trainingTypes || [],
+          isInstructor: !!c.isInstructor
+        }))
+      };
+    }
+
+    if (record.date && record.helicopterReg) {
+      saveFlightRecord(record);
+      item.isSaved = true;
+      item.status = 'saved';
+      savedCount++;
+    }
+  });
+
+  saveStateToStorage();
+  renderRecentFlightsList();
+  renderMonthlyArchive();
+  renderFlightTrendChart();
+  updateOcrQueueUI();
+
+  showToast(
+    STATE.lang === 'uk' 
+      ? `Успішно імпортовано ${savedCount} тренувальних польотів!` 
+      : `Successfully imported ${savedCount} training flights!`, 
+    "success"
+  );
+}
+
+function initOcrScanImport() {
+  // Trigger buttons
+  const btnTrigger1 = document.getElementById('btn-import-scans-ai');
+  const btnTrigger2 = document.getElementById('btn-archive-import-scans-ai');
+  const btnClose = document.getElementById('btn-close-ocr-modal');
+  const btnCancel = document.getElementById('btn-ocr-cancel');
+
+  if (btnTrigger1) btnTrigger1.addEventListener('click', openOcrImportModal);
+  if (btnTrigger2) btnTrigger2.addEventListener('click', openOcrImportModal);
+  if (btnClose) btnClose.addEventListener('click', closeOcrImportModal);
+  if (btnCancel) btnCancel.addEventListener('click', closeOcrImportModal);
+
+  // File Upload
+  const fileInput = document.getElementById('ocr-file-input');
+  const uploadTrigger = document.getElementById('btn-ocr-upload-trigger');
+  if (uploadTrigger && fileInput) {
+    uploadTrigger.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', e => {
+      handleOcrFilesSelected(e.target.files);
+      fileInput.value = '';
+    });
+  }
+
+  // Drag and Drop on Queue list
+  const queueList = document.getElementById('ocr-queue-list');
+  if (queueList) {
+    queueList.addEventListener('dragover', e => {
+      e.preventDefault();
+      queueList.style.borderColor = 'var(--accent)';
+    });
+    queueList.addEventListener('dragleave', () => {
+      queueList.style.borderColor = 'var(--border-color)';
+    });
+    queueList.addEventListener('drop', e => {
+      e.preventDefault();
+      queueList.style.borderColor = 'var(--border-color)';
+      if (e.dataTransfer?.files) {
+        handleOcrFilesSelected(e.dataTransfer.files);
+      }
+    });
+  }
+
+  // Zoom controls
+  const btnZoomIn = document.getElementById('btn-ocr-zoom-in');
+  const btnZoomOut = document.getElementById('btn-ocr-zoom-out');
+  const btnZoomReset = document.getElementById('btn-ocr-zoom-reset');
+  const zoomLevelLabel = document.getElementById('ocr-zoom-level');
+  const previewImg = document.getElementById('ocr-preview-img');
+
+  const updateZoom = () => {
+    if (previewImg) previewImg.style.transform = `scale(${OCR_STATE.zoomScale})`;
+    if (zoomLevelLabel) zoomLevelLabel.textContent = `${Math.round(OCR_STATE.zoomScale * 100)}%`;
+  };
+
+  if (btnZoomIn) btnZoomIn.addEventListener('click', () => {
+    OCR_STATE.zoomScale = Math.min(3.0, OCR_STATE.zoomScale + 0.15);
+    updateZoom();
+  });
+  if (btnZoomOut) btnZoomOut.addEventListener('click', () => {
+    OCR_STATE.zoomScale = Math.max(0.4, OCR_STATE.zoomScale - 0.15);
+    updateZoom();
+  });
+  if (btnZoomReset) btnZoomReset.addEventListener('click', () => {
+    OCR_STATE.zoomScale = 1.0;
+    updateZoom();
+  });
+
+  // Save buttons
+  const btnSaveCurrent = document.getElementById('btn-ocr-save-current');
+  const btnSaveAll = document.getElementById('btn-ocr-save-all');
+  if (btnSaveCurrent) btnSaveCurrent.addEventListener('click', saveCurrentOcrFlight);
+  if (btnSaveAll) btnSaveAll.addEventListener('click', saveAllReadyOcrFlights);
+
+  // Add Crew Row button
+  const btnAddCrew = document.getElementById('btn-ocr-add-crew-row');
+  if (btnAddCrew) {
+    btnAddCrew.addEventListener('click', () => {
+      if (OCR_STATE.activeIndex === -1) return;
+      const item = OCR_STATE.items[OCR_STATE.activeIndex];
+      if (!item || !item.parsedData) return;
+      if (!item.parsedData.crew) item.parsedData.crew = [];
+      item.parsedData.crew.push({
+        pstn: 'PI',
+        name: 'New Crew Member',
+        flightDay: '00:00',
+        flightNght: '00:00',
+        flightNvg: '00:00',
+        blockDay: '00:00',
+        blockNght: '00:00',
+        instDay: '00:00',
+        instNght: '00:00',
+        flightTask: item.parsedData.mainFlightTask || '',
+        trainingTypes: [],
+        matchedCrewId: null,
+        matchConfidence: 'none'
+      });
+      renderOcrCrewCards(item.parsedData.crew);
+    });
+  }
+
+  // Export functions to window for inline onclick handlers
+  window.selectOcrItem = selectOcrItem;
+  window.removeOcrItem = removeOcrItem;
+  window.handleOcrCrewChange = handleOcrCrewChange;
+  window.removeOcrCrewMember = removeOcrCrewMember;
 }
 
 /**
@@ -7914,16 +8680,32 @@ function openPortalDateEditModal(member, colName, ruleKey) {
 }
 
 
+window.quickFillLogin = function(email, password) {
+  const emailInput = document.getElementById('login-email');
+  const passInput = document.getElementById('login-password');
+  if (emailInput) emailInput.value = email;
+  if (passInput) passInput.value = password;
+  const form = document.getElementById('login-form');
+  if (form) {
+    form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+  }
+};
+
 /**
  * Handles the login form verification
  */
 function handleLoginSubmit(e) {
   e.preventDefault();
   
-  const email = document.getElementById('login-email').value.trim().toLowerCase();
+  let email = document.getElementById('login-email').value.trim().toLowerCase();
   const pass = document.getElementById('login-password').value;
   
   if (!email || !pass) return;
+
+  // Flexible login shortcuts: 'admin', 'instructor', 'office' or domain aliases
+  if (email === 'admin' || email.startsWith('admin@')) email = 'admin@ukr-helicopters.ua';
+  if (email === 'instructor' || email.startsWith('instructor@')) email = 'instructor@ukr-helicopters.ua';
+  if (email === 'office' || email.startsWith('office@')) email = 'office@ukr-helicopters.ua';
 
   // Check if account was deleted
   const deletedUsers = JSON.parse(localStorage.getItem('aerocheck_deleted_users') || '[]');
@@ -8374,6 +9156,7 @@ async function bootstrapDatabase() {
       // Migrate Google API & Recommended Settings defaults
       if (STATE.settings.syncMode === undefined) { STATE.settings.syncMode = 'mock'; settingsUpdated = true; }
       if (STATE.settings.googleApiKey === undefined) { STATE.settings.googleApiKey = ''; settingsUpdated = true; }
+      if (STATE.settings.geminiApiKey === undefined) { STATE.settings.geminiApiKey = ''; settingsUpdated = true; }
       if (STATE.settings.googleClientId === undefined) { STATE.settings.googleClientId = ''; settingsUpdated = true; }
       if (STATE.settings.googleSpreadsheetId === undefined) { STATE.settings.googleSpreadsheetId = ''; settingsUpdated = true; }
       if (STATE.settings.googleDriveFolderId === undefined) { STATE.settings.googleDriveFolderId = ''; settingsUpdated = true; }
@@ -8957,6 +9740,62 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       updateSyncScheduler();
       showToast("Параметри Google API та таблиць успішно збережено!");
+    });
+  }
+
+  // ================= GEMINI AI VISION OCR LISTENERS =================
+  const btnSaveGemini = document.getElementById('btn-save-gemini-settings');
+  if (btnSaveGemini) {
+    btnSaveGemini.addEventListener('click', () => {
+      const keyInput = document.getElementById('settings-gemini-api-key');
+      if (keyInput) {
+        STATE.settings.geminiApiKey = keyInput.value.trim();
+        saveStateToStorage();
+        const badge = document.getElementById('gemini-conn-status-badge');
+        if (badge) {
+          badge.className = STATE.settings.geminiApiKey ? 'status-badge status-valid' : 'status-badge status-neutral';
+          badge.textContent = STATE.settings.geminiApiKey ? 'Ключ збережено' : 'Не налаштовано';
+        }
+        showToast("Ключ Google Gemini API успішно збережено!");
+      }
+    });
+  }
+
+  const btnTestGemini = document.getElementById('btn-test-gemini-connection');
+  if (btnTestGemini) {
+    btnTestGemini.addEventListener('click', async () => {
+      const keyInput = document.getElementById('settings-gemini-api-key');
+      const key = (keyInput ? keyInput.value.trim() : '') || STATE.settings.geminiApiKey;
+      if (!key) {
+        showToast("Вкажіть API Ключ для тестування", "warning");
+        return;
+      }
+      showToast("Тестування зв'язку з Google Gemini API...");
+      const res = await testGeminiApiKey(key);
+      const badge = document.getElementById('gemini-conn-status-badge');
+      if (res.success) {
+        if (badge) {
+          badge.className = 'status-badge status-valid';
+          badge.textContent = `Підключено (${res.model})`;
+        }
+        showToast(`З'єднання успішне! Модель ${res.model} готова до роботи.`, 'success');
+      } else {
+        if (badge) {
+          badge.className = 'status-badge status-danger';
+          badge.textContent = 'Помилка ключа';
+        }
+        showToast(`Помилка Gemini API: ${res.error}`, 'error');
+      }
+    });
+  }
+
+  const btnToggleGeminiVis = document.getElementById('btn-toggle-gemini-key-visibility');
+  if (btnToggleGeminiVis) {
+    btnToggleGeminiVis.addEventListener('click', () => {
+      const keyInput = document.getElementById('settings-gemini-api-key');
+      if (keyInput) {
+        keyInput.type = keyInput.type === 'password' ? 'text' : 'password';
+      }
     });
   }
 
@@ -10080,6 +10919,9 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Initiate databases
   bootstrapDatabase();
+  
+  // Initialize AI OCR Scan Import controller
+  initOcrScanImport();
   
   // Update translation text
   updateTranslations();

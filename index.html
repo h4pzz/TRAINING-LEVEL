@@ -35,14 +35,24 @@
       </div>
       <form id="login-form" style="display: flex; flex-direction: column; gap: var(--spacing-4);">
         <div class="form-group">
-          <label for="login-email" data-i18n="label_email">Електронна пошта</label>
-          <input type="email" id="login-email" class="form-input" required placeholder="name@ukr-helicopters.ua">
+          <label for="login-email" data-i18n="label_email">Електронна пошта або логін</label>
+          <input type="text" id="login-email" class="form-input" required placeholder="admin або name@ukr-helicopters.ua" autocomplete="username">
         </div>
         <div class="form-group">
           <label for="login-password" data-i18n="label_password">Пароль</label>
-          <input type="password" id="login-password" class="form-input" required placeholder="••••••••">
+          <input type="password" id="login-password" class="form-input" required placeholder="••••••••" autocomplete="current-password">
         </div>
         <button type="submit" class="btn btn-primary" style="margin-top: var(--spacing-2);" data-i18n="btn_signin">Увійти</button>
+
+        <!-- Швидкий вхід в 1 клік -->
+        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color); text-align: center;">
+          <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Швидкий вхід в 1 клік:</div>
+          <div style="display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;">
+            <button type="button" class="btn btn-secondary btn-sm" onclick="quickFillLogin('admin@ukr-helicopters.ua', 'admin')" style="font-size: 11px; padding: 4px 10px; cursor: pointer;">👑 Admin</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="quickFillLogin('instructor@ukr-helicopters.ua', '123456')" style="font-size: 11px; padding: 4px 10px; cursor: pointer;">🎓 Instructor</button>
+            <button type="button" class="btn btn-secondary btn-sm" onclick="quickFillLogin('office@ukr-helicopters.ua', '123456')" style="font-size: 11px; padding: 4px 10px; cursor: pointer;">📋 Office</button>
+          </div>
+        </div>
       </form>
     </div>
   </div>
@@ -420,6 +430,10 @@
               <span data-i18n="tab_flights_archive">Архів польотів за місяцями</span>
               <span id="flights-archive-badge" class="flights-archive-count-badge">0</span>
             </button>
+            <button type="button" id="btn-import-scans-ai" class="btn btn-primary" style="margin-left: auto; height: 34px; padding: 0 14px; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; box-shadow: var(--shadow-sm);" title="Розпізнати відскановані або сфотографовані журнали за допомогою ШІ">
+              <i data-lucide="sparkles" style="width: 15px; height: 15px;"></i>
+              <span>Імпорт сканів журналів (ШІ)</span>
+            </button>
           </div>
 
           <!-- ВКЛАДКА 1: Внесення польоту -->
@@ -701,6 +715,10 @@
               </button>
             </div>
             <div class="flight-toolbar-actions" style="display: flex; gap: 8px; align-items: center;">
+              <button type="button" id="btn-archive-import-scans-ai" class="btn btn-primary" style="height: 34px; padding: 0 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;" title="Розпізнати відскановані або сфотографовані журнали за допомогою ШІ">
+                <i data-lucide="sparkles" style="width: 15px; height: 15px;"></i>
+                <span>Імпорт сканів (ШІ)</span>
+              </button>
               <button type="button" id="btn-archive-export-xlsx" class="btn btn-secondary" style="height: 34px; padding: 0 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;" title="Завантажити всі записи у форматі Excel (.xlsx)">
                 <i data-lucide="file-spreadsheet" style="width: 15px; height: 15px; color: #10b981;"></i>
                 <span data-i18n="btn_export_excel">Експорт Excel</span>
@@ -845,6 +863,49 @@
                       <i data-lucide="folder-tree"></i>
                       <span data-i18n="btn_verify_crew_folders">Перевірити папки екіпажу на Drive</span>
                     </button>
+                  </div>
+                </div>
+
+                <!-- Google Gemini Vision AI (OCR сканів польотів) -->
+                <div class="card">
+                  <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <h3 style="font-family: var(--font-display); font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; margin: 0;">
+                      <i data-lucide="sparkles" style="color: var(--accent);"></i>
+                      <span>Google Gemini Vision AI (OCR сканів)</span>
+                    </h3>
+                    <span id="gemini-conn-status-badge" class="status-badge status-neutral" style="font-size: 11px;">Не налаштовано</span>
+                  </div>
+                  
+                  <div style="display: flex; flex-direction: column; gap: var(--spacing-4); margin-top: var(--spacing-3);">
+                    <div class="form-group">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <label for="settings-gemini-api-key" style="font-weight: 600; font-size: 13px;">API Ключ Google Gemini</label>
+                        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style="font-size: 11px; color: var(--accent); text-decoration: none; display: flex; align-items: center; gap: 4px;">
+                          <span>Отримати ключ (Google AI Studio)</span>
+                          <i data-lucide="external-link" style="width: 11px; height: 11px;"></i>
+                        </a>
+                      </div>
+                      <div style="position: relative; display: flex; align-items: center;">
+                        <input type="password" id="settings-gemini-api-key" class="form-input" placeholder="AIzaSy..." style="font-family: monospace; font-size: 12px; padding-right: 36px; width: 100%;">
+                        <button type="button" id="btn-toggle-gemini-key-visibility" style="position: absolute; right: 8px; background: transparent; border: none; cursor: pointer; color: var(--text-secondary); padding: 4px;" title="Показати/приховати ключ">
+                          <i data-lucide="eye" style="width: 15px; height: 15px;"></i>
+                        </button>
+                      </div>
+                      <div style="margin-top: 4px; font-size: 11.5px; color: var(--text-secondary); line-height: 1.4;">
+                        Використовується для автоматичного розпізнавання відсканованих та рукописних журналів польотів (PDF/зображень). Free tier підтримує до 15 запитів/хв.
+                      </div>
+                    </div>
+
+                    <div style="display: flex; gap: var(--spacing-2); flex-wrap: wrap;">
+                      <button class="btn btn-primary" id="btn-save-gemini-settings" style="flex: 1 1 140px;">
+                        <i data-lucide="save"></i>
+                        <span>Зберегти ключ ШІ</span>
+                      </button>
+                      <button class="btn btn-secondary" id="btn-test-gemini-connection" style="flex: 1 1 140px;">
+                        <i data-lucide="wifi"></i>
+                        <span>Тест зв'язку з Gemini</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
@@ -2407,6 +2468,242 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ================= AI OCR SPLIT-VIEW REVIEW MODAL ================= -->
+  <div id="modal-ocr-import" class="modal-backdrop">
+    <div class="modal-content ocr-split-modal">
+      
+      <!-- Modal Header -->
+      <div class="ocr-modal-header">
+        <div class="ocr-modal-header-left">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="sparkles" style="color: var(--accent); width: 20px; height: 20px;"></i>
+            <h2 style="font-family: var(--font-display); font-size: 17px; font-weight: 700; margin: 0;">
+              ШІ-Імпорт та перевірка журналів польотів
+            </h2>
+          </div>
+          <div class="ocr-modal-stats">
+            <span>Всього: <strong id="ocr-stat-total">0</strong></span>
+            <span>•</span>
+            <span class="ocr-stat-pill" style="color: #10b981;">🟢 Готові: <span id="ocr-stat-ready">0</span></span>
+            <span>•</span>
+            <span class="ocr-stat-pill" style="color: #f59e0b;">🟡 Увага: <span id="ocr-stat-review">0</span></span>
+            <span>•</span>
+            <span class="ocr-stat-pill" style="color: #ef4444;">⚠️ Дублікати: <span id="ocr-stat-dup">0</span></span>
+          </div>
+        </div>
+        <button type="button" id="btn-close-ocr-modal" class="modal-close-btn" style="background: transparent; border: none; cursor: pointer; color: var(--text-secondary); padding: 6px; border-radius: var(--radius-sm);">
+          <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body (3 columns: Queue, Document Preview, Form Editor) -->
+      <div class="ocr-modal-body">
+        
+        <!-- Column 1: Queue Sidebar -->
+        <div class="ocr-queue-sidebar">
+          <input type="file" id="ocr-file-input" multiple accept="application/pdf,image/jpeg,image/png,image/webp" style="display: none;">
+          <div class="ocr-queue-header">
+            <button type="button" class="btn btn-primary btn-sm" id="btn-ocr-upload-trigger" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px;">
+              <i data-lucide="upload" style="width: 14px; height: 14px;"></i>
+              <span>Завантажити скани (PDF/фото)</span>
+            </button>
+            <div id="ocr-batch-progress-box" style="display: none; flex-direction: column; gap: 4px; font-size: 11px;">
+              <div style="display: flex; justify-content: space-between; color: var(--text-secondary);">
+                <span id="ocr-progress-label">Обробка ШІ...</span>
+                <span id="ocr-progress-count">0/0</span>
+              </div>
+              <div style="width: 100%; height: 6px; background: var(--bg-surface); border-radius: 3px; overflow: hidden; border: 1px solid var(--border-color);">
+                <div id="ocr-progress-bar" style="width: 0%; height: 100%; background: var(--accent); transition: width 0.3s ease;"></div>
+              </div>
+            </div>
+          </div>
+          
+          <div id="ocr-queue-list" class="ocr-queue-list">
+            <!-- Dynamically populated queue items -->
+            <div id="ocr-queue-empty" style="text-align: center; color: var(--text-secondary); font-size: 12px; padding: 30px 10px;">
+              <i data-lucide="file-up" style="width: 32px; height: 32px; margin: 0 auto 8px auto; opacity: 0.5;"></i>
+              <div>Перетягніть файли сюди або натисніть «Завантажити скани»</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Column 2: Document Preview -->
+        <div class="ocr-preview-pane">
+          <div class="ocr-preview-toolbar">
+            <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 250px;">
+              <i data-lucide="file-text" style="width: 14px; height: 14px; flex-shrink: 0;"></i>
+              <span id="ocr-preview-filename" style="font-weight: 600;">Не вибрано</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <button type="button" id="btn-ocr-zoom-out" class="btn btn-secondary btn-sm" style="padding: 2px 6px; height: 24px; font-size: 11px;" title="Зменшити">−</button>
+              <span id="ocr-zoom-level" style="font-size: 11px; min-width: 40px; text-align: center;">100%</span>
+              <button type="button" id="btn-ocr-zoom-in" class="btn btn-secondary btn-sm" style="padding: 2px 6px; height: 24px; font-size: 11px;" title="Збільшити">+</button>
+              <button type="button" id="btn-ocr-zoom-reset" class="btn btn-secondary btn-sm" style="padding: 2px 6px; height: 24px; font-size: 11px;" title="Скинути">1:1</button>
+              <a id="ocr-open-external" href="#" target="_blank" class="btn btn-secondary btn-sm" style="padding: 2px 6px; height: 24px; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center;" title="Відкрити в новому вікні">
+                <i data-lucide="external-link" style="width: 12px; height: 12px;"></i>
+              </a>
+            </div>
+          </div>
+
+          <div class="ocr-preview-content" id="ocr-preview-container">
+            <div id="ocr-preview-placeholder" style="color: #a1a1aa; font-size: 13px; text-align: center; padding: 40px;">
+              <i data-lucide="image" style="width: 48px; height: 48px; margin-bottom: 10px; opacity: 0.4;"></i>
+              <div>Виберіть файл зі списку зліва для попереднього перегляду</div>
+            </div>
+            <iframe id="ocr-preview-iframe" class="ocr-preview-frame" style="display: none;"></iframe>
+            <img id="ocr-preview-img" class="ocr-preview-img" style="display: none;" alt="Скан журналу">
+          </div>
+        </div>
+
+        <!-- Column 3: Form Editor -->
+        <div class="ocr-form-pane" id="ocr-form-container">
+          
+          <div id="ocr-form-empty" style="text-align: center; color: var(--text-secondary); padding: 40px 20px;">
+            <i data-lucide="clipboard-list" style="width: 48px; height: 48px; margin-bottom: 12px; opacity: 0.4;"></i>
+            <div style="font-size: 14px; font-weight: 600;">Дані не завантажено</div>
+            <div style="font-size: 12px; margin-top: 4px;">Завантажте відскановані файли для розпізнавання</div>
+          </div>
+
+          <form id="ocr-edit-form" style="display: none; flex-direction: column; gap: var(--spacing-4);">
+            
+            <!-- Duplicate Warning Banner -->
+            <div id="ocr-duplicate-banner" style="display: none; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; border-radius: var(--radius-md); padding: 10px 12px; font-size: 12.5px; color: #b91c1c; align-items: center; gap: 8px;">
+              <i data-lucide="alert-triangle" style="width: 18px; height: 18px; flex-shrink: 0;"></i>
+              <div>
+                <strong>Увага: Цей політ вже існує в базі!</strong>
+                <span id="ocr-duplicate-desc"></span>
+              </div>
+            </div>
+
+            <!-- Group 1: General Info -->
+            <div>
+              <div class="ocr-section-title">
+                <i data-lucide="file-text" style="width: 15px; height: 15px;"></i>
+                <span>Загальна інформація про політ</span>
+              </div>
+
+              <div class="form-row grid-3cols">
+                <div class="form-group">
+                  <label for="ocr-field-date" style="font-weight: 600; font-size: 12px;">Дата польоту</label>
+                  <input type="date" id="ocr-field-date" class="form-input" required>
+                </div>
+                <div class="form-group">
+                  <label for="ocr-field-reg" style="font-weight: 600; font-size: 12px;">Борт вертольота</label>
+                  <input type="text" id="ocr-field-reg" class="form-input" placeholder="UR-..." required>
+                </div>
+                <div class="form-group">
+                  <label for="ocr-field-task" style="font-weight: 600; font-size: 12px;">№ польотного завдання</label>
+                  <input type="text" id="ocr-field-task" class="form-input" placeholder="SPO ...">
+                </div>
+              </div>
+
+              <!-- Fuel Block -->
+              <div class="form-row grid-3cols" style="margin-top: 8px;">
+                <div class="form-group">
+                  <label for="ocr-field-fuel-start" style="font-size: 11.5px;">Пальне Start (L)</label>
+                  <input type="text" id="ocr-field-fuel-start" class="form-input" placeholder="0">
+                </div>
+                <div class="form-group">
+                  <label for="ocr-field-fuel-end" style="font-size: 11.5px;">Пальне End (L)</label>
+                  <input type="text" id="ocr-field-fuel-end" class="form-input" placeholder="0">
+                </div>
+                <div class="form-group">
+                  <label for="ocr-field-refuel" style="font-size: 11.5px;">Заправка (L)</label>
+                  <input type="text" id="ocr-field-refuel" class="form-input" placeholder="0">
+                </div>
+              </div>
+            </div>
+
+            <!-- Group 2: Time Totals & Briefings -->
+            <div>
+              <div class="ocr-section-title">
+                <i data-lucide="clock" style="width: 15px; height: 15px;"></i>
+                <span>Робочий, польотний час та інструктажі</span>
+              </div>
+
+              <div class="form-row grid-3cols">
+                <div class="form-group">
+                  <label for="ocr-field-duty-time" style="font-weight: 700; font-size: 12px; color: var(--accent);">Робочий час (Duty)</label>
+                  <input type="time" id="ocr-field-duty-time" class="form-input" style="font-weight: 700;">
+                </div>
+                <div class="form-group">
+                  <label for="ocr-field-flight-time" style="font-weight: 700; font-size: 12px; color: #10b981;">Польотний час (Flight)</label>
+                  <input type="time" id="ocr-field-flight-time" class="form-input" style="font-weight: 700;">
+                </div>
+                <div class="form-group">
+                  <label for="ocr-field-block-time" style="font-weight: 700; font-size: 12px; color: #6366f1;">Час Block</label>
+                  <input type="time" id="ocr-field-block-time" class="form-input" style="font-weight: 700;">
+                </div>
+              </div>
+
+              <!-- Briefings row -->
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
+                <div style="background: var(--bg-surface-alt); padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                  <div style="font-size: 11px; font-weight: 600; margin-bottom: 4px;">Pre-flight Instruction:</div>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px;">
+                    <input type="time" id="ocr-field-pre-bgn" class="form-input" title="BGN" style="font-size: 11px; height: 28px;">
+                    <input type="time" id="ocr-field-pre-end" class="form-input" title="END" style="font-size: 11px; height: 28px;">
+                    <input type="time" id="ocr-field-pre-ttl" class="form-input" title="TTL" style="font-size: 11px; height: 28px; font-weight: 700;">
+                  </div>
+                </div>
+
+                <div style="background: var(--bg-surface-alt); padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color);">
+                  <div style="font-size: 11px; font-weight: 600; margin-bottom: 4px;">Post-flight Debrief:</div>
+                  <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px;">
+                    <input type="time" id="ocr-field-post-bgn" class="form-input" title="BGN" style="font-size: 11px; height: 28px;">
+                    <input type="time" id="ocr-field-post-end" class="form-input" title="END" style="font-size: 11px; height: 28px;">
+                    <input type="time" id="ocr-field-post-ttl" class="form-input" title="TTL" style="font-size: 11px; height: 28px; font-weight: 700;">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Group 3: Crew Members -->
+            <div>
+              <div style="display: flex; justify-content: space-between; align-items: center;" class="ocr-section-title">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <i data-lucide="users" style="width: 15px; height: 15px;"></i>
+                  <span>Члени екіпажу та підготовки (<span id="ocr-crew-count">0</span>)</span>
+                </div>
+                <button type="button" id="btn-ocr-add-crew-row" class="btn btn-secondary btn-sm" style="font-size: 11px; padding: 2px 8px; height: 24px;">
+                  <i data-lucide="plus" style="width: 12px; height: 12px;"></i>
+                  <span>Додати члена екіпажу</span>
+                </button>
+              </div>
+
+              <div id="ocr-crew-cards-container" style="display: flex; flex-direction: column; gap: 8px;">
+                <!-- Crew cards injected dynamically -->
+              </div>
+            </div>
+
+          </form>
+
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="ocr-modal-footer">
+        <div style="font-size: 12px; color: var(--text-secondary); display: flex; align-items: center; gap: 6px;">
+          <i data-lucide="info" style="width: 14px; height: 14px;"></i>
+          <span id="ocr-footer-status">Виберіть або завантажте скани для обробки</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button type="button" id="btn-ocr-cancel" class="btn btn-secondary" style="height: 36px; font-size: 13px;">Закрити</button>
+          <button type="button" id="btn-ocr-save-current" class="btn btn-secondary" style="height: 36px; font-size: 13px; border-color: var(--accent); color: var(--accent);">
+            <i data-lucide="save" style="width: 15px; height: 15px;"></i>
+            <span>Зберегти цей політ</span>
+          </button>
+          <button type="button" id="btn-ocr-save-all" class="btn btn-primary" style="height: 36px; font-size: 13px;">
+            <i data-lucide="check-check" style="width: 15px; height: 15px;"></i>
+            <span id="btn-ocr-save-all-text">Зберегти всі готові (0)</span>
+          </button>
+        </div>
+      </div>
+
     </div>
   </div>
 
