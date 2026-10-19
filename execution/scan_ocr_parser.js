@@ -344,13 +344,10 @@ export async function getBestAvailableGeminiModel(apiKey) {
     modelName: 'gemini-2.0-flash', 
     apiKey: cleanKey, 
     allAvailable: [
+      'gemini-2.5-flash',
       'gemini-2.0-flash', 
-      'gemini-2.0-flash-exp', 
-      'gemini-1.5-flash-latest', 
-      'gemini-1.5-flash-002', 
-      'gemini-1.5-flash-001', 
-      'gemini-1.5-flash', 
-      'gemini-1.5-pro'
+      'gemini-2.0-flash-lite',
+      'gemini-2.5-pro'
     ] 
   };
 }
@@ -372,10 +369,9 @@ export async function testGeminiApiKey(apiKey) {
     const modelsToTry = [
       modelInfo.modelName,
       ...(modelInfo.allAvailable || []).filter(m => m !== modelInfo.modelName),
+      'gemini-2.5-flash',
       'gemini-2.0-flash',
-      'gemini-1.5-flash-latest',
-      'gemini-1.5-flash-002',
-      'gemini-1.5-flash'
+      'gemini-2.0-flash-lite'
     ];
     const uniqueModels = [...new Set(modelsToTry)];
 
@@ -445,40 +441,36 @@ export function fileToBase64(file) {
  * @param {string} mimeType 
  * @param {string} apiKey 
  * @param {number} retryCount 
+ * @param {Function} onStatusUpdate
  * @returns {Promise<object>}
  */
-export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCount = 0) {
+export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCount = 0, onStatusUpdate = null) {
   if (!apiKey) throw new Error('Gemini API ключ не налаштовано в системі');
 
   const cleanKey = apiKey.trim();
   const modelInfo = await getBestAvailableGeminiModel(cleanKey);
   
-  const candidateList = [
-    { ver: modelInfo.apiVersion, name: modelInfo.modelName },
-    ...((modelInfo.allAvailable || [])
-      .filter(m => m !== modelInfo.modelName)
-      .slice(0, 5)
-      .map(m => ({ ver: modelInfo.apiVersion, name: m }))),
-    { ver: 'v1beta', name: 'gemini-2.0-flash' },
-    { ver: 'v1beta', name: 'gemini-1.5-flash-latest' },
-    { ver: 'v1beta', name: 'gemini-1.5-flash-002' },
-    { ver: 'v1', name: 'gemini-1.5-flash' },
-    { ver: 'v1beta', name: 'gemini-1.5-pro' }
-  ];
+  const candidateList = [];
+  candidateList.push({ ver: modelInfo.apiVersion, name: modelInfo.modelName });
 
-  const seen = new Set();
-  const uniqueCandidates = [];
-  for (const item of candidateList) {
-    const key = `${item.ver}/${item.name}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      uniqueCandidates.push(item);
+  if (Array.isArray(modelInfo.allAvailable)) {
+    for (const name of modelInfo.allAvailable) {
+      if (name !== modelInfo.modelName && !candidateList.some(c => c.name === name)) {
+        candidateList.push({ ver: modelInfo.apiVersion, name });
+      }
     }
   }
 
+  for (const name of ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.5-pro']) {
+    if (!candidateList.some(c => c.name === name)) {
+      candidateList.push({ ver: 'v1beta', name });
+    }
+  }
+
+  let rateLimitError = null;
   let lastError = null;
 
-  for (const { ver, name: model } of uniqueCandidates) {
+  for (const { ver, name: model } of candidateList) {
     const url = `https://generativelanguage.googleapis.com/${ver}/models/${model}:generateContent?key=${cleanKey}`;
     
     const payload = {
@@ -513,9 +505,10 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
 
       if (response.status === 429) {
         const errJson = await response.json().catch(() => ({}));
-        let waitMs = 15000;
+        const googleMsg = errJson.error?.message || 'Resource Exhausted';
+        rateLimitError = new Error(`Перевищено ліміт запитів Gemini (Rate Limit 429): ${googleMsg}. Будь ласка, зачекайте 1-2 хвилини.`);
 
-        // Try extracting retryDelay from Google's response details
+        let waitMs = 15000;
         const retryInfo = errJson.error?.details?.find(d => d.retryDelay);
         if (retryInfo && retryInfo.retryDelay) {
           const parsedSec = parseFloat(retryInfo.retryDelay);
@@ -528,17 +521,16 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
             const sec = parseFloat(retryHeader);
             if (!isNaN(sec)) waitMs = Math.ceil(sec * 1000) + 2000;
           } else {
-            // Adaptive progressive backoff: 12s, 22s, 35s, 50s
-            waitMs = [12000, 22000, 35000, 50000][retryCount] || 45000;
+            // Progressive wait: 15s, 25s, 40s, 60s
+            waitMs = [15000, 25000, 40000, 60000][retryCount] || 60000;
           }
         }
 
         if (retryCount < 4) {
           const secText = Math.round(waitMs / 1000);
-          console.warn(`[Gemini OCR] 429 Quota limit hit. Waiting ${secText}s for quota window to reset... (Attempt ${retryCount + 1}/4)`);
+          console.warn(`[Gemini OCR] 429 Quota limit hit on ${model}. Waiting ${secText}s... (Attempt ${retryCount + 1}/4)`);
           
           if (onStatusUpdate) {
-            // Count down every second so user sees active countdown in UI
             for (let s = secText; s > 0; s--) {
               onStatusUpdate(`Очікування квоти Gemini ШІ (${s} сек)...`);
               await new Promise(r => setTimeout(r, 1000));
@@ -550,9 +542,8 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
           return callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCount + 1, onStatusUpdate);
         }
 
-        // If after 4 retries this model is still rate-limited, fall back to the next candidate model
-        console.warn(`Model ${ver}/${model} rate limited after retries. Trying fallback model...`);
-        lastError = new Error(`Перевищено ліміт запитів Gemini (Rate Limit 429). Зачекайте 1-2 хвилини для скидання ліміту.`);
+        // Exceeded retries on this model: try next model in candidateList
+        console.warn(`Model ${ver}/${model} rate limited after retries. Trying next candidate model...`);
         continue;
       }
 
@@ -590,12 +581,17 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
       return parsed;
 
     } catch (err) {
-      lastError = err;
       if (err.message.includes('Rate Limit') || err.message.includes('429')) {
-        // Continue loop to try other models if available
+        rateLimitError = err;
         continue;
       }
+      lastError = err;
     }
+  }
+
+  // Prioritize rate limit error over 404 errors from missing fallbacks
+  if (rateLimitError) {
+    throw rateLimitError;
   }
 
   throw lastError || new Error('Не вдалося отримати відповідь від моделей Gemini');
