@@ -5299,7 +5299,7 @@ async function handleOcrFilesSelected(fileList) {
     STATE.flightCrew,
     STATE.cabinCrew,
     STATE.flights,
-    (itemResult, index, total) => {
+    (itemResult, index, total, customStatus) => {
       // Check if already in OCR_STATE.items
       const existingIdx = OCR_STATE.items.findIndex(it => it.id === itemResult.id);
       if (existingIdx !== -1) {
@@ -5312,7 +5312,7 @@ async function handleOcrFilesSelected(fileList) {
       const percent = Math.round(((index + 1) / total) * 100);
       if (progressBar) progressBar.style.width = `${percent}%`;
       if (progressCount) progressCount.textContent = `${index + 1}/${total}`;
-      if (progressLabel) progressLabel.textContent = `Обробка: ${itemResult.fileName}...`;
+      if (progressLabel) progressLabel.textContent = customStatus || `Обробка: ${itemResult.fileName}...`;
 
       updateOcrQueueUI();
 

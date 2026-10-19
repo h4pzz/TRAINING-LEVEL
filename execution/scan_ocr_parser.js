@@ -512,14 +512,48 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
       });
 
       if (response.status === 429) {
-        // Rate limited (15 RPM on Free Tier). Back off and retry.
-        if (retryCount < 3) {
-          const waitMs = (retryCount + 1) * 5000;
-          console.warn(`[Gemini OCR] 429 Rate Limit hit. Retrying in ${waitMs}ms... (Attempt ${retryCount + 1}/3)`);
-          await new Promise(r => setTimeout(r, waitMs));
-          return callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCount + 1);
+        const errJson = await response.json().catch(() => ({}));
+        let waitMs = 15000;
+
+        // Try extracting retryDelay from Google's response details
+        const retryInfo = errJson.error?.details?.find(d => d.retryDelay);
+        if (retryInfo && retryInfo.retryDelay) {
+          const parsedSec = parseFloat(retryInfo.retryDelay);
+          if (!isNaN(parsedSec)) {
+            waitMs = Math.ceil(parsedSec * 1000) + 2000;
+          }
+        } else {
+          const retryHeader = response.headers?.get ? response.headers.get('retry-after') : null;
+          if (retryHeader) {
+            const sec = parseFloat(retryHeader);
+            if (!isNaN(sec)) waitMs = Math.ceil(sec * 1000) + 2000;
+          } else {
+            // Adaptive progressive backoff: 12s, 22s, 35s, 50s
+            waitMs = [12000, 22000, 35000, 50000][retryCount] || 45000;
+          }
         }
-        throw new Error('Перевищено ліміт запитів Gemini (Rate Limit 429). Зачекайте хвилину і спробуйте знову.');
+
+        if (retryCount < 4) {
+          const secText = Math.round(waitMs / 1000);
+          console.warn(`[Gemini OCR] 429 Quota limit hit. Waiting ${secText}s for quota window to reset... (Attempt ${retryCount + 1}/4)`);
+          
+          if (onStatusUpdate) {
+            // Count down every second so user sees active countdown in UI
+            for (let s = secText; s > 0; s--) {
+              onStatusUpdate(`Очікування квоти Gemini ШІ (${s} сек)...`);
+              await new Promise(r => setTimeout(r, 1000));
+            }
+          } else {
+            await new Promise(r => setTimeout(r, waitMs));
+          }
+
+          return callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCount + 1, onStatusUpdate);
+        }
+
+        // If after 4 retries this model is still rate-limited, fall back to the next candidate model
+        console.warn(`Model ${ver}/${model} rate limited after retries. Trying fallback model...`);
+        lastError = new Error(`Перевищено ліміт запитів Gemini (Rate Limit 429). Зачекайте 1-2 хвилини для скидання ліміту.`);
+        continue;
       }
 
       if (!response.ok) {
@@ -558,7 +592,8 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
     } catch (err) {
       lastError = err;
       if (err.message.includes('Rate Limit') || err.message.includes('429')) {
-        throw err;
+        // Continue loop to try other models if available
+        continue;
       }
     }
   }
@@ -622,7 +657,15 @@ export async function processScanBatch(files, apiKey, flightCrew, cabinCrew, exi
 
     try {
       const base64Data = await fileToBase64(file);
-      const parsedData = await callGeminiVisionAPI(base64Data, itemResult.mimeType, apiKey);
+      const parsedData = await callGeminiVisionAPI(
+        base64Data, 
+        itemResult.mimeType, 
+        apiKey, 
+        0, 
+        (statusMsg) => {
+          if (onProgress) onProgress(itemResult, i, total, statusMsg);
+        }
+      );
       
       // Perform crew fuzzy matching
       if (Array.isArray(parsedData.crew)) {
@@ -661,9 +704,10 @@ export async function processScanBatch(files, apiKey, flightCrew, cabinCrew, exi
     results.push(itemResult);
     if (onProgress) onProgress(itemResult, i, total);
 
-    // Free tier safe pacing: 4000ms delay before processing next file to respect 15 RPM
+    // Free tier safe pacing: 6000ms delay before processing next file to respect 15 RPM
     if (i < total - 1) {
-      await new Promise(r => setTimeout(r, 4000));
+      if (onProgress) onProgress(itemResult, i, total, 'Пауза між файлами для дотримання квоти Google API (6 сек)...');
+      await new Promise(r => setTimeout(r, 6000));
     }
   }
 
