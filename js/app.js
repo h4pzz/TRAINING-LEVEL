@@ -17,6 +17,7 @@ import {
   getMemberFolderPath,
   verifyAndCreateCrewFolders,
   testGoogleConnection
+} from '../execution/drive_sync.js';
 import { dispatchFlightLogEmail, dispatchFlightsWeeklyEmail } from '../execution/email_dispatcher.js';
 import { 
   testGeminiApiKey, 
@@ -8680,22 +8681,27 @@ function openPortalDateEditModal(member, colName, ruleKey) {
 }
 
 
-window.quickFillLogin = function(email, password) {
+window.quickFillLogin = function(email, roleOrPass) {
   const emailInput = document.getElementById('login-email');
   const passInput = document.getElementById('login-password');
   if (emailInput) emailInput.value = email;
-  if (passInput) passInput.value = password;
-  const form = document.getElementById('login-form');
-  if (form) {
-    form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+  if (passInput) passInput.value = roleOrPass || '123456';
+  
+  let role = roleOrPass;
+  if (!role || (role !== 'ADMIN' && role !== 'INSTRUCTOR' && role !== 'OFFICE')) {
+    if (email.startsWith('admin')) role = 'ADMIN';
+    else if (email.startsWith('instructor')) role = 'INSTRUCTOR';
+    else if (email.startsWith('office')) role = 'OFFICE';
+    else role = 'ADMIN';
   }
+  executeLogin(email, role);
 };
 
 /**
  * Handles the login form verification
  */
 function handleLoginSubmit(e) {
-  e.preventDefault();
+  if (e && e.preventDefault) e.preventDefault();
   
   let email = document.getElementById('login-email').value.trim().toLowerCase();
   const pass = document.getElementById('login-password').value;
@@ -8763,6 +8769,7 @@ function handleLoginSubmit(e) {
   
   executeLogin(email, role);
 }
+window.handleLoginSubmit = handleLoginSubmit;
 
 /**
  * Logs the session in and updates views/permissions
