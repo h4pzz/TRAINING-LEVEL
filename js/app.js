@@ -2676,14 +2676,92 @@ function formatMinutesToDuration(totalMins) {
 /**
  * Helper to sum and format crew time object { day, nght, nvg }
  */
-function formatCrewTimeObj(timeObj, fallbackTime = '00:00') {
-  if (!timeObj) return fallbackTime;
-  if (typeof timeObj === 'string') return timeObj;
-  const dayMins = parseDurationToMinutes(timeObj.day || '00:00');
-  const nghtMins = parseDurationToMinutes(timeObj.nght || timeObj.night || '00:00');
-  const nvgMins = parseDurationToMinutes(timeObj.nvg || '00:00');
+function formatCrewTimeObj(timeObj, cOrFallback = null, type = 'flight') {
+  if (typeof timeObj === 'string' && timeObj && timeObj !== '00:00') {
+    return timeObj;
+  }
+
+  const isCrewObj = cOrFallback && typeof cOrFallback === 'object';
+  const c = isCrewObj ? cOrFallback : null;
+
+  let day = '00:00';
+  let nght = '00:00';
+  let nvg = '00:00';
+
+  if (timeObj && typeof timeObj === 'object') {
+    day = timeObj.day || '00:00';
+    nght = timeObj.nght || timeObj.night || '00:00';
+    nvg = timeObj.nvg || '00:00';
+  }
+
+  // Fallback to flat fields on crew member if object was missing or empty
+  if (c) {
+    if (type === 'flight') {
+      if (day === '00:00' && c.flightDay) day = c.flightDay;
+      if (nght === '00:00' && c.flightNght) nght = c.flightNght;
+      if (nvg === '00:00' && c.flightNvg) nvg = c.flightNvg;
+    } else {
+      if (day === '00:00' && c.blockDay) day = c.blockDay;
+      if (nght === '00:00' && c.blockNght) nght = c.blockNght;
+    }
+  }
+
+  const dayMins = parseDurationToMinutes(day);
+  const nghtMins = parseDurationToMinutes(nght);
+  const nvgMins = parseDurationToMinutes(nvg);
   const total = dayMins + nghtMins + nvgMins;
-  return total > 0 ? formatMinutesToDuration(total) : fallbackTime;
+
+  if (total > 0) {
+    return formatMinutesToDuration(total);
+  }
+
+  // If this crew member exists, display '00:00' rather than overwriting with helicopter total
+  if (timeObj || c) {
+    return '00:00';
+  }
+
+  return typeof cOrFallback === 'string' ? cOrFallback : '00:00';
+}
+
+/**
+ * Ensures crew members in stored flights have both flat and nested time objects
+ */
+function repairFlightCrewTimes() {
+  if (!STATE.flights || !Array.isArray(STATE.flights)) return;
+  let modified = false;
+
+  STATE.flights.forEach(f => {
+    if (!Array.isArray(f.crew)) return;
+    f.crew.forEach(c => {
+      // If flat times exist but nested objects are missing, build them
+      if (!c.flightTime || typeof c.flightTime !== 'object') {
+        c.flightTime = {
+          day: c.flightDay || '00:00',
+          nght: c.flightNght || '00:00',
+          nvg: c.flightNvg || '00:00'
+        };
+        modified = true;
+      }
+      if (!c.blockTime || typeof c.blockTime !== 'object') {
+        c.blockTime = {
+          day: c.blockDay || '00:00',
+          nght: c.blockNght || '00:00'
+        };
+        modified = true;
+      }
+      if (!c.timeInstructor || typeof c.timeInstructor !== 'object') {
+        c.timeInstructor = {
+          day: c.instDay || '00:00',
+          night: c.instNght || '00:00'
+        };
+        modified = true;
+      }
+    });
+  });
+
+  if (modified) {
+    saveStateToStorage();
+  }
 }
 
 /**
@@ -3270,8 +3348,8 @@ function renderMonthlyArchive(searchQuery = '') {
       let crewRowsHtml = '';
       (flight.crew || []).forEach(c => {
         // Individual times
-        const cFltTime = formatCrewTimeObj(c.flightTime, flight.totalFlightTime || '00:00');
-        const cBlkTime = formatCrewTimeObj(c.blockTime, flight.totalBlockTime || '00:00');
+        const cFltTime = formatCrewTimeObj(c.flightTime, c, 'flight');
+        const cBlkTime = formatCrewTimeObj(c.blockTime, c, 'block');
 
         // Training exercises badges
         let exercisesHtml = '';
@@ -9289,6 +9367,8 @@ async function bootstrapDatabase() {
     if (migrated) {
       saveStateToStorage();
     }
+    
+    repairFlightCrewTimes();
     
     STATE.changelog = localChangelog ? JSON.parse(localChangelog) : [];
     if (localSettings) {
