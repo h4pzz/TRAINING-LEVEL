@@ -278,7 +278,11 @@ CRITICAL OCR RULES:
      * If flightDay is "00:00" and flightNght > "00:00", set blockNght to totalBlockTime (or >= flightNght) and blockDay to "00:00".
      * If both flightDay > 0 and flightNght > 0, distribute block time proportionally so blockDay >= flightDay and blockNght >= flightNght.
      * Block Day must NEVER be less than Flight Day, and Block Night must NEVER be less than Flight Night. If block time is missing, default blockDay = flightDay and blockNght = flightNght.
-8. Return ONLY valid JSON, with NO preamble or extra markdown outside the JSON.
+8. Handwriting disambiguation:
+   - When reading handwritten crew names, always cross-reference them with the provided REFERENCE CREW ROSTER.
+   - Choose the known company crew member that best matches the handwritten letters (e.g. "Сокуренко" / "Sokurenko", "Коцар" / "Kotsar", "Береговий" / "Berehovyy", "Форманюк" / "Formaniuk", "Дубінін" / "Dubinin").
+   - Do NOT substitute with other names if the letters match a known person on the roster.
+9. Return ONLY valid JSON, with NO preamble or extra markdown outside the JSON.
 `;
 
 /**
@@ -454,9 +458,10 @@ export function fileToBase64(file) {
  * @param {string} apiKey 
  * @param {number} retryCount 
  * @param {Function} onStatusUpdate
+ * @param {string} knownCrewRoster
  * @returns {Promise<object>}
  */
-export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCount = 0, onStatusUpdate = null) {
+export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCount = 0, onStatusUpdate = null, knownCrewRoster = '') {
   if (!apiKey) throw new Error('Gemini API ключ не налаштовано в системі');
 
   const cleanKey = apiKey.trim();
@@ -514,7 +519,8 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
             }
           },
           {
-            text: 'Extract all flight data, duty time, block time, briefing times, and crew member table from this training flight log sheet according to your system instruction.'
+            text: 'Extract all flight data, duty time, block time, briefing times, and crew member table from this training flight log sheet according to your system instruction.' +
+              (knownCrewRoster ? `\n\nREFERENCE CREW ROSTER (Compare handwritten names against this list of actual Ukrainian Helicopters employees; do not misread letters to create other names):\n${knownCrewRoster}` : '')
           }
         ]
       }],
@@ -746,6 +752,16 @@ export async function processScanBatch(files, apiKey, flightCrew, cabinCrew, exi
   const results = [];
   const total = files.length;
 
+  // Build compact crew roster for Gemini vision disambiguation
+  const knownCrewList = [...(flightCrew || []), ...(cabinCrew || [])]
+    .map(m => {
+      const en = m.Full_Name_EN || '';
+      const ua = m.Full_Name_UA || '';
+      return ua ? `${en} (${ua})` : en;
+    })
+    .filter(Boolean);
+  const knownCrewRoster = knownCrewList.join(', ');
+
   for (let i = 0; i < total; i++) {
     const file = files[i];
     const itemResult = {
@@ -771,7 +787,8 @@ export async function processScanBatch(files, apiKey, flightCrew, cabinCrew, exi
         0, 
         (statusMsg) => {
           if (onProgress) onProgress(itemResult, i, total, statusMsg);
-        }
+        },
+        knownCrewRoster
       );
       
       // Auto-normalize & derive crew block times if missing or zero
