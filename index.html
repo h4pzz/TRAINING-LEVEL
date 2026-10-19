@@ -457,7 +457,7 @@
                     </div>
                   </div>
                   
-                  <div class="group-section-body" style="padding: clamp(10px, 1.2vw, 16px); display: flex; flex-direction: column; gap: var(--spacing-4);">
+                  <div class="group-section-body">
                     <div class="form-row grid-4cols">
                       <!-- 1. Основні дані -->
                       <div class="general-info-card">
@@ -578,20 +578,20 @@
                     </div>
                   </div>
                   
-                  <div class="group-section-body" style="padding: 16px; display: flex; flex-direction: column; gap: var(--spacing-4);">
-                    <!-- Підрахований робочий час, польотний час та Block -->
-                    <div class="form-row grid-3cols" style="align-items: stretch;">
-                      <div class="form-group" style="background-color: var(--bg-surface-alt); padding: var(--spacing-3); border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; min-height: 95px; box-sizing: border-box; margin: 0;">
-                        <label for="flight-duty-time" data-i18n="duty_time_title" style="font-weight: 700; color: var(--text-primary); margin-bottom: var(--spacing-1); display: block; text-align: center;">Робочий час</label>
-                        <input type="text" id="flight-duty-time" class="form-input" placeholder="calculated" readonly style="background-color: var(--bg-surface); font-weight: 700; color: var(--accent); font-size: 15px; border-color: var(--border-color); height: 38px; box-sizing: border-box; width: 100%; text-align: center;">
+                  <div class="group-section-body">
+                    <!-- Підрахований робочий час, польотний час та Block: 3 блоки в один рядок з зменшеною шириною поля -->
+                    <div class="form-row time-totals-grid">
+                      <div class="form-group time-total-card">
+                        <label for="flight-duty-time" data-i18n="duty_time_title" class="time-total-label">Робочий час</label>
+                        <input type="text" id="flight-duty-time" class="form-input time-total-input" placeholder="calculated" readonly>
                       </div>
-                      <div class="form-group" style="background-color: var(--bg-surface-alt); padding: var(--spacing-3); border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; min-height: 95px; box-sizing: border-box; margin: 0;">
-                        <label for="flight-total-flight-time" data-i18n="flight_time_title" style="font-weight: 700; color: var(--text-primary); margin-bottom: var(--spacing-1); display: block; text-align: center;">Польотний час</label>
-                        <input type="time" id="flight-total-flight-time" class="form-input" value="00:00" style="background-color: var(--bg-surface); font-weight: 700; color: var(--text-primary); font-size: 15px; border-color: var(--border-color); height: 38px; box-sizing: border-box; width: 100%; text-align: center;">
+                      <div class="form-group time-total-card">
+                        <label for="flight-total-flight-time" data-i18n="flight_time_title" class="time-total-label">Польотний час</label>
+                        <input type="time" id="flight-total-flight-time" class="form-input time-total-input" value="00:00">
                       </div>
-                      <div class="form-group" style="background-color: var(--bg-surface-alt); padding: var(--spacing-3); border-radius: var(--radius-md); border: 1px solid var(--border-color); display: flex; flex-direction: column; justify-content: space-between; min-height: 95px; box-sizing: border-box; margin: 0;">
-                        <label for="flight-total-block-time" data-i18n="block_time_title" style="font-weight: 700; color: var(--text-primary); margin-bottom: var(--spacing-1); display: block; text-align: center;">Час Block</label>
-                        <input type="time" id="flight-total-block-time" class="form-input" value="00:00" style="background-color: var(--bg-surface); font-weight: 700; color: var(--text-primary); font-size: 15px; border-color: var(--border-color); height: 38px; box-sizing: border-box; width: 100%; text-align: center;">
+                      <div class="form-group time-total-card">
+                        <label for="flight-total-block-time" data-i18n="block_time_title" class="time-total-label">Час Block</label>
+                        <input type="time" id="flight-total-block-time" class="form-input time-total-input" value="00:00">
                       </div>
                     </div>
                   </div>
@@ -608,7 +608,7 @@
                     </div>
                   </div>
                   
-                  <div style="padding: 16px; display: flex; flex-direction: column; gap: var(--spacing-4);">
+                  <div class="group-section-body">
                     <!-- Dynamic crew card container -->
                     <div id="crew-members-container" style="display: flex; flex-direction: column; gap: var(--spacing-4);">
                       <!-- Dynamic crew card blocks added in JS -->

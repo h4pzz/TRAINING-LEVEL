@@ -560,16 +560,20 @@ html, body {
   width: 100%;
 }
 
-/* Fluid Scaling for Group 1 (General Information) */
-#form-group-1 {
+/* Unified Fluid Scaling for All Form Section Bodies (Group 1, 2, 3) */
+.form-group-section {
   width: 100%;
   box-sizing: border-box;
 }
 
-#form-group-1 .group-section-body {
+.form-group-section .group-section-body,
+.group-section-body {
   width: 100%;
   box-sizing: border-box;
-  padding: clamp(10px, 1.2vw, 16px);
+  padding: clamp(10px, 1.2vw, 16px) !important;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
 }
 
 #form-group-1 .grid-4cols {
@@ -667,6 +671,68 @@ html, body {
   gap: var(--spacing-4);
 }
 
+/* Time Totals Grid (Group 2: Робочий час, Польотний час, Час Block) */
+.time-totals-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: var(--spacing-4);
+  align-items: center;
+}
+
+.time-total-card {
+  background-color: var(--bg-surface-alt);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px;
+  min-height: 48px;
+  box-sizing: border-box;
+  margin: 0;
+  min-width: 0;
+}
+
+.time-total-label {
+  font-weight: 700;
+  color: var(--text-primary);
+  font-size: 13px;
+  margin: 0 !important;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  text-align: left;
+}
+
+.time-total-input {
+  background-color: var(--bg-surface) !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  border-color: var(--border-color) !important;
+  height: 36px !important;
+  width: 135px !important;
+  min-width: 120px !important;
+  flex: 0 0 135px !important;
+  box-sizing: border-box !important;
+  text-align: center !important;
+  padding: 4px 6px !important;
+  border-radius: var(--radius-sm) !important;
+}
+
+.time-total-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  margin: 0;
+  padding: 0;
+}
+
+#flight-duty-time.time-total-input {
+  color: var(--accent) !important;
+  width: 135px !important;
+  min-width: 120px !important;
+  flex: 0 0 135px !important;
+}
+
 .grid-2cols {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -706,6 +772,34 @@ html, body {
     flex: 1 1 calc(50% - var(--spacing-3));
     min-width: 140px;
   }
+  .time-totals-grid {
+    gap: 8px !important;
+  }
+  .time-total-card {
+    padding: 8px 10px !important;
+    gap: 8px !important;
+    min-height: 44px !important;
+  }
+  .time-total-label {
+    font-size: 12px !important;
+  }
+  .time-total-input {
+    height: 32px !important;
+    font-size: 13px !important;
+    width: 120px !important;
+    min-width: 105px !important;
+    flex: 0 0 120px !important;
+    padding: 2px 4px !important;
+  }
+  #flight-duty-time.time-total-input {
+    width: 120px !important;
+    min-width: 105px !important;
+    flex: 0 0 120px !important;
+  }
+  .form-group-section .group-section-body,
+  .group-section-body {
+    padding: clamp(10px, 1.2vw, 14px) !important;
+  }
 }
 
 @media (max-width: 768px) {
@@ -713,8 +807,42 @@ html, body {
   .grid-4cols {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .grid-3cols {
+  .grid-3cols:not(.time-totals-grid) {
     grid-template-columns: 1fr;
+  }
+  /* Keep all 3 time total cards in 1 row on mobile */
+  .time-totals-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+  }
+  .time-total-card {
+    padding: 6px 6px !important;
+    min-height: 42px !important;
+    gap: 4px !important;
+  }
+  .time-total-label {
+    font-size: 11px !important;
+    letter-spacing: -0.2px !important;
+    white-space: normal !important;
+    line-height: 1.15 !important;
+  }
+  .time-total-input {
+    height: 30px !important;
+    font-size: 12px !important;
+    width: 95px !important;
+    min-width: 85px !important;
+    flex: 0 0 95px !important;
+    padding: 2px 3px !important;
+  }
+  #flight-duty-time.time-total-input {
+    width: 95px !important;
+    min-width: 85px !important;
+    flex: 0 0 95px !important;
+    font-size: 11px !important;
+  }
+  .form-group-section .group-section-body,
+  .group-section-body {
+    padding: 12px !important;
   }
   .grid-2cols {
     grid-template-columns: 1fr;
@@ -731,6 +859,41 @@ html, body {
   #form-group-1 .grid-4cols,
   .grid-4cols {
     grid-template-columns: 1fr;
+  }
+  /* Ultra-compact single row for mobile phones */
+  .time-totals-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+  }
+  .time-total-card {
+    padding: 4px 4px !important;
+    min-height: 38px !important;
+    gap: 3px !important;
+    border-radius: 4px !important;
+  }
+  .time-total-label {
+    font-size: 9.5px !important;
+    letter-spacing: -0.3px !important;
+    white-space: normal !important;
+    line-height: 1.1 !important;
+  }
+  .time-total-input {
+    height: 28px !important;
+    font-size: 11.5px !important;
+    width: 75px !important;
+    min-width: 68px !important;
+    flex: 0 0 75px !important;
+    padding: 1px 2px !important;
+  }
+  #flight-duty-time.time-total-input {
+    width: 75px !important;
+    min-width: 68px !important;
+    flex: 0 0 75px !important;
+    font-size: 10.5px !important;
+  }
+  .form-group-section .group-section-body,
+  .group-section-body {
+    padding: 8px !important;
   }
 }
 
