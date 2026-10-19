@@ -451,21 +451,33 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
   const cleanKey = apiKey.trim();
   const modelInfo = await getBestAvailableGeminiModel(cleanKey);
   
+  const isVisionCapable = (name) => name.toLowerCase().includes('gemini') || name.toLowerCase().includes('paligemma');
   const candidateList = [];
-  candidateList.push({ ver: modelInfo.apiVersion, name: modelInfo.modelName });
 
+  // 1. If currently selected model is vision capable, put it first
+  if (isVisionCapable(modelInfo.modelName)) {
+    candidateList.push({ ver: modelInfo.apiVersion, name: modelInfo.modelName });
+  }
+
+  // 2. Add other vision-capable models reported by user's account
   if (Array.isArray(modelInfo.allAvailable)) {
     for (const name of modelInfo.allAvailable) {
-      if (name !== modelInfo.modelName && !candidateList.some(c => c.name === name)) {
+      if (isVisionCapable(name) && !candidateList.some(c => c.name === name)) {
         candidateList.push({ ver: modelInfo.apiVersion, name });
       }
     }
   }
 
-  for (const name of ['gemini-3.1-pro-preview', 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-3.5-flash-lite']) {
+  // 3. Modern Gemini 3.x and 2.x vision endpoints
+  for (const name of ['gemini-3.1-pro-preview', 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-3.5-flash-lite', 'gemini-2.0-flash']) {
     if (!candidateList.some(c => c.name === name)) {
       candidateList.push({ ver: 'v1beta', name });
     }
+  }
+
+  // 4. Last resort: whatever model was cached
+  if (candidateList.length === 0) {
+    candidateList.push({ ver: modelInfo.apiVersion, name: modelInfo.modelName });
   }
 
   let rateLimitError = null;
