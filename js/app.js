@@ -8461,10 +8461,14 @@ async function bootstrapDatabase() {
       
       STATE.flightCrew = parsed.flightCrew;
       STATE.cabinCrew = parsed.cabinCrew;
-      STATE.flights = [];
-      STATE.forms = JSON.parse(JSON.stringify(DEFAULT_FORMS));
-      STATE.pdfBlanks = [];
-      STATE.snapshots = [];
+      const cachedFlights = localStorage.getItem('aerocheck_flights');
+      STATE.flights = cachedFlights ? JSON.parse(cachedFlights) : [];
+      const cachedForms = localStorage.getItem('aerocheck_forms');
+      STATE.forms = cachedForms ? JSON.parse(cachedForms) : JSON.parse(JSON.stringify(DEFAULT_FORMS));
+      const cachedPdf = localStorage.getItem('aerocheck_pdf_blanks');
+      STATE.pdfBlanks = cachedPdf ? JSON.parse(cachedPdf) : [];
+      const cachedSnap = localStorage.getItem('aerocheck_snapshots');
+      STATE.snapshots = cachedSnap ? JSON.parse(cachedSnap) : [];
       STATE.changelog = [{
         timestamp: new Date().toISOString(),
         userEmail: 'system@aerocheck.com',
