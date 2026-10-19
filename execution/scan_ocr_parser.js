@@ -308,16 +308,16 @@ export async function getBestAvailableGeminiModel(apiKey) {
         if (models.length > 0) {
           candidateNames = models.map(m => m.name.replace(/^models\//, ''));
 
-          // Preferred models in priority order for OCR Vision tasks
+          // Preferred models in priority order for OCR Vision tasks (Gemini 3.x series)
           const preferredPatterns = [
+            /^gemini-3\.1-pro-preview/i,
+            /^gemini-3\.\d+-flash/i,
+            /^gemini-3-flash/i,
+            /^gemini-3\.\d+-pro/i,
             /^gemini-2\.5-flash/i,
             /^gemini-2\.0-flash/i,
-            /^gemini-1\.5-flash-latest/i,
-            /^gemini-1\.5-flash-002/i,
-            /^gemini-1\.5-flash-001/i,
-            /^gemini-1\.5-flash/i,
-            /^gemini-1\.5-pro/i,
             /flash/i,
+            /pro/i,
             /gemini/i
           ];
 
@@ -338,16 +338,17 @@ export async function getBestAvailableGeminiModel(apiKey) {
     }
   }
 
-  // Static fallback list if ListModels is restricted or offline
+  // Static fallback list with modern Gemini 3.x models
   return { 
     apiVersion: 'v1beta', 
-    modelName: 'gemini-2.0-flash', 
+    modelName: 'gemini-3.1-pro-preview', 
     apiKey: cleanKey, 
     allAvailable: [
-      'gemini-2.5-flash',
-      'gemini-2.0-flash', 
-      'gemini-2.0-flash-lite',
-      'gemini-2.5-pro'
+      'gemini-3.1-pro-preview',
+      'gemini-3.8-flash',
+      'gemini-3.5-flash',
+      'gemini-3-flash-preview',
+      'gemini-3.5-flash-lite'
     ] 
   };
 }
@@ -369,9 +370,9 @@ export async function testGeminiApiKey(apiKey) {
     const modelsToTry = [
       modelInfo.modelName,
       ...(modelInfo.allAvailable || []).filter(m => m !== modelInfo.modelName),
-      'gemini-2.5-flash',
-      'gemini-2.0-flash',
-      'gemini-2.0-flash-lite'
+      'gemini-3.1-pro-preview',
+      'gemini-3.8-flash',
+      'gemini-3.5-flash'
     ];
     const uniqueModels = [...new Set(modelsToTry)];
 
@@ -461,7 +462,7 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
     }
   }
 
-  for (const name of ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-2.5-pro']) {
+  for (const name of ['gemini-3.1-pro-preview', 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3-flash-preview', 'gemini-3.5-flash-lite']) {
     if (!candidateList.some(c => c.name === name)) {
       candidateList.push({ ver: 'v1beta', name });
     }
