@@ -8700,12 +8700,16 @@ function handleLoginSubmit(e) {
   let email = document.getElementById('login-email').value.trim().toLowerCase();
   const pass = document.getElementById('login-password').value;
   
-  if (!email || !pass) return;
+  if (!email) return;
 
-  // Flexible login shortcuts: 'admin', 'instructor', 'office' or domain aliases
-  if (email === 'admin' || email.startsWith('admin@')) email = 'admin@ukr-helicopters.ua';
-  if (email === 'instructor' || email.startsWith('instructor@')) email = 'instructor@ukr-helicopters.ua';
-  if (email === 'office' || email.startsWith('office@')) email = 'office@ukr-helicopters.ua';
+  // Flexible login shortcuts: 'admin', 'instructor', 'office' or Ukrainian aliases
+  if (email === 'admin' || email === 'адмін' || email.startsWith('admin@')) {
+    email = 'admin@ukr-helicopters.ua';
+  } else if (email === 'instructor' || email === 'інструктор' || email.startsWith('instructor@')) {
+    email = 'instructor@ukr-helicopters.ua';
+  } else if (email === 'office' || email === 'офіс' || email.startsWith('office@')) {
+    email = 'office@ukr-helicopters.ua';
+  }
 
   // Check if account was deleted
   const deletedUsers = JSON.parse(localStorage.getItem('aerocheck_deleted_users') || '[]');
@@ -8764,67 +8768,88 @@ function handleLoginSubmit(e) {
  * Logs the session in and updates views/permissions
  */
 function executeLogin(email, role) {
-  STATE.currentUser = { email, role };
-  sessionStorage.setItem('aerocheck_session_user', JSON.stringify(STATE.currentUser));
-  
-  // Show UI elements corresponding to roles
-  document.getElementById('user-email-display').textContent = email;
-  document.getElementById('user-role-display').textContent = role;
-  const ddEmail = document.getElementById('dropdown-user-email');
-  if (ddEmail) ddEmail.textContent = email;
-  const ddRole = document.getElementById('dropdown-user-role');
-  if (ddRole) ddRole.textContent = (STATE.lang === 'uk' ? 'Роль: ' : 'Role: ') + role;
-  document.getElementById('login-backdrop').style.display = 'none';
-  
-  // Hide settings and forms button for unauthorized roles
-  document.getElementById('nav-btn-settings').style.display = role === ROLES.ADMIN ? 'flex' : 'none';
-  document.getElementById('nav-btn-forms').style.display = (role === ROLES.ADMIN || role === ROLES.INSTRUCTOR || role === ROLES.OFFICE) ? 'flex' : 'none';
-  document.getElementById('nav-btn-flights').style.display = (role === ROLES.ADMIN || role === ROLES.INSTRUCTOR) ? 'flex' : 'none';
-  
-  // Hide action buttons in table lists for non-editors (Add crew member)
-  const isEditor = role === ROLES.ADMIN || role === ROLES.INSTRUCTOR;
-  document.querySelectorAll('.action-btn-admin').forEach(btn => {
-    btn.style.display = isEditor ? 'inline-flex' : 'none';
-  });
+  try {
+    STATE.currentUser = { email, role };
+    sessionStorage.setItem('aerocheck_session_user', JSON.stringify(STATE.currentUser));
+    
+    // Guaranteed hide login modal
+    const loginBackdrop = document.getElementById('login-backdrop');
+    if (loginBackdrop) loginBackdrop.style.display = 'none';
 
-  // Blanks upload and form builder visible strictly to ADMIN
-  const canUploadBlanks = role === ROLES.ADMIN;
-  const btnFormsQuickUpload = document.getElementById('btn-forms-quick-upload-pdf');
-  if (btnFormsQuickUpload) btnFormsQuickUpload.style.display = canUploadBlanks ? 'inline-flex' : 'none';
-  const btnGotoFormsBuilder = document.getElementById('btn-goto-forms-builder');
-  if (btnGotoFormsBuilder) btnGotoFormsBuilder.style.display = canUploadBlanks ? 'inline-flex' : 'none';
+    // Show UI elements corresponding to roles
+    const userEmailDisplay = document.getElementById('user-email-display');
+    if (userEmailDisplay) userEmailDisplay.textContent = email;
+    const userRoleDisplay = document.getElementById('user-role-display');
+    if (userRoleDisplay) userRoleDisplay.textContent = role;
+    const ddEmail = document.getElementById('dropdown-user-email');
+    if (ddEmail) ddEmail.textContent = email;
+    const ddRole = document.getElementById('dropdown-user-role');
+    if (ddRole) ddRole.textContent = (STATE.lang === 'uk' ? 'Роль: ' : 'Role: ') + role;
+    
+    // Hide settings and forms button for unauthorized roles
+    const navSettings = document.getElementById('nav-btn-settings');
+    if (navSettings) navSettings.style.display = role === ROLES.ADMIN ? 'flex' : 'none';
+    const navForms = document.getElementById('nav-btn-forms');
+    if (navForms) navForms.style.display = (role === ROLES.ADMIN || role === ROLES.INSTRUCTOR || role === ROLES.OFFICE) ? 'flex' : 'none';
+    const navFlights = document.getElementById('nav-btn-flights');
+    if (navFlights) navFlights.style.display = (role === ROLES.ADMIN || role === ROLES.INSTRUCTOR) ? 'flex' : 'none';
+    
+    // Hide action buttons in table lists for non-editors (Add crew member)
+    const isEditor = role === ROLES.ADMIN || role === ROLES.INSTRUCTOR;
+    document.querySelectorAll('.action-btn-admin').forEach(btn => {
+      btn.style.display = isEditor ? 'inline-flex' : 'none';
+    });
 
-  // Table Import buttons visible ONLY for ADMIN
-  const canImport = role === ROLES.ADMIN;
-  document.querySelectorAll('.action-btn-import').forEach(btn => {
-    btn.style.display = canImport ? 'inline-flex' : 'none';
-  });
+    // Blanks upload and form builder visible strictly to ADMIN
+    const canUploadBlanks = role === ROLES.ADMIN;
+    const btnFormsQuickUpload = document.getElementById('btn-forms-quick-upload-pdf');
+    if (btnFormsQuickUpload) btnFormsQuickUpload.style.display = canUploadBlanks ? 'inline-flex' : 'none';
+    const btnGotoFormsBuilder = document.getElementById('btn-goto-forms-builder');
+    if (btnGotoFormsBuilder) btnGotoFormsBuilder.style.display = canUploadBlanks ? 'inline-flex' : 'none';
 
-  // Export buttons visible in ADMIN, INSTRUCTOR, and OFFICE
-  const canExport = role === ROLES.ADMIN || role === ROLES.INSTRUCTOR || role === ROLES.OFFICE;
-  document.querySelectorAll('.action-btn-export').forEach(btn => {
-    btn.style.display = canExport ? 'inline-flex' : 'none';
-  });
-  
-  if (role === ROLES.CREW) {
-    document.getElementById('nav-btn-flight').style.display = 'none';
-    document.getElementById('nav-btn-cabin').style.display = 'none';
-    document.getElementById('nav-btn-flights').style.display = 'none';
-    document.getElementById('nav-btn-forms').style.display = 'none';
-    document.getElementById('nav-btn-settings').style.display = 'none';
-    document.getElementById('nav-btn-portal').style.display = 'flex';
-    switchView('personal-portal');
-  } else {
-    document.getElementById('nav-btn-flight').style.display = 'flex';
-    document.getElementById('nav-btn-cabin').style.display = 'flex';
-    document.getElementById('nav-btn-portal').style.display = 'none';
-    switchView('dashboard');
+    // Table Import buttons visible ONLY for ADMIN
+    const canImport = role === ROLES.ADMIN;
+    document.querySelectorAll('.action-btn-import').forEach(btn => {
+      btn.style.display = canImport ? 'inline-flex' : 'none';
+    });
+
+    // Export buttons visible in ADMIN, INSTRUCTOR, and OFFICE
+    const canExport = role === ROLES.ADMIN || role === ROLES.INSTRUCTOR || role === ROLES.OFFICE;
+    document.querySelectorAll('.action-btn-export').forEach(btn => {
+      btn.style.display = canExport ? 'inline-flex' : 'none';
+    });
+    
+    if (role === ROLES.CREW) {
+      const navFlight = document.getElementById('nav-btn-flight');
+      if (navFlight) navFlight.style.display = 'none';
+      const navCabin = document.getElementById('nav-btn-cabin');
+      if (navCabin) navCabin.style.display = 'none';
+      if (navFlights) navFlights.style.display = 'none';
+      if (navForms) navForms.style.display = 'none';
+      if (navSettings) navSettings.style.display = 'none';
+      const navPortal = document.getElementById('nav-btn-portal');
+      if (navPortal) navPortal.style.display = 'flex';
+      switchView('personal-portal');
+    } else {
+      const navFlight = document.getElementById('nav-btn-flight');
+      if (navFlight) navFlight.style.display = 'flex';
+      const navCabin = document.getElementById('nav-btn-cabin');
+      if (navCabin) navCabin.style.display = 'flex';
+      const navPortal = document.getElementById('nav-btn-portal');
+      if (navPortal) navPortal.style.display = 'none';
+      switchView('dashboard');
+    }
+    
+    if (window.lucide) window.lucide.createIcons();
+    
+    showToast(`Вітаємо, ви увійшли як ${role}`);
+  } catch (err) {
+    console.error('[executeLogin error]:', err);
+    const loginBackdrop = document.getElementById('login-backdrop');
+    if (loginBackdrop) loginBackdrop.style.display = 'none';
   }
-  
-  if (window.lucide) window.lucide.createIcons();
-  
-  showToast(`Вітаємо, ви увійшли як ${role}`);
 }
+window.executeLogin = executeLogin;
 
 /**
  * Executes a manual Google Drive sync simulation with Zero-Deletion Guarantee
