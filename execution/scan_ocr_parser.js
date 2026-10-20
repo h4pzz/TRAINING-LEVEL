@@ -54,45 +54,58 @@ export function extractNameVariations(nameStr) {
   const variations = [];
   
   if (parts.length === 1) {
-    variations.push({
-      surname: phoneticNormalize(parts[0]),
-      initial: '',
-      rawSurname: parts[0]
-    });
+    if (parts[0].length >= 3) {
+      variations.push({
+        surname: phoneticNormalize(parts[0]),
+        initial: '',
+        rawSurname: parts[0]
+      });
+    }
     return variations;
   }
   
-  // Pattern 1: Initial first, Surname last (e.g. "S. Berehovyy" or "S Berehovyy")
-  if (parts[0].length <= 2) {
+  // Pattern 1: Initial(s) first, Surname last (e.g. "S. Berehovyy" or "O. O. Sokurenko")
+  // Short initial (<= 2 chars) followed by full surname (>= 3 chars)
+  if (parts[0].length <= 2 && parts[parts.length - 1].length >= 3) {
+    const surnameWord = parts[parts.length - 1];
     variations.push({
-      surname: phoneticNormalize(parts.slice(1).join(' ')),
+      surname: phoneticNormalize(surnameWord),
       initial: phoneticNormalize(parts[0][0]),
-      rawSurname: parts.slice(1).join(' ')
+      rawSurname: surnameWord
     });
   }
   
-  // Pattern 2: Surname first, Initial last (e.g. "Berehovyy S." or "Береговий С.")
-  if (parts[parts.length - 1].length <= 2) {
+  // Pattern 2: Surname first, Initial(s) last (e.g. "Berehovyy S." or "Сокуренко О. О.")
+  // Full surname (>= 3 chars) followed by short initial(s) (<= 2 chars)
+  if (parts[0].length >= 3 && parts[parts.length - 1].length <= 2) {
+    const surnameWord = parts[0];
+    const initialWord = parts[1] || parts[parts.length - 1];
     variations.push({
-      surname: phoneticNormalize(parts.slice(0, parts.length - 1).join(' ')),
-      initial: phoneticNormalize(parts[parts.length - 1][0]),
-      rawSurname: parts.slice(0, parts.length - 1).join(' ')
+      surname: phoneticNormalize(surnameWord),
+      initial: phoneticNormalize(initialWord[0]),
+      rawSurname: surnameWord
     });
   }
   
-  // Pattern 3: Full names with 2+ words (e.g. "BEREHOVYY STANISLAV" or "STANISLAV BEREHOVYY")
-  // First word as surname, second as first name
-  variations.push({
-    surname: phoneticNormalize(parts[0]),
-    initial: phoneticNormalize(parts[1][0]),
-    rawSurname: parts[0]
-  });
-  // Last word as surname, first as first name
-  variations.push({
-    surname: phoneticNormalize(parts[parts.length - 1]),
-    initial: phoneticNormalize(parts[0][0]),
-    rawSurname: parts[parts.length - 1]
-  });
+  // Pattern 3: Full names with 2+ full words (e.g. "BEREHOVYY STANISLAV" or "STANISLAV BEREHOVYY")
+  // Both words MUST have length >= 3 to qualify as potential surnames (never single-letter initials!)
+  if (parts[0].length >= 3 && parts[1].length >= 3) {
+    // First word as surname, second as first name
+    variations.push({
+      surname: phoneticNormalize(parts[0]),
+      initial: phoneticNormalize(parts[1][0]),
+      rawSurname: parts[0]
+    });
+    // Last word as surname, first as first name
+    const lastWord = parts[parts.length - 1];
+    if (lastWord.length >= 3) {
+      variations.push({
+        surname: phoneticNormalize(lastWord),
+        initial: phoneticNormalize(parts[0][0]),
+        rawSurname: lastWord
+      });
+    }
+  }
   
   return variations;
 }
@@ -161,10 +174,10 @@ export function matchCrewMember(scannedName, flightCrew = [], cabinCrew = []) {
     let minSurnameDist = 99;
 
     for (const scanVar of scannedVariations) {
-      if (!scanVar.surname) continue;
+      if (!scanVar.surname || scanVar.surname.length < 3) continue;
 
       for (const memVar of memberVariations) {
-        if (!memVar.surname) continue;
+        if (!memVar.surname || memVar.surname.length < 3) continue;
 
         const dist = levenshteinDistance(scanVar.surname, memVar.surname);
         if (dist < minSurnameDist) minSurnameDist = dist;

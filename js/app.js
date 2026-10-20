@@ -5849,10 +5849,23 @@ function readCurrentOcrFormValues() {
       blkNght = fltNght;
     }
 
+    const selectEl = document.querySelector(`.ocr-crew-select[data-crew-idx="${idx}"]`);
+    let matchedId = c.matchedCrewId || `unassigned_${Date.now()}_${idx}`;
+    let matchedType = c.matchedCrewType || 'Flight';
+    let matchedName = c.matchedCrewName || c.name || 'Unknown';
+    if (selectEl && selectEl.value) {
+      matchedId = selectEl.value;
+      const selectedOpt = selectEl.options[selectEl.selectedIndex];
+      if (selectedOpt) {
+        matchedType = selectedOpt.getAttribute('data-type') || matchedType;
+        matchedName = selectedOpt.textContent.replace('⭐ ', '').split(' (')[0].trim();
+      }
+    }
+
     return {
-      crewId: c.matchedCrewId || `unassigned_${Date.now()}_${idx}`,
-      crewType: c.matchedCrewType || 'Flight',
-      name: c.matchedCrewName || c.name || 'Unknown',
+      crewId: matchedId,
+      crewType: matchedType,
+      name: matchedName,
       pstn: pstn,
       flightTime: { day: fltDay, nght: fltNght, nvg: fltNvg },
       blockTime: { day: blkDay, nght: blkNght },
