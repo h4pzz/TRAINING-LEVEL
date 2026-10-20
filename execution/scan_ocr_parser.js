@@ -58,6 +58,7 @@ export function extractNameVariations(nameStr) {
       variations.push({
         surname: phoneticNormalize(parts[0]),
         initial: '',
+        firstName: '',
         rawSurname: parts[0]
       });
     }
@@ -71,6 +72,7 @@ export function extractNameVariations(nameStr) {
     variations.push({
       surname: phoneticNormalize(surnameWord),
       initial: phoneticNormalize(parts[0][0]),
+      firstName: '',
       rawSurname: surnameWord
     });
   }
@@ -83,30 +85,57 @@ export function extractNameVariations(nameStr) {
     variations.push({
       surname: phoneticNormalize(surnameWord),
       initial: phoneticNormalize(initialWord[0]),
+      firstName: '',
       rawSurname: surnameWord
     });
   }
   
   // Pattern 3: Full names with 2+ full words (e.g. "BEREHOVYY STANISLAV" or "STANISLAV BEREHOVYY")
-  // Both words MUST have length >= 3 to qualify as potential surnames (never single-letter initials!)
-  if (parts[0].length >= 3 && parts[1].length >= 3) {
-    // First word as surname, second as first name
+  if (parts[0].length >= 3) {
+    // Dominant: First word as surname, second as first name
     variations.push({
       surname: phoneticNormalize(parts[0]),
-      initial: phoneticNormalize(parts[1][0]),
+      initial: parts[1] ? phoneticNormalize(parts[1][0]) : '',
+      firstName: (parts[1] && parts[1].length >= 3) ? phoneticNormalize(parts[1]) : '',
       rawSurname: parts[0]
     });
-    // Last word as surname, first as first name
-    const lastWord = parts[parts.length - 1];
-    if (lastWord.length >= 3) {
-      variations.push({
-        surname: phoneticNormalize(lastWord),
-        initial: phoneticNormalize(parts[0][0]),
-        rawSurname: lastWord
-      });
-    }
+  }
+  const lastWord = parts[parts.length - 1];
+  if (parts.length >= 2 && lastWord.length >= 3) {
+    // Reverse: Last word as surname, first as first name
+    variations.push({
+      surname: phoneticNormalize(lastWord),
+      initial: phoneticNormalize(parts[0][0]),
+      firstName: parts[0].length >= 3 ? phoneticNormalize(parts[0]) : '',
+      rawSurname: lastWord
+    });
   }
   
+  return variations;
+}
+
+/**
+ * Extracts normalized name variations from a database crew member.
+ * In the airline database, the first word of Full_Name_EN, Full_Name_UA, Name_Shrt_UA
+ * is ALWAYS strictly the surname. First names must never be extracted as surnames.
+ */
+export function extractMemberVariations(member) {
+  const variations = [];
+  const fields = [member.Full_Name_EN, member.Full_Name_UA, member.Name_Shrt_UA, member.Name_Shrt_EN];
+  for (const f of fields) {
+    if (!f || typeof f !== 'string') continue;
+    const clean = f.replace(/[\.,\/#!$%\^&\*;:{}=\-_`~()]/g, ' ').replace(/\s+/g, ' ').trim();
+    const parts = clean.split(' ').filter(p => p.length > 0);
+    if (parts.length === 0) continue;
+    
+    // First word is ALWAYS the surname in database
+    if (parts[0].length >= 3) {
+      const surname = phoneticNormalize(parts[0]);
+      const initial = parts.length > 1 ? phoneticNormalize(parts[1][0]) : '';
+      const firstName = (parts.length > 1 && parts[1].length >= 3) ? phoneticNormalize(parts[1]) : '';
+      variations.push({ surname, initial, firstName, rawSurname: parts[0] });
+    }
+  }
   return variations;
 }
 
@@ -162,13 +191,8 @@ export function matchCrewMember(scannedName, flightCrew = [], cabinCrew = []) {
   const scoredCandidates = [];
 
   for (const member of allCrew) {
-    // Generate all variations for the member's names (EN, UA, Short)
-    const memberVariations = [
-      ...extractNameVariations(member.Full_Name_EN),
-      ...extractNameVariations(member.Full_Name_UA),
-      ...extractNameVariations(member.Name_Shrt_UA),
-      ...extractNameVariations(member.Name_Shrt_EN)
-    ];
+    // Generate all variations strictly treating first word as surname for database records
+    const memberVariations = extractMemberVariations(member);
 
     let bestScoreForMember = -1;
     let minSurnameDist = 99;
@@ -183,9 +207,13 @@ export function matchCrewMember(scannedName, flightCrew = [], cabinCrew = []) {
         if (dist < minSurnameDist) minSurnameDist = dist;
 
         const initialMatches = scanVar.initial && memVar.initial && scanVar.initial === memVar.initial;
+        const firstNameMatches = scanVar.firstName && memVar.firstName && (scanVar.firstName === memVar.firstName || levenshteinDistance(scanVar.firstName, memVar.firstName) <= 1);
 
         if (dist === 0) {
-          if (initialMatches || !scanVar.initial || !memVar.initial) {
+          if (firstNameMatches) {
+            // Full first name match (e.g. "Kushch Oleksiy" vs "Kushch Oleksiy")
+            bestScoreForMember = Math.max(bestScoreForMember, 110);
+          } else if (initialMatches || !scanVar.initial || !memVar.initial) {
             bestScoreForMember = Math.max(bestScoreForMember, 100);
           } else {
             // Same surname, mismatched initial
@@ -195,6 +223,7 @@ export function matchCrewMember(scannedName, flightCrew = [], cabinCrew = []) {
           // Typo or transliteration difference (e.g. 1-2 char diff)
           let s = 80 - (dist * 15);
           if (initialMatches) s += 15;
+          if (firstNameMatches) s += 20;
           bestScoreForMember = Math.max(bestScoreForMember, s);
         }
       }
@@ -213,7 +242,9 @@ export function matchCrewMember(scannedName, flightCrew = [], cabinCrew = []) {
   }
 
   const top = scoredCandidates[0];
-  if (top.score >= 85) {
+  const isTie = scoredCandidates.length > 1 && scoredCandidates[1].score === top.score;
+
+  if (top.score >= 85 && !isTie) {
     return {
       matchedMember: top.member,
       confidence: 'exact',
