@@ -2934,9 +2934,9 @@ function groupFlightsByMonth(flights) {
 }
 
 /**
- * Aggregates monthly trend data for last N months (default: 6)
+ * Aggregates monthly trend data for last N months (default: 12)
  */
-function getMonthlyTrendData(monthsCount = 6) {
+function getMonthlyTrendData(monthsCount = 12) {
   const now = new Date();
   const months = [];
   const monthsUk = ['Січень', 'Лютий', 'Березень', 'Квітень', 'Травень', 'Червень', 'Липень', 'Серпень', 'Вересень', 'Жовтень', 'Листопад', 'Грудень'];
@@ -3262,7 +3262,7 @@ function renderFlightTrendChart() {
   const container = document.getElementById('flight-trend-chart-body');
   if (!container) return;
 
-  const trendData = getMonthlyTrendData(6);
+  const trendData = getMonthlyTrendData(12);
   const { months, currentMonthMinutes, currentYearMinutes, currentMonthStr, currentYearStr } = trendData;
 
   // Update header totals
@@ -3272,13 +3272,13 @@ function renderFlightTrendChart() {
   if (curEl) curEl.textContent = `${currentMonthStr} ${unit}`;
   if (yrEl) yrEl.textContent = `${currentYearStr} ${unit}`;
 
-  // SVG Geometry
-  const svgWidth = 680;
-  const svgHeight = 125;
-  const padLeft = 55;
-  const padRight = 625;
+  // SVG Geometry for 12 months
+  const svgWidth = 980;
+  const svgHeight = 130;
+  const padLeft = 45;
+  const padRight = 935;
   const padTop = 24;
-  const padBottom = 88;
+  const padBottom = 92;
   const graphWidth = padRight - padLeft;
   const graphHeight = padBottom - padTop;
 
@@ -3318,29 +3318,31 @@ function renderFlightTrendChart() {
 
   // Vertical guidelines, points, labels
   let pointsHtml = '';
-  points.forEach(p => {
+  points.forEach((p, idx) => {
     const dotColor = p.isCurrentMonth ? '#10b981' : '#2563eb';
     const textColor = p.isCurrentMonth ? '#10b981' : 'var(--text-primary)';
     const fontWt = p.isCurrentMonth ? '800' : '700';
     const monthLabelColor = p.isCurrentMonth ? (STATE.theme === 'dark' ? '#34d399' : '#059669') : 'var(--text-secondary)';
     const suffix = p.isCurrentMonth ? '*' : '';
+    const yearSuffix = (p.month.monthNum === '01' || idx === 0) ? ` '${String(p.month.year).slice(-2)}` : '';
+    const monthDisplayText = `${p.month.name}${yearSuffix}`;
 
     pointsHtml += `
       <g>
         <line x1="${p.x}" y1="${padTop - 5}" x2="${p.x}" y2="${padBottom}" stroke="var(--border-color)" stroke-width="1" stroke-dasharray="3,3" opacity="0.5" />
         <circle cx="${p.x}" cy="${p.y}" r="${p.isCurrentMonth ? 5.5 : 4.5}" fill="${dotColor}" stroke="var(--bg-surface)" stroke-width="2.5" />
-        <text x="${p.x}" y="${p.y - 9}" fill="${textColor}" font-size="10.5" font-weight="${fontWt}" text-anchor="middle" font-family="monospace">
+        <text x="${p.x}" y="${p.y - 8}" fill="${textColor}" font-size="10" font-weight="${fontWt}" text-anchor="middle" font-family="monospace">
           ${p.formattedTime}${suffix}
         </text>
-        <text x="${p.x}" y="${padBottom + 18}" fill="${monthLabelColor}" font-size="10.5" font-weight="${p.isCurrentMonth ? '700' : '500'}" text-anchor="middle">
-          ${p.month.name}
+        <text x="${p.x}" y="${padBottom + 19}" fill="${monthLabelColor}" font-size="10" font-weight="${p.isCurrentMonth ? '700' : '500'}" text-anchor="middle">
+          ${monthDisplayText}
         </text>
       </g>
     `;
   });
 
   container.innerHTML = `
-    <svg viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="xMidYMid meet" style="width: 100%; max-height: 140px; display: block;" role="img" aria-label="Monthly Flight Hours Trend">
+    <svg viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="xMidYMid meet" style="width: 100%; min-width: 720px; max-height: 145px; display: block;" role="img" aria-label="12-Month Flight Hours Trend">
       <defs>
         <linearGradient id="flightLineGrad" x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stop-color="#2563eb" stop-opacity="0.30"/>
