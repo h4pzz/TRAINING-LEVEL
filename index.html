@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>UH Training Level Dashboard v0.6</title>
+  <title>UH Training Level Dashboard v0.7</title>
   
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="PICS/favicon.svg">
@@ -20,6 +20,9 @@
   
   <!-- Lucide Icons Library (CDN) -->
   <script src="https://unpkg.com/lucide@latest"></script>
+
+  <!-- HTML to PDF Library (Local) -->
+  <script src="js/libs/html2pdf.bundle.min.js"></script>
 
   <!-- Immediate Quick Login Helper -->
   <script>
@@ -105,7 +108,7 @@
     <aside class="sidebar">
       <div class="logo-container">
         <img src="PICS/LOGO_UH.png" alt="Ukrainian Helicopters">
-        <span class="status-badge status-neutral" style="font-size: 10px; font-weight: 700; padding: 2px 6px; margin-top: 4px; letter-spacing: 0.5px;">v0.6</span>
+        <span class="status-badge status-neutral" style="font-size: 10px; font-weight: 700; padding: 2px 6px; margin-top: 4px; letter-spacing: 0.5px;">v0.7</span>
       </div>
       
       <nav class="nav-links">
@@ -2722,6 +2725,72 @@
         </div>
       </div>
 
+    </div>
+  </div>
+
+  <!-- ================= FLIGHT EMAIL DISPATCH MODAL ================= -->
+  <div id="flight-email-modal-backdrop" class="modal-backdrop">
+    <div class="modal-content" style="width: 580px; max-width: 95vw; max-height: 90vh;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="mail" style="color: var(--accent); width: 20px; height: 20px;"></i>
+          <h2 style="margin: 0; font-size: 16px;" data-i18n="flight_email_modal_title">Відправити звіт польоту на Email</h2>
+        </div>
+        <button type="button" class="modal-close-btn" id="flight-email-modal-close" aria-label="Close">
+          <i data-lucide="x"></i>
+        </button>
+      </div>
+      
+      <div style="display: flex; flex-direction: column; gap: var(--spacing-3); margin-top: var(--spacing-2);">
+        <!-- Flight info badge -->
+        <div id="flight-email-info-badge" style="background: var(--bg-surface-elevated, #f1f5f9); padding: 8px 12px; border-radius: var(--radius-sm, 6px); font-size: 12px; border: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+          <span id="flight-email-info-text" style="font-weight: 600;">UR-HLD • 2026-10-14</span>
+          <span id="flight-email-duty-text" style="color: var(--accent); font-family: var(--font-mono); font-weight: 700;">03:00</span>
+        </div>
+
+        <!-- Recipient input -->
+        <div class="form-group">
+          <label for="flight-email-recipient" style="font-weight: 600; font-size: 12px;" data-i18n="label_email_recipient">Отримувач (Email):</label>
+          <input type="text" id="flight-email-recipient" class="form-input" style="font-size: 12px;" placeholder="training.dept@ukr-helicopters.ua">
+        </div>
+
+        <!-- Subject input -->
+        <div class="form-group">
+          <label for="flight-email-subject" style="font-weight: 600; font-size: 12px;" data-i18n="label_email_subject">Тема листа (Subject):</label>
+          <input type="text" id="flight-email-subject" class="form-input" style="font-size: 12px;">
+        </div>
+
+        <!-- Message preview -->
+        <div class="form-group">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <label for="flight-email-body-preview" style="font-weight: 600; font-size: 12px;" data-i18n="label_email_body">Текст звіту (Body):</label>
+            <button type="button" class="btn btn-secondary" id="btn-copy-flight-email-body" style="padding: 2px 8px; font-size: 11px; height: 24px;">
+              <i data-lucide="copy" style="width: 12px; height: 12px;"></i>
+              <span data-i18n="btn_copy_text">Копіювати текст</span>
+            </button>
+          </div>
+          <textarea id="flight-email-body-preview" class="form-input" style="font-family: var(--font-mono); font-size: 11px; height: 170px; resize: vertical; line-height: 1.4; white-space: pre;" readonly></textarea>
+        </div>
+
+        <!-- Action buttons -->
+        <div style="display: flex; flex-direction: column; gap: var(--spacing-2); margin-top: var(--spacing-2);">
+          <button type="button" class="btn btn-primary" id="btn-send-flight-smtp" style="justify-content: center; font-size: 13px; padding: 10px 14px; font-weight: 600; background: #4f46e5;">
+            <i data-lucide="send" style="width: 15px; height: 15px;"></i>
+            <span data-i18n="btn_send_smtp_pdf">Надіслати лист з прикріпленим PDF (uh.nairobi@gmail.com)</span>
+          </button>
+          
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-2);">
+            <button type="button" class="btn btn-secondary" id="btn-send-flight-mailto" style="justify-content: center; font-size: 11.5px; padding: 6px 10px;">
+              <i data-lucide="mail" style="width: 13px; height: 13px;"></i>
+              <span data-i18n="btn_open_mail_app">Відкрити в Outlook (з завантаженням PDF)</span>
+            </button>
+            <button type="button" class="btn btn-secondary" id="btn-send-flight-gmail" style="justify-content: center; font-size: 11.5px; padding: 6px 10px;">
+              <i data-lucide="external-link" style="width: 13px; height: 13px;"></i>
+              <span data-i18n="btn_open_gmail_web">Відкрити у Gmail (Веб)</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 

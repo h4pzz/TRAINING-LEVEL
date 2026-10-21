@@ -18,14 +18,18 @@ import {
   verifyAndCreateCrewFolders,
   testGoogleConnection
 } from '../execution/drive_sync.js';
-import { dispatchFlightLogEmail, dispatchFlightsWeeklyEmail } from '../execution/email_dispatcher.js';
+import { dispatchFlightLogEmail, dispatchFlightsWeeklyEmail, formatFlightReportText, generateFlightPdfBase64 } from '../execution/email_dispatcher.js';
 import { 
   testGeminiApiKey, 
   processScanBatch, 
   callGeminiVisionAPI, 
   fileToBase64, 
   matchCrewMember, 
-  checkFlightDuplicate 
+  checkFlightDuplicate,
+  mapRankToPstn,
+  mapPstnToRank,
+  normalizeFlightCrewRole,
+  PERMANENT_INSTRUCTORS
 } from '../execution/scan_ocr_parser.js';
  
 /**
@@ -131,12 +135,23 @@ const TRANSLATIONS = {
     opt_all_months: "Всі місяці",
     stat_ttl_flight: "Польоти:",
     stat_ttl_block: "Блок:",
+    stat_short_flt: "П",
+    stat_short_blk: "Б",
     no_logged_flights: "Немає збережених польотів",
     no_flights_in_month: "Немає польотів за цей місяць",
     item_duty_time: "Робочий час",
     btn_edit_flight_title: "Редагувати політ",
     btn_delete_flight_title: "Видалити політ",
     btn_pdf_flight_title: "Зберегти нальот у PDF / Друк",
+    btn_email_flight_title: "Відправити звіт на email",
+    flight_email_modal_title: "Відправити звіт польоту на Email",
+    label_email_recipient: "Отримувач (Email):",
+    label_email_subject: "Тема листа (Subject):",
+    label_email_body: "Текст звіту:",
+    btn_copy_text: "Копіювати текст",
+    btn_send_smtp_pdf: "Надіслати лист з прикріпленим PDF (uh.nairobi@gmail.com)",
+    btn_open_mail_app: "Відкрити в поштовій програмі (Outlook)",
+    btn_open_gmail_web: "Відкрити у Gmail (Веб)",
     btn_print_flight_pdf: "🖨 Зберегти як PDF / Друк",
     flights_email_card_title: "Щотижнева розсилка бази польотів",
     label_flights_email_recipients: "Поштові скриньки для отримання (через кому)",
@@ -515,12 +530,23 @@ const TRANSLATIONS = {
     opt_all_months: "All Months",
     stat_ttl_flight: "Flight:",
     stat_ttl_block: "Block:",
+    stat_short_flt: "Fl",
+    stat_short_blk: "Bl",
     no_logged_flights: "No logged flights yet",
     no_flights_in_month: "No flights in this month",
     item_duty_time: "Duty Time",
     btn_edit_flight_title: "Edit Flight",
     btn_delete_flight_title: "Delete Flight",
     btn_pdf_flight_title: "Save Flight Log to PDF / Print",
+    btn_email_flight_title: "Send Flight to Email",
+    flight_email_modal_title: "Send Flight Report via Email",
+    label_email_recipient: "Recipient (Email):",
+    label_email_subject: "Subject:",
+    label_email_body: "Report Body:",
+    btn_copy_text: "Copy Text",
+    btn_send_smtp_pdf: "Send Email with PDF Attachment (uh.nairobi@gmail.com)",
+    btn_open_mail_app: "Open in Email App (Outlook)",
+    btn_open_gmail_web: "Open in Gmail (Web)",
     btn_print_flight_pdf: "🖨 Save as PDF / Print",
     flights_email_card_title: "Weekly Flights Email Dispatch",
     label_flights_email_recipients: "Recipient Inboxes (comma-separated)",
@@ -1017,7 +1043,7 @@ function getFormColumnShortTitle(colKey, lang = 'uk') {
 }
 
 // ================= DEFAULT APP STATE =================
-export const APP_VERSION = '0.6';
+export const APP_VERSION = '0.7';
 
 const STATE = {
   version: APP_VERSION,
@@ -1101,6 +1127,8 @@ const STATE = {
   }
 };
 
+window.STATE = STATE;
+
 // Available Roles and Permissions
 const ROLES = {
   ADMIN: 'ADMIN',
@@ -1108,6 +1136,8 @@ const ROLES = {
   OFFICE: 'OFFICE',
   CREW: 'CREW'
 };
+
+window.ROLES = ROLES;
 
 // Active date prompt waiting promise handler
 let activeDatePromptResolver = null;
@@ -2561,13 +2591,17 @@ function addCrewMemberCard() {
       item.addEventListener('click', () => {
         searchInput.value = member.Full_Name_EN;
         hiddenInput.value = member.id;
-        pstnInput.value = member.Rank || '';
         dropdown.style.display = 'none';
-        
-        // Auto-check instructor checkbox if rank contains 'інстр' or 'inst'
-        const isInst = (member.Rank || '').toLowerCase().includes('інстр') || (member.Rank || '').toLowerCase().includes('inst');
-        if (instChk) instChk.checked = isInst;
-        if (instBlock) instBlock.style.display = isInst ? 'flex' : 'none';
+
+        // Normalize role and check instructor status:
+        // КПС=PIC, 2П=SIC, ІБ=FE, БП=FA, БПАР=FA-AR
+        // Berehovyy Serhiy, Turchyn Oleksandr, Kutko Yuriy -> ALWAYS PI
+        // Formaniuk Iurii, Chernysh Oleksii -> ALWAYS FE inst
+        // Aleksa Sergii, Dubinin Andrii -> ALWAYS FA-AR inst
+        const norm = normalizeFlightCrewRole(member.Full_Name_EN, member.Rank, false, member);
+        pstnInput.value = norm.pstn;
+        if (instChk) instChk.checked = norm.isInstructor;
+        if (instBlock) instBlock.style.display = norm.isInstructor ? 'flex' : 'none';
 
         // Update header name display!
         const headerNameText = cardNode.querySelector('.crew-name-header-text');
@@ -2584,10 +2618,15 @@ function addCrewMemberCard() {
     dropdown.style.display = 'block';
   }
   
-  // Toggle Instructor Time block visibility when instructor checkbox changes
-  if (instChk && instBlock) {
+  // Toggle Instructor Time block visibility and auto-update position when instructor checkbox changes
+  if (instChk) {
     instChk.addEventListener('change', () => {
-      instBlock.style.display = instChk.checked ? 'flex' : 'none';
+      if (instBlock) instBlock.style.display = instChk.checked ? 'flex' : 'none';
+      const member = allCrew.find(m => m.id === hiddenInput.value);
+      const name = searchInput.value || (member ? member.Full_Name_EN : '');
+      const rank = member ? member.Rank : pstnInput.value;
+      const norm = normalizeFlightCrewRole(name, rank, instChk.checked, member);
+      pstnInput.value = norm.pstn;
     });
   }
   
@@ -2741,6 +2780,15 @@ function repairFlightCrewTimes() {
           nvg: c.flightNvg || '00:00'
         };
         modified = true;
+      } else {
+        if (!c.flightTime.nvg && c.flightNvg) {
+          c.flightTime.nvg = c.flightNvg;
+          modified = true;
+        }
+      }
+      if (!c.flightNvg && c.flightTime?.nvg) {
+        c.flightNvg = c.flightTime.nvg;
+        modified = true;
       }
       if (!c.blockTime || typeof c.blockTime !== 'object') {
         c.blockTime = {
@@ -2754,6 +2802,37 @@ function repairFlightCrewTimes() {
           day: c.instDay || '00:00',
           night: c.instNght || '00:00'
         };
+        modified = true;
+      }
+
+      // Self-heal / normalize names and positions:
+      // Names & positions stored in English
+      // КПС=PIC, 2П=SIC, ІБ=FE, БП=FA, БПАР=FA-AR
+      // If instructor: append " inst"
+      // Berehovyy Serhiy, Turchyn Oleksandr, Kutko Yuriy -> ALWAYS PI
+      // Formaniuk Iurii, Chernysh Oleksii -> ALWAYS FE inst
+      // Aleksa Sergii, Dubinin Andrii -> ALWAYS FA-AR inst
+      const allRoster = (STATE.flightCrew || []).concat(STATE.cabinCrew || []);
+      const cName = String(c.name || '').toLowerCase();
+      const matchedMember = allRoster.find(m => {
+        if (c.crewId && m.id === c.crewId) return true;
+        const en = (m.Full_Name_EN || '').toLowerCase();
+        const ua = (m.Full_Name_UA || '').toLowerCase();
+        const sh = (m.Name_Shrt_UA || '').toLowerCase();
+        return (en && cName.includes(en)) || (ua && cName.includes(ua)) || (sh && cName.includes(sh));
+      });
+
+      const norm = normalizeFlightCrewRole(c.name, c.pstn, c.isInstructor, matchedMember);
+      if (c.name !== norm.name) {
+        c.name = norm.name;
+        modified = true;
+      }
+      if (c.pstn !== norm.pstn) {
+        c.pstn = norm.pstn;
+        modified = true;
+      }
+      if (c.isInstructor !== norm.isInstructor) {
+        c.isInstructor = norm.isInstructor;
         modified = true;
       }
     });
@@ -3153,8 +3232,8 @@ function renderRecentFlightsList() {
             ${flight.mainFlightTask ? `<span style="font-size: 11px; color: var(--text-secondary); font-weight: normal;">№ ${flight.mainFlightTask}</span>` : ''}
           </div>
           <div style="display: flex; align-items: center; gap: 8px; font-size: 11.5px; font-family: var(--font-mono);">
-            <span style="color: var(--accent);">П: ${flight.totalFlightTime || '00:00'}</span>
-            <span style="color: #10b981;">Б: ${flight.totalBlockTime || '00:00'}</span>
+            <span style="color: var(--accent);">${dict.stat_short_flt || (STATE.lang === 'uk' ? 'П' : 'Fl')}: ${flight.totalFlightTime || '00:00'}</span>
+            <span style="color: #10b981;">${dict.stat_short_blk || (STATE.lang === 'uk' ? 'Б' : 'Bl')}: ${flight.totalBlockTime || '00:00'}</span>
             ${showDeleteBtn ? `
               <button type="button" class="btn-delete-flight-action" style="width: 22px; height: 22px; padding: 0; margin-left: 2px;" onclick="event.stopPropagation(); deleteFlightLog('${flight.id}');" title="${dict.btn_delete_flight_title || 'Видалити'}">
                 <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i>
@@ -3340,16 +3419,13 @@ function renderMonthlyArchive(searchQuery = '') {
     let flightCardsHtml = '';
 
     m.flights.forEach(flight => {
-      // Find flight instructor if present
-      const instructorMember = (flight.crew || []).find(c => c.isInstructor || (c.pstn && c.pstn.toLowerCase().includes('інструктор')));
-      const instructorShortName = instructorMember ? instructorMember.name : '—';
-
       // Build crew table rows
       let crewRowsHtml = '';
       (flight.crew || []).forEach(c => {
         // Individual times
         const cFltTime = formatCrewTimeObj(c.flightTime, c, 'flight');
         const cBlkTime = formatCrewTimeObj(c.blockTime, c, 'block');
+        const cNvgTime = (c.flightTime && c.flightTime.nvg) || c.flightNvg || '00:00';
 
         // Training exercises badges
         let exercisesHtml = '';
@@ -3363,28 +3439,14 @@ function renderMonthlyArchive(searchQuery = '') {
           exercisesHtml = `<span style="color: var(--text-secondary);">—</span>`;
         }
 
-        // Grade
-        let gradeHtml = '';
-        if (c.isInstructor) {
-          gradeHtml = `<span style="color: #10b981; font-weight: 700;">${dict.grade_passed || 'Зараховано'}</span>`;
-        } else if (c.trainingTypes && c.trainingTypes.length > 0) {
-          gradeHtml = `<span style="color: #10b981; font-weight: 700;">5 (Відм)</span>`;
-        } else {
-          gradeHtml = `<span style="color: var(--text-secondary);">—</span>`;
-        }
-
-        // Instructor column for this row
-        const rowInstructor = c.isInstructor ? '—' : instructorShortName;
-
         crewRowsHtml += `
           <tr>
             <td style="font-weight: 700; color: var(--accent); white-space: nowrap;">${c.pstn || '—'}</td>
-            <td style="font-weight: 600; white-space: nowrap;">${c.name}</td>
+            <td style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${c.name}">${c.name}</td>
             <td style="text-align: left; font-family: var(--font-mono); font-weight: 700; color: var(--accent);">${cFltTime}</td>
             <td style="text-align: left; font-family: var(--font-mono); font-weight: 700; color: #10b981;">${cBlkTime}</td>
+            <td style="text-align: left; font-family: var(--font-mono); font-weight: 700; color: ${cNvgTime && cNvgTime !== '00:00' ? '#8b5cf6' : 'var(--text-secondary)'}; opacity: ${cNvgTime && cNvgTime !== '00:00' ? '1' : '0.45'};">${cNvgTime}</td>
             <td>${exercisesHtml}</td>
-            <td style="text-align: center;">${gradeHtml}</td>
-            <td style="color: var(--text-secondary); white-space: nowrap;">${rowInstructor}</td>
           </tr>
         `;
       });
@@ -3422,8 +3484,13 @@ function renderMonthlyArchive(searchQuery = '') {
 
             <!-- Кнопки дій: притиснуті до правого краю -->
             <div class="archive-flight-actions">
-              <button type="button" class="btn-pdf-logged-flight" style="background: transparent; border: none; color: var(--accent); padding: 4px 6px; cursor: pointer;" title="${dict.btn_pdf_flight_title || 'Зберегти як PDF / Друк'}" onclick="openFlightDetailWindow(STATE.flights.find(f => f.id === '${flight.id}'), true)">
-                <i data-lucide="file-text" style="width: 15px; height: 15px;"></i>
+              <button type="button" class="btn-pdf-flight-action" onclick="openFlightDetailWindow('${flight.id}', true)" title="${dict.btn_pdf_flight_title || 'Зберегти як PDF / Друк'}">
+                <i data-lucide="file-text" style="width: 13px; height: 13px;"></i>
+                <span>PDF</span>
+              </button>
+              <button type="button" class="btn-email-flight-action" onclick="sendSingleFlightEmail('${flight.id}')" title="${dict.btn_email_flight_title || 'Відправити на email'}">
+                <i data-lucide="mail" style="width: 13px; height: 13px;"></i>
+                <span>Email</span>
               </button>
               <button type="button" class="btn-edit-flight-action" onclick="openFlightForEdit('${flight.id}')" title="${dict.btn_edit_flight_title || 'Редагувати'}">
                 <i data-lucide="edit-3" style="width: 13px; height: 13px;"></i>
@@ -3442,13 +3509,12 @@ function renderMonthlyArchive(searchQuery = '') {
             <table class="archive-crew-table">
               <thead>
                 <tr>
-                  <th>${STATE.lang === 'uk' ? 'Посада' : 'Rank'}</th>
-                  <th>${STATE.lang === 'uk' ? 'ПІБ учасника' : 'Name'}</th>
-                  <th style="text-align: left;">${STATE.lang === 'uk' ? 'Льотний' : 'Flight'}</th>
-                  <th style="text-align: left;">${STATE.lang === 'uk' ? 'Блок' : 'Block'}</th>
-                  <th>${STATE.lang === 'uk' ? 'Тип вправ / Підготовка' : 'Exercises / Training'}</th>
-                  <th style="text-align: center;">${STATE.lang === 'uk' ? 'Оцінка' : 'Grade'}</th>
-                  <th>${STATE.lang === 'uk' ? 'Інструктор' : 'Instructor'}</th>
+                  <th style="width: 14%;">${STATE.lang === 'uk' ? 'Посада' : 'Rank'}</th>
+                  <th style="width: 25%;">${STATE.lang === 'uk' ? 'ПІБ учасника' : 'Name'}</th>
+                  <th style="width: 11%; text-align: left;">${STATE.lang === 'uk' ? 'Льотний' : 'Flight'}</th>
+                  <th style="width: 11%; text-align: left;">${STATE.lang === 'uk' ? 'Блок' : 'Block'}</th>
+                  <th style="width: 12%; text-align: left;">${STATE.lang === 'uk' ? 'Наліт NVG' : 'NVG'}</th>
+                  <th style="width: 27%;">${STATE.lang === 'uk' ? 'Тип вправ / Підготовка' : 'Exercises / Training'}</th>
                 </tr>
               </thead>
               <tbody>
@@ -3527,46 +3593,43 @@ function renderLoggedFlightsList() {
 }
 
 /**
- * Opens dynamic print window for a logged training flight with edit possibility for admins
+ * Generates printable HTML string for flight log report
  */
-function openFlightDetailWindow(flight, autoPrint = false) {
-  const newWindow = window.open("", "_blank", "width=850,height=800");
-  if (!newWindow) {
-    showToast("Pop-up blocked. Please allow pop-ups for this site.", "error");
-    return;
-  }
-  
+function generateFlightPrintHtml(flight, autoPrint = false) {
+  const isUk = STATE.lang === 'uk';
   const role = STATE.currentUser ? STATE.currentUser.role : ROLES.PILOT;
   const isAdmin = role === ROLES.ADMIN;
   const editBtnHtml = isAdmin ? `<button class="print-btn" style="background-color: #f59e0b; margin-left: 10px;" onclick="editFlight()">EDIT</button>` : '';
-  
+
   function getRankPriority(pstn, isInstructor) {
     if (!pstn) return 999;
-    const pNormalized = pstn.trim().toUpperCase();
-    const isInst = !!isInstructor || pNormalized.includes('ІНСТР') || pNormalized.includes('INSTRUCTOR') || pNormalized.includes('ІНС');
-    if (pNormalized.includes('КПС') && isInst) return 1;
-    if (pNormalized === 'КПС') return 2;
-    if (pNormalized === '2П' || pNormalized === '2P') return 3;
-    if (pNormalized.includes('ІБ') && isInst) return 4;
-    if (pNormalized === 'ІБ') return 5;
-    if ((pNormalized.includes('БП-АР') || pNormalized.includes('БП-РА')) && isInst) return 6;
-    if (pNormalized === 'БП-АР' || pNormalized === 'БП-РА') return 7;
-    if (pNormalized.includes('БП') && isInst) return 8;
-    if (pNormalized === 'БП') return 9;
+    const pNormalized = String(pstn).trim().toUpperCase();
+    const isInst = !!isInstructor || pNormalized.includes('INST') || pNormalized.includes('ІНСТ') || pNormalized === 'PI';
+    if (pNormalized === 'PI' || ((pNormalized.includes('КПС') || pNormalized.includes('PIC')) && isInst)) return 1;
+    if (pNormalized === 'КПС' || pNormalized === 'PIC') return 2;
+    if ((pNormalized.includes('2П') || pNormalized.includes('SIC')) && isInst) return 3;
+    if (pNormalized === '2П' || pNormalized === '2P' || pNormalized === 'SIC') return 4;
+    if ((pNormalized.includes('ІБ') || pNormalized.includes('FE')) && isInst) return 5;
+    if (pNormalized === 'ІБ' || pNormalized === 'FE') return 6;
+    if ((pNormalized.includes('БП-АР') || pNormalized.includes('БП-РА') || pNormalized.includes('БПАР') || pNormalized.includes('FA-AR') || pNormalized.includes('FA-RA') || pNormalized.includes('AR')) && isInst) return 7;
+    if (pNormalized === 'БП-АР' || pNormalized === 'БП-РА' || pNormalized === 'БПАР' || pNormalized === 'FA-AR' || pNormalized === 'FA-RA') return 8;
+    if ((pNormalized.includes('БП') || pNormalized.includes('FA')) && isInst) return 9;
+    if (pNormalized === 'БП' || pNormalized === 'FA') return 10;
     return 100;
   }
 
-  const sortedCrew = [...flight.crew].sort((a, b) => {
+  const crewList = Array.isArray(flight.crew) ? flight.crew : [];
+  const sortedCrew = [...crewList].sort((a, b) => {
     return getRankPriority(a.pstn, a.isInstructor) - getRankPriority(b.pstn, b.isInstructor);
   });
 
   const crewRows = sortedCrew.map(c => {
-    const isInst = c.isInstructor && !c.pstn.toLowerCase().includes('інстр') && !c.pstn.toLowerCase().includes('inst');
-    const displayPstn = c.pstn + (isInst ? ' (Інстр)' : '');
+    const isInst = c.isInstructor && !String(c.pstn || '').toLowerCase().includes('inst') && c.pstn !== 'PI';
+    const displayPstn = (c.pstn || '') + (isInst ? ' inst' : '');
     return `
     <tr>
       <td>${displayPstn}</td>
-      <td><strong>${c.name}</strong></td>
+      <td><strong>${c.name || ''}</strong></td>
       <td style="white-space: nowrap; line-height: 1.25;">
         DAY: ${(c.flightTime && c.flightTime.day) || c.flightDay || '00:00'}<br>
         NIGHT: ${(c.flightTime && c.flightTime.nght) || c.flightNght || '00:00'}<br>
@@ -3583,7 +3646,7 @@ function openFlightDetailWindow(flight, autoPrint = false) {
       <td>${c.flightTask || '-'}</td>
       <td>${(c.trainingTypes || []).map(t => {
         if (!t) return t;
-        const lower = t.toLowerCase();
+        const lower = String(t).toLowerCase();
         if (lower === 'before rotation') return 'Before Rotation';
         if (lower === 'type rating' || lower === 'type_rating') return 'Type Rating';
         return t;
@@ -3591,140 +3654,437 @@ function openFlightDetailWindow(flight, autoPrint = false) {
     </tr>
   `;
   }).join('');
-  
-  let refuelText = `${flight.refuel}`;
+
+  let refuelText = `${flight.refuel || '0'}`;
   if (flight.refuelMore && (flight.refuel2 || flight.refuel3)) {
     if (flight.refuel2) refuelText += ` + ${flight.refuel2}`;
     if (flight.refuel3) refuelText += ` + ${flight.refuel3}`;
   }
-  
-  const docTitle = `Нальот_${(flight.helicopterReg || 'UR').replace(/[\s\/\\:]+/g, '_')}_${flight.date || 'Day'}`;
-  const printBtnText = STATE.lang === 'uk' ? '🖨 Зберегти як PDF / Друк' : '🖨 Save as PDF / Print';
 
-  newWindow.document.write(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>${docTitle}</title>
-        <style>
-          @page {
-            size: A4 portrait;
-            margin: 8mm;
-          }
-          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 20px; color: #1e293b; background-color: #f8fafc; font-size: 13px; }
-          .container { max-width: 800px; margin: 0 auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
-          h2 { font-family: inherit; color: #4f46e5; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-top: 0; font-size: 20px; }
-          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }
-          .block { background-color: #f1f5f9; padding: 12px; border-radius: 6px; border: 1px solid #cbd5e1; }
-          .block-title { font-weight: 700; font-size: 11px; text-transform: uppercase; color: #475569; margin-bottom: 6px; border-bottom: 1px solid #cbd5e1; padding-bottom: 2px; }
-          .block p, .grid p { margin: 4px 0; }
-          table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
-          th, td { border: 1px solid #cbd5e1; padding: 6px 10px; text-align: left; vertical-align: middle; }
-          th { background-color: #e2e8f0; font-weight: 700; color: #334155; }
-          tr:nth-child(even) { background-color: #f8fafc; }
-          .print-btn { display: inline-block; background-color: #4f46e5; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-weight: 600; margin-top: 20px; cursor: pointer; border: none; font-size: 12px; }
-          
-          @media print {
-            .print-btn { display: none; }
-            body { background: white; padding: 0; margin: 0; font-size: 9.5px; color: #000; }
-            .container { box-shadow: none; border: none; max-width: 100%; padding: 0; margin: 0; }
-            h2 { font-size: 14px; margin-bottom: 4px; padding-bottom: 2px; }
-            .grid { gap: 8px; margin-top: 6px; }
-            .block { padding: 4px 6px; border-radius: 4px; background-color: #fff !important; }
-            .block p, .grid p { margin: 1px 0; }
-            .block-title { font-size: 8.5px; margin-bottom: 1px; padding-bottom: 1px; }
-            h3 { margin-top: 8px; margin-bottom: 3px; font-size: 10.5px; padding-bottom: 1px; }
-            table { margin-top: 6px; font-size: 8.5px; }
-            th, td { padding: 2px 4px; line-height: 1.15; }
-            th { background-color: #f1f5f9 !important; }
-            tr:nth-child(even) { background-color: #fff !important; }
-          }
-        </style>
-        <script>
-          function editFlight() {
-            if (window.opener && !window.opener.closed) {
-              window.opener.startEditingFlight("${flight.id}");
-              window.close();
-            } else {
-              alert("Main window is closed. Cannot edit.");
-            }
-          }
-        </script>
-        ${autoPrint ? `
-        <script>
-          window.addEventListener('load', function() {
-            setTimeout(function() {
-              window.print();
-            }, 300);
-          });
-        </script>
-        ` : ''}
-      </head>
-      <body>
-        <div class="container">
-          <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 15px;">
-            <h2 style="margin:0; border:none; padding:0;">Flight Training Log</h2>
-            <div>
-              <button class="print-btn" onclick="window.print()">${printBtnText}</button>
-              ${editBtnHtml}
-            </div>
-          </div>
-          
-          <div class="grid">
-            <div>
-              <p><strong>Date:</strong> ${flight.date}</p>
-              <p><strong>Helicopter Reg:</strong> ${flight.helicopterReg}</p>
-              <p><strong>Duty Time:</strong> <span style="color:#4f46e5; font-weight:700;">${flight.dutyTime}</span></p>
-              <p><strong>Total Flight Time:</strong> ${flight.totalFlightTime || '00:00'}</p>
-              <p><strong>Total Block Time:</strong> ${flight.totalBlockTime || '00:00'}</p>
-              <p><strong>Flight Task # (Common):</strong> ${flight.mainFlightTask || '-'}</p>
-            </div>
-            <div class="block">
-              <div class="block-title">Fuel (Liters)</div>
-              <p><strong>Start-up:</strong> ${flight.fuelStart}</p>
-              <p><strong>Shut-down:</strong> ${flight.fuelEnd}</p>
-              <p><strong>Refuel:</strong> ${refuelText}</p>
-            </div>
-          </div>
-          
-          <div class="grid" style="margin-top: 10px;">
-            <div class="block">
-              <div class="block-title">Pre-Flight Instructions</div>
-              <p><strong>BGN:</strong> ${flight.preBgn}</p>
-              <p><strong>END:</strong> ${flight.preEnd}</p>
-              <p><strong>TTL (Duration):</strong> ${flight.preTtl}</p>
-            </div>
-            <div class="block">
-              <div class="block-title">Post-Flight Debrief</div>
-              <p><strong>BGN:</strong> ${flight.postBgn}</p>
-              <p><strong>END:</strong> ${flight.postEnd}</p>
-              <p><strong>TTL (Duration):</strong> ${flight.postTtl}</p>
-            </div>
-          </div>
-          
-          <h3 style="margin-top:20px; margin-bottom:8px; font-family:inherit; color:#1e293b; border-bottom: 1px solid #cbd5e1; padding-bottom:4px; font-size: 14px;">Crew Members Details</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>PSTN</th>
-                <th>Name</th>
-                <th>Flight Time</th>
-                <th>Block Time</th>
-                <th>Instructor Time</th>
-                <th>Task #</th>
-                <th>Training Types</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${crewRows}
-            </tbody>
-          </table>
+  const docTitle = isUk
+    ? `Наліт_${(flight.helicopterReg || 'UR').replace(/[\s\/\\:]+/g, '_')}_${flight.date || 'Day'}`
+    : `FlightLog_${(flight.helicopterReg || 'UR').replace(/[\s\/\\:]+/g, '_')}_${flight.date || 'Day'}`;
+  const printBtnText = isUk ? '🖨 Зберегти як PDF / Друк' : '🖨 Save as PDF / Print';
+  const pageHeading = isUk ? 'Звіт тренувального польоту' : 'Flight Training Log';
+
+  return `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>${docTitle}</title>
+    <style>
+      @page {
+        size: A4 portrait;
+        margin: 8mm;
+      }
+      body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; padding: 20px; color: #1e293b; background-color: #f8fafc; font-size: 13px; }
+      .container { max-width: 800px; margin: 0 auto; background: white; padding: 25px; border-radius: 8px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; }
+      h2 { font-family: inherit; color: #4f46e5; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-top: 0; font-size: 20px; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 15px; }
+      .block { background-color: #f1f5f9; padding: 12px; border-radius: 6px; border: 1px solid #cbd5e1; }
+      .block-title { font-weight: 700; font-size: 11px; text-transform: uppercase; color: #475569; margin-bottom: 6px; border-bottom: 1px solid #cbd5e1; padding-bottom: 2px; }
+      .block p, .grid p { margin: 4px 0; }
+      table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 12px; }
+      th, td { border: 1px solid #cbd5e1; padding: 6px 10px; text-align: left; vertical-align: middle; }
+      th { background-color: #e2e8f0; font-weight: 700; color: #334155; }
+      tr:nth-child(even) { background-color: #f8fafc; }
+      .print-btn { display: inline-block; background-color: #4f46e5; color: white; padding: 8px 16px; border-radius: 4px; text-decoration: none; font-weight: 600; margin-top: 0; cursor: pointer; border: none; font-size: 12px; }
+      
+      @media print {
+        .print-btn { display: none !important; }
+        body { background: white !important; padding: 0 !important; margin: 0 !important; font-size: 9.5px !important; color: #000 !important; }
+        .container { box-shadow: none !important; border: none !important; max-width: 100% !important; padding: 0 !important; margin: 0 !important; }
+        h2 { font-size: 14px !important; margin-bottom: 4px !important; padding-bottom: 2px !important; }
+        .grid { gap: 8px !important; margin-top: 6px !important; }
+        .block { padding: 4px 6px !important; border-radius: 4px !important; background-color: #fff !important; }
+        .block p, .grid p { margin: 1px 0 !important; }
+        .block-title { font-size: 8.5px !important; margin-bottom: 1px !important; padding-bottom: 1px !important; }
+        h3 { margin-top: 8px !important; margin-bottom: 3px !important; font-size: 10.5px !important; padding-bottom: 1px !important; }
+        table { margin-top: 6px !important; font-size: 8.5px !important; }
+        th, td { padding: 2px 4px !important; line-height: 1.15 !important; }
+        th { background-color: #f1f5f9 !important; }
+        tr:nth-child(even) { background-color: #fff !important; }
+      }
+    </style>
+    <script>
+      function editFlight() {
+        if (window.opener && !window.opener.closed) {
+          window.opener.startEditingFlight("${flight.id}");
+          window.close();
+        } else {
+          alert("Main window is closed. Cannot edit.");
+        }
+      }
+    </script>
+    ${autoPrint ? `
+    <script>
+      setTimeout(function() {
+        try {
+          window.focus();
+          window.print();
+        } catch (e) {
+          console.warn("Print error in popup:", e);
+        }
+      }, 400);
+    </script>
+    ` : ''}
+  </head>
+  <body>
+    <div class="container">
+      <div style="display:flex; justify-content:space-between; align-items:center; border-bottom: 2px solid #e2e8f0; padding-bottom: 8px; margin-bottom: 15px;">
+        <h2 style="margin:0; border:none; padding:0;">${pageHeading}</h2>
+        <div>
+          <button class="print-btn" onclick="window.print()">${printBtnText}</button>
+          ${editBtnHtml}
         </div>
-      </body>
-    </html>
-  `);
-  newWindow.document.close();
+      </div>
+      
+      <div class="grid">
+        <div>
+          <p><strong>${isUk ? 'Дата:' : 'Date:'}</strong> ${flight.date || '-'}</p>
+          <p><strong>${isUk ? 'Борт:' : 'Helicopter Reg:'}</strong> ${flight.helicopterReg || '-'}</p>
+          <p><strong>${isUk ? 'Робочий час:' : 'Duty Time:'}</strong> <span style="color:#4f46e5; font-weight:700;">${flight.dutyTime || '-'}</span></p>
+          <p><strong>${isUk ? 'Загальний наліт:' : 'Total Flight Time:'}</strong> ${flight.totalFlightTime || '00:00'}</p>
+          <p><strong>${isUk ? 'Загальний блок-час:' : 'Total Block Time:'}</strong> ${flight.totalBlockTime || '00:00'}</p>
+          <p><strong>${isUk ? 'Номер вправи:' : 'Flight Task # (Common):'}</strong> ${flight.mainFlightTask || '-'}</p>
+        </div>
+        <div class="block">
+          <div class="block-title">${isUk ? 'Паливо (літрів)' : 'Fuel (Liters)'}</div>
+          <p><strong>${isUk ? 'Запуск:' : 'Start-up:'}</strong> ${flight.fuelStart || '-'}</p>
+          <p><strong>${isUk ? 'Зупинка:' : 'Shut-down:'}</strong> ${flight.fuelEnd || '-'}</p>
+          <p><strong>${isUk ? 'Заправка:' : 'Refuel:'}</strong> ${refuelText}</p>
+        </div>
+      </div>
+      
+      <div class="grid" style="margin-top: 10px;">
+        <div class="block">
+          <div class="block-title">${isUk ? 'Передполітний інструктаж' : 'Pre-Flight Instructions'}</div>
+          <p><strong>${isUk ? 'Початок:' : 'BGN:'}</strong> ${flight.preBgn || '-'}</p>
+          <p><strong>${isUk ? 'Кінець:' : 'END:'}</strong> ${flight.preEnd || '-'}</p>
+          <p><strong>${isUk ? 'Тривалість:' : 'TTL (Duration):'}</strong> ${flight.preTtl || '00:00'}</p>
+        </div>
+        <div class="block">
+          <div class="block-title">${isUk ? 'Післяполітний розбір' : 'Post-Flight Debrief'}</div>
+          <p><strong>${isUk ? 'Початок:' : 'BGN:'}</strong> ${flight.postBgn || '-'}</p>
+          <p><strong>${isUk ? 'Кінець:' : 'END:'}</strong> ${flight.postEnd || '-'}</p>
+          <p><strong>${isUk ? 'Тривалість:' : 'TTL (Duration):'}</strong> ${flight.postTtl || '00:00'}</p>
+        </div>
+      </div>
+      
+      <h3 style="margin-top:20px; margin-bottom:8px; font-family:inherit; color:#1e293b; border-bottom: 1px solid #cbd5e1; padding-bottom:4px; font-size: 14px;">${isUk ? 'Екіпаж та наліт' : 'Crew Members Details'}</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>${isUk ? 'Посада' : 'PSTN'}</th>
+            <th>${isUk ? 'Прізвище' : 'Name'}</th>
+            <th>${isUk ? 'Наліт' : 'Flight Time'}</th>
+            <th>${isUk ? 'Блок' : 'Block Time'}</th>
+            <th>${isUk ? 'Інструктор' : 'Instructor Time'}</th>
+            <th>${isUk ? 'Вправа' : 'Task #'}</th>
+            <th>${isUk ? 'Вид підготовки' : 'Training Types'}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${crewRows}
+        </tbody>
+      </table>
+    </div>
+  </body>
+</html>`;
 }
+
+/**
+ * Opens dynamic print window for a logged training flight with edit possibility for admins.
+ * Supports passing either a flightId (string) or full flight object.
+ * If popups are blocked by browser, automatically falls back to hidden iframe printing.
+ */
+function openFlightDetailWindow(flightOrId, autoPrint = false) {
+  const flight = typeof flightOrId === 'string'
+    ? (STATE.flights || []).find(f => f.id === flightOrId)
+    : flightOrId;
+
+  if (!flight) {
+    showToast(STATE.lang === 'uk' ? "Політ не знайдено" : "Flight not found", "error");
+    return;
+  }
+
+  const htmlContent = generateFlightPrintHtml(flight, autoPrint);
+
+  let newWindow = null;
+  try {
+    newWindow = window.open("", "_blank", "width=850,height=850");
+  } catch (e) {
+    console.warn("window.open blocked:", e);
+  }
+
+  if (newWindow && !newWindow.closed) {
+    try {
+      newWindow.document.open();
+      newWindow.document.write(htmlContent);
+      newWindow.document.close();
+      if (autoPrint) {
+        setTimeout(() => {
+          try {
+            newWindow.focus();
+            newWindow.print();
+          } catch (err) {
+            console.warn("newWindow.print failed:", err);
+          }
+        }, 500);
+      }
+      return;
+    } catch (writeErr) {
+      console.warn("Error writing into newWindow, using fallback:", writeErr);
+    }
+  }
+
+  // Fallback: If popup blocker blocked the new window, use a hidden iframe to directly trigger print / Save to PDF
+  const printIframe = document.createElement('iframe');
+  printIframe.style.position = 'fixed';
+  printIframe.style.right = '0';
+  printIframe.style.bottom = '0';
+  printIframe.style.width = '0';
+  printIframe.style.height = '0';
+  printIframe.style.border = '0';
+  printIframe.style.opacity = '0';
+  printIframe.style.pointerEvents = 'none';
+  document.body.appendChild(printIframe);
+
+  try {
+    printIframe.contentDocument.open();
+    printIframe.contentDocument.write(htmlContent);
+    printIframe.contentDocument.close();
+
+    setTimeout(() => {
+      try {
+        printIframe.contentWindow.focus();
+        printIframe.contentWindow.print();
+      } catch (err) {
+        console.error("Iframe print error:", err);
+        showToast(STATE.lang === 'uk' ? "Дозвольте спливаючі вікна для друку" : "Please allow pop-ups for printing", "warning");
+      }
+      setTimeout(() => {
+        try {
+          printIframe.remove();
+        } catch (_) {}
+      }, 4000);
+    }, 400);
+  } catch (err) {
+    console.error("Print fallback error:", err);
+    showToast(STATE.lang === 'uk' ? "Помилка друку" : "Print error", "error");
+  }
+}
+
+window.openFlightDetailWindow = openFlightDetailWindow;
+
+let currentEmailModalFlight = null;
+let isEmailModalInitialized = false;
+
+function initEmailModalListeners() {
+  if (isEmailModalInitialized) return;
+  isEmailModalInitialized = true;
+
+  const backdrop = document.getElementById('flight-email-modal-backdrop');
+  const btnClose = document.getElementById('flight-email-modal-close');
+  const btnCopy = document.getElementById('btn-copy-flight-email-body');
+  const btnSmtp = document.getElementById('btn-send-flight-smtp');
+  const btnMailto = document.getElementById('btn-send-flight-mailto');
+  const btnGmail = document.getElementById('btn-send-flight-gmail');
+  const bodyEl = document.getElementById('flight-email-body-preview');
+  const recEl = document.getElementById('flight-email-recipient');
+  const subEl = document.getElementById('flight-email-subject');
+
+  const closeModal = () => {
+    if (backdrop) backdrop.classList.remove('active');
+    currentEmailModalFlight = null;
+  };
+
+  if (btnClose) btnClose.addEventListener('click', closeModal);
+  if (backdrop) {
+    backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop) closeModal();
+    });
+  }
+
+  if (btnCopy) {
+    btnCopy.addEventListener('click', async () => {
+      const text = bodyEl ? bodyEl.value : '';
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast(STATE.lang === 'uk' ? "Текст звіту успішно скопійовано!" : "Report text copied to clipboard!", "success");
+      } catch (e) {
+        showToast(STATE.lang === 'uk' ? "Не вдалося скопіювати текст" : "Failed to copy text", "error");
+      }
+    });
+  }
+
+  if (btnSmtp) {
+    btnSmtp.addEventListener('click', async () => {
+      const recipient = (recEl ? recEl.value : '').trim();
+      const subject = (subEl ? subEl.value : '').trim();
+      const body = (bodyEl ? bodyEl.value : '').trim();
+
+      if (!recipient) {
+        showToast(STATE.lang === 'uk' ? "Вкажіть email отримувача!" : "Please specify recipient email!", "warning");
+        return;
+      }
+
+      const originalBtnText = btnSmtp.innerHTML;
+      btnSmtp.disabled = true;
+      btnSmtp.innerHTML = `<span style="display:inline-flex; align-items:center; gap:6px;">⏳ ${STATE.lang === 'uk' ? 'Генерація PDF та відправка...' : 'Generating PDF & sending...'}</span>`;
+
+      try {
+        const printableHtml = generateFlightPrintHtml(currentEmailModalFlight, false);
+        const pdfBase64 = await generateFlightPdfBase64(currentEmailModalFlight, printableHtml);
+        const filename = `Наліт_${((currentEmailModalFlight && currentEmailModalFlight.helicopterReg) || 'UR').replace(/[\s\/\\:]+/g, '_')}_${((currentEmailModalFlight && currentEmailModalFlight.date) || 'flight')}.pdf`;
+
+        await dispatchFlightLogEmail({
+          recipient,
+          subject,
+          body,
+          pdfBase64: pdfBase64,
+          pdfFilename: filename,
+          method: 'smtp',
+          flight: currentEmailModalFlight,
+          lang: STATE.lang
+        });
+
+        showToast(
+          STATE.lang === 'uk'
+            ? `✅ Лист із вкладеним PDF-файлом успішно надіслано на ${recipient}!`
+            : `✅ Email with PDF attachment successfully sent to ${recipient}!`,
+          "success"
+        );
+        closeModal();
+      } catch (err) {
+        console.error("SMTP error:", err);
+        showToast((STATE.lang === 'uk' ? "Помилка надсилання: " : "Send error: ") + err.message, "error");
+      } finally {
+        btnSmtp.disabled = false;
+        btnSmtp.innerHTML = originalBtnText;
+        if (window.lucide) lucide.createIcons();
+      }
+    });
+  }
+
+  if (btnMailto) {
+    btnMailto.addEventListener('click', async () => {
+      const recipient = (recEl ? recEl.value : '').trim();
+      const subject = (subEl ? subEl.value : '').trim();
+      const body = (bodyEl ? bodyEl.value : '').trim();
+
+      if (!recipient) {
+        showToast(STATE.lang === 'uk' ? "Вкажіть email отримувача!" : "Please specify recipient email!", "warning");
+        return;
+      }
+
+      const printableHtml = generateFlightPrintHtml(currentEmailModalFlight, false);
+      const filename = `Наліт_${((currentEmailModalFlight && currentEmailModalFlight.helicopterReg) || 'UR').replace(/[\s\/\\:]+/g, '_')}_${((currentEmailModalFlight && currentEmailModalFlight.date) || 'flight')}.pdf`;
+
+      await dispatchFlightLogEmail({
+        recipient,
+        subject,
+        body,
+        method: 'mailto',
+        htmlContent: printableHtml,
+        pdfFilename: filename,
+        lang: STATE.lang
+      });
+
+      showToast(
+        STATE.lang === 'uk'
+          ? "PDF завантажено, поштову програму відкрито для відправки!"
+          : "PDF downloaded, email client opened for dispatch!",
+        "success"
+      );
+      closeModal();
+    });
+  }
+
+  if (btnGmail) {
+    btnGmail.addEventListener('click', async () => {
+      const recipient = (recEl ? recEl.value : '').trim();
+      const subject = (subEl ? subEl.value : '').trim();
+      const body = (bodyEl ? bodyEl.value : '').trim();
+
+      if (!recipient) {
+        showToast(STATE.lang === 'uk' ? "Вкажіть email отримувача!" : "Please specify recipient email!", "warning");
+        return;
+      }
+
+      await dispatchFlightLogEmail({
+        recipient,
+        subject,
+        body,
+        method: 'gmail',
+        lang: STATE.lang
+      });
+
+      showToast(
+        STATE.lang === 'uk'
+          ? "Вкладку Gmail відкрито для відправки!"
+          : "Gmail compose tab opened!",
+        "success"
+      );
+      closeModal();
+    });
+  }
+}
+
+/**
+ * Opens email dispatch modal with full formatted flight summary and 1-click send actions
+ * @param {string} flightId 
+ */
+window.sendSingleFlightEmail = async function(flightId) {
+  const flight = (STATE.flights || []).find(f => f.id === flightId);
+  if (!flight) {
+    showToast(STATE.lang === 'uk' ? "Політ не знайдено" : "Flight not found", "error");
+    return;
+  }
+
+  initEmailModalListeners();
+
+  currentEmailModalFlight = flight;
+
+  const defaultRecipients = (STATE.settings && STATE.settings.flightsEmail && STATE.settings.flightsEmail.recipients) 
+    || 'training.dept@ukr-helicopters.ua';
+
+  const defaultSubject = STATE.lang === 'uk'
+    ? `[UH Flight Training] Наліт ${flight.helicopterReg || ''} (${flight.date || ''})`
+    : `[UH Flight Training] Flight Log ${flight.helicopterReg || ''} (${flight.date || ''})`;
+
+  const infoTextEl = document.getElementById('flight-email-info-text');
+  const dutyTextEl = document.getElementById('flight-email-duty-text');
+  const recEl = document.getElementById('flight-email-recipient');
+  const subEl = document.getElementById('flight-email-subject');
+  const bodyEl = document.getElementById('flight-email-body-preview');
+  const backdrop = document.getElementById('flight-email-modal-backdrop');
+
+  if (infoTextEl) {
+    infoTextEl.textContent = `${flight.helicopterReg || 'UR-XXX'} • ${formatDateDisplay(flight.date)}${flight.mainFlightTask ? ` • Вправа № ${flight.mainFlightTask}` : ''}`;
+  }
+  if (dutyTextEl) {
+    dutyTextEl.textContent = `${flight.dutyTime || flight.totalFlightTime || '00:00'}`;
+  }
+  if (recEl) {
+    recEl.value = defaultRecipients;
+  }
+  if (subEl) {
+    subEl.value = defaultSubject;
+  }
+  if (bodyEl) {
+    bodyEl.value = formatFlightReportText(flight, STATE.lang);
+  }
+
+  if (backdrop) {
+    backdrop.classList.add('active');
+  }
+
+  if (window.lucide) {
+    lucide.createIcons();
+  }
+};
 
 /**
  * Switches the app to edit mode for a specific flight, loading its values
@@ -4037,11 +4397,13 @@ function handleTrainingFlightSubmit(e) {
       trainingTypes.push(chk.value);
     });
 
+    const norm = normalizeFlightCrewRole(member.Full_Name_EN || member.Full_Name_UA, pstn || member.Rank, isInstructor, member);
+
     crewMembers.push({
       crewId: selectedId,
-      name: member.Full_Name_EN || member.Full_Name_UA,
-      pstn,
-      isInstructor,
+      name: norm.name,
+      pstn: norm.pstn,
+      isInstructor: norm.isInstructor,
       flightTime: { day: flightDay, nght: flightNght, nvg: flightNvg },
       blockTime: { day: blockDay, nght: blockNght },
       timeInstructor: { day: instDay, night: instNght },
@@ -4138,6 +4500,28 @@ function handleTrainingFlightSubmit(e) {
  * Saves compiled flight record and updates compliance dates
  */
 function saveFlightRecord(flightRecord) {
+  // Normalize crew: English names, English positions (КПС=PIC, 2П=SIC, ІБ=FE, БП=FA, БПАР=FA-AR)
+  // Berehovyy Serhiy, Turchyn Oleksandr, Kutko Yuriy -> ALWAYS PI
+  // Formaniuk Iurii, Chernysh Oleksii -> ALWAYS FE inst
+  // Aleksa Sergii, Dubinin Andrii -> ALWAYS FA-AR inst
+  if (Array.isArray(flightRecord.crew)) {
+    const allRoster = (STATE.flightCrew || []).concat(STATE.cabinCrew || []);
+    flightRecord.crew.forEach(c => {
+      const cName = String(c.name || '').toLowerCase();
+      const matchedMember = allRoster.find(m => {
+        if (c.crewId && m.id === c.crewId) return true;
+        const en = (m.Full_Name_EN || '').toLowerCase();
+        const ua = (m.Full_Name_UA || '').toLowerCase();
+        const sh = (m.Name_Shrt_UA || '').toLowerCase();
+        return (en && cName.includes(en)) || (ua && cName.includes(ua)) || (sh && cName.includes(sh));
+      });
+      const norm = normalizeFlightCrewRole(c.name, c.pstn, c.isInstructor, matchedMember);
+      c.name = norm.name;
+      c.pstn = norm.pstn;
+      c.isInstructor = norm.isInstructor;
+    });
+  }
+
   const isEditing = !!STATE.editingFlightId;
   
   if (isEditing) {
@@ -4167,14 +4551,15 @@ function saveFlightRecord(flightRecord) {
     STATE.flights.push(flightRecord);
   }
   
-  // 2. Dispatch mock email alert
+  // 2. Dispatch audit email record
   const crewNamesStr = flightRecord.crew.map(c => `${c.name} (${c.pstn})`).join(', ');
   dispatchFlightLogEmail({
     crewName: crewNamesStr,
     date: flightRecord.date,
     acType: flightRecord.helicopterReg,
     duration: flightRecord.dutyTime,
-    exercise: `Fuel Start/End/Refuel: ${flightRecord.fuelStart}/${flightRecord.fuelEnd}/${flightRecord.refuel} L. Pre-ttl/Post-ttl: ${flightRecord.preTtl}/${flightRecord.postTtl}.`
+    exercise: `Fuel Start/End/Refuel: ${flightRecord.fuelStart}/${flightRecord.fuelEnd}/${flightRecord.refuel} L. Pre-ttl/Post-ttl: ${flightRecord.preTtl}/${flightRecord.postTtl}.`,
+    method: 'silent'
   });
   
   // 3. Add system audit log entry
@@ -5649,7 +6034,22 @@ function renderOcrCrewCards(crewList) {
   const allFlightCrew = STATE.flightCrew || [];
   const allCabinCrew = STATE.cabinCrew || [];
 
-  let html = '';
+  let html = `
+    <datalist id="ocr-pstn-datalist">
+      <option value="PI">PI (Pilot Instructor)</option>
+      <option value="PIC">PIC (Pilot-in-Command)</option>
+      <option value="SIC">SIC (Second-in-Command)</option>
+      <option value="FE">FE (Flight Engineer)</option>
+      <option value="FA">FA (Flight Attendant)</option>
+      <option value="FA-AR">FA-AR (Aerial Rescuer)</option>
+      <option value="PIC inst">PIC inst (PIC Instructor)</option>
+      <option value="SIC inst">SIC inst (SIC Instructor)</option>
+      <option value="FE inst">FE inst (FE Instructor)</option>
+      <option value="FA inst">FA inst (FA Instructor)</option>
+      <option value="FA-AR inst">FA-AR inst (FA-AR Instructor)</option>
+    </datalist>
+  `;
+
   crewList.forEach((c, idx) => {
     const cardClass = c.matchConfidence === 'exact' 
       ? 'matched-exact' 
@@ -5706,7 +6106,7 @@ function renderOcrCrewCards(crewList) {
       <div class="ocr-crew-card ${cardClass}" id="ocr-crew-card-${idx}">
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <div style="display:flex; align-items:center; gap:8px;">
-            <input type="text" class="form-input ocr-crew-pstn" data-crew-idx="${idx}" value="${c.pstn || 'PIC'}" style="width:75px; height:26px; font-size:11.5px; font-weight:700; text-align:center;">
+            <input type="text" class="form-input ocr-crew-pstn" data-crew-idx="${idx}" list="ocr-pstn-datalist" value="${c.pstn || 'PIC'}" style="width:75px; height:26px; font-size:11.5px; font-weight:700; text-align:center;" title="Посада: КПС=PIC, 2П=SIC, FE=ІБ, БП=FA, БП-АР=FA-AR">
             <span style="font-size:12.5px; font-weight:700; color:var(--text-primary);">"${c.name || 'Невідомо'}"</span>
           </div>
           <div style="display:flex; align-items:center; gap:6px;">
@@ -5726,7 +6126,7 @@ function renderOcrCrewCards(crewList) {
         </div>
 
         <!-- Times grid -->
-        <div style="display:grid; grid-template-columns: repeat(6, 1fr); gap:6px; font-size:11px;">
+        <div style="display:grid; grid-template-columns: repeat(7, 1fr); gap:6px; font-size:11px;">
           <div>
             <label style="color:var(--text-secondary); font-size:10px;">Flt Day</label>
             <input type="time" class="form-input ocr-time-input" data-crew-idx="${idx}" data-field="flightDay" value="${c.flightDay || '00:00'}" onchange="handleOcrFlightTimeChange(${idx}, 'day', this.value)" style="height:26px; font-size:11px;">
@@ -5748,8 +6148,12 @@ function renderOcrCrewCards(crewList) {
             <input type="time" class="form-input ocr-time-input" data-crew-idx="${idx}" data-field="blockNght" value="${c.blockNght || '00:00'}" style="height:26px; font-size:11px; border-color:rgba(16,185,129,0.5); font-weight:600;">
           </div>
           <div>
+            <label style="color:var(--text-secondary); font-size:10px;">Inst Day</label>
+            <input type="time" class="form-input ocr-time-input" data-crew-idx="${idx}" data-field="instDay" value="${c.instDay || (c.timeInstructor && c.timeInstructor.day) || '00:00'}" style="height:26px; font-size:11px;">
+          </div>
+          <div>
             <label style="color:var(--text-secondary); font-size:10px;">Inst Nght</label>
-            <input type="time" class="form-input ocr-time-input" data-crew-idx="${idx}" data-field="instNght" value="${c.instNght || '00:00'}" style="height:26px; font-size:11px;">
+            <input type="time" class="form-input ocr-time-input" data-crew-idx="${idx}" data-field="instNght" value="${c.instNght || (c.timeInstructor && (c.timeInstructor.night || c.timeInstructor.nght)) || '00:00'}" style="height:26px; font-size:11px;">
           </div>
         </div>
 
@@ -5777,9 +6181,21 @@ function handleOcrCrewChange(idx, selectEl) {
   const selectedOpt = selectEl.options[selectEl.selectedIndex];
   
   if (selectEl.value) {
+    const allCrew = (STATE.flightCrew || []).concat(STATE.cabinCrew || []);
+    const matched = allCrew.find(m => m.id === selectEl.value);
+    const norm = normalizeFlightCrewRole(
+      matched ? matched.Full_Name_EN : selectedOpt.textContent.replace('⭐ ', '').split(' (')[0],
+      matched ? matched.Rank : crewObj.pstn,
+      crewObj.isInstructor,
+      matched
+    );
+
     crewObj.matchedCrewId = selectEl.value;
     crewObj.matchedCrewType = selectedOpt.getAttribute('data-type') || 'Flight';
-    crewObj.matchedCrewName = selectedOpt.textContent.replace('⭐ ', '').split(' (')[0];
+    crewObj.matchedCrewName = norm.name;
+    crewObj.name = norm.name;
+    crewObj.pstn = norm.pstn;
+    crewObj.isInstructor = norm.isInstructor;
     crewObj.matchConfidence = 'exact';
   } else {
     crewObj.matchedCrewId = null;
@@ -5832,15 +6248,16 @@ function readCurrentOcrFormValues() {
 
     // Read times
     const getCrewTime = field => document.querySelector(`.ocr-time-input[data-crew-idx="${idx}"][data-field="${field}"]`)?.value || '00:00';
-    const pstn = document.querySelector(`.ocr-crew-pstn[data-crew-idx="${idx}"]`)?.value || c.pstn || 'PIC';
+    const rawPstn = document.querySelector(`.ocr-crew-pstn[data-crew-idx="${idx}"]`)?.value || c.pstn || 'PIC';
+    const isInst = !!c.isInstructor || (rawPstn && (rawPstn.toLowerCase().includes('inst') || rawPstn.toUpperCase() === 'PI'));
 
     const fltDay = getCrewTime('flightDay');
     const fltNght = getCrewTime('flightNght');
     const fltNvg = getCrewTime('flightNvg');
     let blkDay = getCrewTime('blockDay');
     let blkNght = getCrewTime('blockNght');
+    const instDay = getCrewTime('instDay');
     const instNght = getCrewTime('instNght');
-    const instDay = c.instDay || '00:00';
 
     if (parseDurationToMinutes(blkDay) < parseDurationToMinutes(fltDay)) {
       blkDay = fltDay;
@@ -5862,11 +6279,14 @@ function readCurrentOcrFormValues() {
       }
     }
 
+    const norm = normalizeFlightCrewRole(matchedName, rawPstn, isInst);
+
     return {
       crewId: matchedId,
       crewType: matchedType,
-      name: matchedName,
-      pstn: pstn,
+      name: norm.name,
+      pstn: norm.pstn,
+      isInstructor: norm.isInstructor,
       flightTime: { day: fltDay, nght: fltNght, nvg: fltNvg },
       blockTime: { day: blkDay, nght: blkNght },
       timeInstructor: { day: instDay, night: instNght },
@@ -5878,8 +6298,7 @@ function readCurrentOcrFormValues() {
       instDay: instDay,
       instNght: instNght,
       flightTask: getVal('ocr-field-task') || c.flightTask || '',
-      trainingTypes: trainingTypes,
-      isInstructor: !!c.isInstructor || (pstn && pstn.toLowerCase().includes('instr'))
+      trainingTypes: trainingTypes
     };
   });
 
@@ -5983,11 +6402,13 @@ function saveAllReadyOcrFlights() {
           if (parseDurationToMinutes(blkNght) < parseDurationToMinutes(fltNght)) blkNght = fltNght;
           const instDay = c.instDay || '00:00';
           const instNght = c.instNght || '00:00';
+          const norm = normalizeFlightCrewRole(c.matchedCrewName || c.name, c.pstn, c.isInstructor);
           return {
             crewId: c.matchedCrewId || `unassigned_${Date.now()}_${cIdx}`,
             crewType: c.matchedCrewType || 'Flight',
-            name: c.matchedCrewName || c.name || 'Unknown',
-            pstn: c.pstn || 'PIC',
+            name: norm.name,
+            pstn: norm.pstn,
+            isInstructor: norm.isInstructor,
             flightTime: { day: fltDay, nght: fltNght, nvg: fltNvg },
             blockTime: { day: blkDay, nght: blkNght },
             timeInstructor: { day: instDay, night: instNght },
@@ -6110,7 +6531,7 @@ function initOcrScanImport() {
       if (!item || !item.parsedData) return;
       if (!item.parsedData.crew) item.parsedData.crew = [];
       item.parsedData.crew.push({
-        pstn: 'PI',
+        pstn: 'SIC',
         name: 'New Crew Member',
         flightDay: '00:00',
         flightNght: '00:00',

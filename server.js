@@ -4,6 +4,14 @@ const path = require('path');
 
 const PORT = 51517;
 
+// Prevent server crash on unexpected errors
+process.on('uncaughtException', err => {
+  console.error('[SERVER ERROR] Uncaught exception:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('[SERVER ERROR] Unhandled rejection:', reason);
+});
+
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -17,8 +25,106 @@ const MIME_TYPES = {
 
 const server = http.createServer((req, res) => {
   console.log(`[${req.method}] ${req.url}`);
+
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type'
+    });
+    res.end();
+    return;
+  }
+
   // Strip query parameters from the request URL to correctly match files on disk
   const cleanUrl = req.url.split('?')[0];
+
+  // API Endpoint: Send email with PDF attachment via SMTP
+  if (req.method === 'POST' && cleanUrl === '/api/send-flight-email') {
+    let body = '';
+    let isTooLarge = false;
+
+    req.on('data', chunk => {
+      if (isTooLarge) return;
+      body += chunk;
+      // 20MB payload limit
+      if (body.length > 20 * 1024 * 1024) {
+        isTooLarge = true;
+        if (!res.headersSent) {
+          res.writeHead(413, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ success: false, error: 'Payload too large' }));
+        }
+        req.destroy();
+      }
+    });
+
+    req.on('end', () => {
+      if (isTooLarge) return;
+
+      try {
+        const { spawn } = require('child_process');
+        const scriptPath = path.join(__dirname, 'execution', 'send_email_smtp.py');
+        const pyProc = spawn('python', [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] });
+
+        let stdout = '';
+        let stderr = '';
+        let closed = false;
+
+        pyProc.on('error', err => {
+          console.error('[Email API] Failed to start python process:', err.message);
+          if (!closed && !res.headersSent) {
+            closed = true;
+            res.writeHead(500, {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            });
+            res.end(JSON.stringify({ success: false, error: 'Python execution error: ' + err.message }));
+          }
+        });
+
+        pyProc.stdin.on('error', err => {
+          console.warn('[Email API] stdin error (process may have exited early):', err.message);
+        });
+
+        pyProc.stdout.on('data', data => { stdout += data.toString('utf-8'); });
+        pyProc.stderr.on('data', data => { stderr += data.toString('utf-8'); });
+
+        pyProc.on('close', code => {
+          if (closed || res.headersSent) return;
+          closed = true;
+
+          let responseData;
+          try {
+            responseData = JSON.parse(stdout.trim());
+          } catch (e) {
+            responseData = {
+              success: code === 0,
+              message: stdout.trim() || stderr.trim() || `Exit code ${code}`
+            };
+          }
+
+          res.writeHead(responseData.success ? 200 : 500, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          });
+          res.end(JSON.stringify(responseData));
+        });
+
+        pyProc.stdin.write(body, 'utf-8');
+        pyProc.stdin.end();
+      } catch (err) {
+        if (!res.headersSent) {
+          res.writeHead(500, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          });
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        }
+      }
+    });
+    return;
+  }
   let decodedUrl;
   try {
     decodedUrl = decodeURIComponent(cleanUrl);

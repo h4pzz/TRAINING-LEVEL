@@ -533,16 +533,17 @@ export function buildFlightsMatrix(flights = []) {
   function getRankPriority(pstn, isInstructor) {
     if (!pstn) return 999;
     const pNormalized = pstn.trim().toUpperCase();
-    const isInst = !!isInstructor || pNormalized.includes('ІНСТР') || pNormalized.includes('INSTRUCTOR') || pNormalized.includes('ІНС');
-    if (pNormalized.includes('КПС') && isInst) return 1;
-    if (pNormalized === 'КПС') return 2;
-    if (pNormalized === '2П' || pNormalized === '2P') return 3;
-    if (pNormalized.includes('ІБ') && isInst) return 4;
-    if (pNormalized === 'ІБ') return 5;
-    if ((pNormalized.includes('БП-АР') || pNormalized.includes('БП-РА')) && isInst) return 6;
-    if (pNormalized === 'БП-АР' || pNormalized === 'БП-РА') return 7;
-    if (pNormalized.includes('БП') && isInst) return 8;
-    if (pNormalized === 'БП') return 9;
+    const isInst = !!isInstructor || pNormalized.includes('INST') || pNormalized.includes('ІНСТ') || pNormalized === 'PI';
+    if (pNormalized === 'PI' || ((pNormalized.includes('КПС') || pNormalized.includes('PIC')) && isInst)) return 1;
+    if (pNormalized === 'КПС' || pNormalized === 'PIC') return 2;
+    if ((pNormalized.includes('2П') || pNormalized.includes('SIC')) && isInst) return 3;
+    if (pNormalized === '2П' || pNormalized === '2P' || pNormalized === 'SIC') return 4;
+    if ((pNormalized.includes('ІБ') || pNormalized.includes('FE')) && isInst) return 5;
+    if (pNormalized === 'ІБ' || pNormalized === 'FE') return 6;
+    if ((pNormalized.includes('БП-АР') || pNormalized.includes('БП-РА') || pNormalized.includes('БПАР') || pNormalized.includes('FA-AR') || pNormalized.includes('FA-RA') || pNormalized.includes('AR')) && isInst) return 7;
+    if (pNormalized === 'БП-АР' || pNormalized === 'БП-РА' || pNormalized === 'БПАР' || pNormalized === 'FA-AR' || pNormalized === 'FA-RA') return 8;
+    if ((pNormalized.includes('БП') || pNormalized.includes('FA')) && isInst) return 9;
+    if (pNormalized === 'БП' || pNormalized === 'FA') return 10;
     return 100;
   }
 

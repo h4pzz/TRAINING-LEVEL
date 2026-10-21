@@ -265,6 +265,148 @@ export function matchCrewMember(scannedName, flightCrew = [], cabinCrew = []) {
   };
 }
 
+/**
+ * Special permanent VIP instructor definitions:
+ * - Berehovyy Serhiy, Turchyn Oleksandr, Kutko Yuriy -> ALWAYS PI
+ * - Formaniuk Iurii, Chernysh Oleksii -> ALWAYS FE inst
+ * - Aleksa Sergii, Dubinin Andrii -> ALWAYS FA-AR inst
+ */
+export const PERMANENT_INSTRUCTORS = [
+  { match: ['berehovyy', 'beregovoy', 'береговий', 'береговой'], name: 'Berehovyy Serhiy', pstn: 'PI', isInstructor: true },
+  { match: ['turchyn', 'турчин'], name: 'Turchyn Oleksandr', pstn: 'PI', isInstructor: true },
+  { match: ['kutko', 'кутько'], name: 'Kutko Yuriy', pstn: 'PI', isInstructor: true },
+  { match: ['formaniuk', 'форманюк'], name: 'Formaniuk Iurii', pstn: 'FE inst', isInstructor: true },
+  { match: ['chernysh', 'черниш'], name: 'Chernysh Oleksii', pstn: 'FE inst', isInstructor: true },
+  { match: ['aleksa', 'алекса'], name: 'Aleksa Sergii', pstn: 'FA-AR inst', isInstructor: true },
+  { match: ['dubinin', 'дубінін', 'дубинин'], name: 'Dubinin Andrii', pstn: 'FA-AR inst', isInstructor: true },
+];
+
+/**
+ * Normalizes crew member's name and position according to company standards:
+ * - Names and positions are stored strictly in English
+ * - КПС=PIC, 2П=SIC, ІБ=FE, БП=FA, БПАР/БП-АР=FA-AR
+ * - If instructor is checked: append " inst" (e.g. PIC inst, SIC inst, FE inst, FA inst, FA-AR inst)
+ * - Berehovyy Serhiy, Turchyn Oleksandr, Kutko Yuriy -> ALWAYS PI
+ * - Formaniuk Iurii, Chernysh Oleksii -> ALWAYS FE inst
+ * - Aleksa Sergii, Dubinin Andrii -> ALWAYS FA-AR inst
+ * 
+ * @param {string} rawName 
+ * @param {string} rawRankOrPstn 
+ * @param {boolean} isInstructor 
+ * @param {object} matchedMember (optional database member record)
+ * @returns {{ name: string, pstn: string, isInstructor: boolean }}
+ */
+export function normalizeFlightCrewRole(rawName, rawRankOrPstn = '', isInstructor = false, matchedMember = null) {
+  const nameStr = String(rawName || (matchedMember ? (matchedMember.Full_Name_EN || matchedMember.Full_Name_UA) : '')).trim();
+  const lowerName = nameStr.toLowerCase();
+
+  // 1. Check permanent instructors
+  for (const pi of PERMANENT_INSTRUCTORS) {
+    if (pi.match.some(m => lowerName.includes(m))) {
+      return {
+        name: pi.name,
+        pstn: pi.pstn,
+        isInstructor: true
+      };
+    }
+  }
+
+  // 2. Resolve English Name
+  let enName = nameStr;
+  if (matchedMember && matchedMember.Full_Name_EN) {
+    enName = matchedMember.Full_Name_EN.trim();
+  }
+
+  // 3. Determine if instructor flag is active
+  const pNorm = String(rawRankOrPstn || '').trim().toUpperCase();
+  const isInst = !!isInstructor || pNorm.includes('INST') || pNorm.includes('ІНСТ') || pNorm === 'PI';
+
+  // 4. Determine base position
+  let basePstn = '';
+  const memberRank = matchedMember && matchedMember.Rank ? matchedMember.Rank.trim().toUpperCase() : '';
+
+  // Clean candidate token
+  const candidate = pNorm.replace(/\s*(INST\w*|ІНСТР\w*)/gi, '').trim() || memberRank;
+  if (candidate === 'КПС' || candidate === 'PIC') {
+    basePstn = 'PIC';
+  } else if (candidate === '2П' || candidate === '2P' || candidate === 'SIC' || candidate === 'PI') {
+    basePstn = 'SIC';
+  } else if (candidate === 'ІБ' || candidate === 'FE') {
+    basePstn = 'FE';
+  } else if (candidate === 'БП-АР' || candidate === 'БП-РА' || candidate === 'БПАР' || candidate === 'FA-AR' || candidate === 'FA-RA' || candidate === 'AR') {
+    basePstn = 'FA-AR';
+  } else if (candidate === 'БП' || candidate === 'FA') {
+    basePstn = 'FA';
+  } else if (memberRank) {
+    if (memberRank === 'КПС' || memberRank === 'PIC') basePstn = 'PIC';
+    else if (memberRank === '2П' || memberRank === 'SIC') basePstn = 'SIC';
+    else if (memberRank === 'ІБ' || memberRank === 'FE') basePstn = 'FE';
+    else if (memberRank.includes('АР') || memberRank.includes('РА') || memberRank.includes('AR')) basePstn = 'FA-AR';
+    else if (memberRank.includes('БП') || memberRank.includes('FA')) basePstn = 'FA';
+    else basePstn = 'PIC';
+  } else {
+    basePstn = 'PIC';
+  }
+
+  const finalPstn = isInst ? `${basePstn} inst` : basePstn;
+
+  return {
+    name: enName,
+    pstn: finalPstn,
+    isInstructor: isInst
+  };
+}
+
+/**
+ * Maps Ukrainian company rank or abbreviations to standard aviation English positions:
+ * КПС -> PIC, 2П -> SIC, ІБ -> FE, БП -> FA, БП-АР / БП-РА / БПАР -> FA-AR.
+ * If instructor is true: appends " inst" (e.g. PIC inst).
+ * @param {string} rank 
+ * @param {boolean} isInstructor 
+ * @returns {string}
+ */
+export function mapRankToPstn(rank, isInstructor = false) {
+  if (!rank || typeof rank !== 'string') return isInstructor ? 'PIC inst' : 'PIC';
+  const r = rank.trim().toUpperCase();
+  if (r === 'PI') return 'PI';
+
+  const hasInst = isInstructor || r.includes('INST') || r.includes('ІНСТР') || r.includes('ІНС');
+
+  let base = '';
+  if (r.includes('КПС') || r.includes('PIC')) {
+    base = 'PIC';
+  } else if (r.includes('2П') || r.includes('2P') || r.includes('SIC') || r.includes('PI')) {
+    base = 'SIC';
+  } else if (r.includes('ІБ') || r.includes('FE')) {
+    base = 'FE';
+  } else if (r.includes('БП-АР') || r.includes('БП-РА') || r.includes('БПАР') || r.includes('FA-AR') || r.includes('FA-RA') || r.includes('AR')) {
+    base = 'FA-AR';
+  } else if (r.includes('БП') || r.includes('FA') || r.includes('CC')) {
+    base = 'FA';
+  } else {
+    base = r.replace(/\s*inst\w*/i, '').replace(/\s*інстр\w*/i, '').trim() || 'PIC';
+  }
+
+  return hasInst ? `${base} inst` : base;
+}
+
+/**
+ * Maps standard aviation English position back to Ukrainian company rank:
+ * PIC -> КПС, SIC -> 2П, FE -> ІБ, FA -> БП, FA-AR -> БП-АР.
+ * @param {string} pstn 
+ * @returns {string}
+ */
+export function mapPstnToRank(pstn) {
+  if (!pstn || typeof pstn !== 'string') return 'КПС';
+  const p = pstn.trim().toUpperCase();
+  if (p.includes('PIC') || p.includes('КПС')) return 'КПС';
+  if (p.includes('SIC') || p.includes('2П') || p.includes('2P') || p === 'PI') return '2П';
+  if (p.includes('FE') || p.includes('ІБ')) return 'ІБ';
+  if (p.includes('FA-AR') || p.includes('FA-RA') || p.includes('БП-АР') || p.includes('БП-РА') || p.includes('БПАР')) return 'БП-АР';
+  if (p.includes('FA') || p.includes('БП')) return 'БП';
+  return pstn;
+}
+
 // ================= GEMINI PROMPT & SCHEMA =================
 const SYSTEM_INSTRUCTION = `
 You are an expert aviation document OCR reader for "Ukrainian Helicopters".
@@ -290,8 +432,8 @@ EXTRACT INTO THIS STRICT JSON STRUCTURE:
   "totalBlockTime": "HH:MM",
   "crew": [
     {
-      "pstn": "PIC" | "PI" | "FE instr" | "AR FA instr" | "FE" | "FA",
-      "name": "Full name or initial + surname (e.g. S. Berehovyy, O. Sokurenko)",
+      "pstn": "PIC" | "SIC" | "FE" | "FA" | "FA-AR" | "PI" | "PIC inst" | "SIC inst" | "FE inst" | "FA inst" | "FA-AR inst",
+      "name": "Full English name (e.g. Berehovyy Serhiy, Sokurenko Oleksandr, Bondarenko Mykhailo, Kotsar Oleh, Turchyn Oleksandr, Kutko Yuriy, Formaniuk Iurii, Chernysh Oleksii, Aleksa Sergii, Dubinin Andrii)",
       "flightDay": "HH:MM",
       "flightNght": "HH:MM",
       "flightNvg": "HH:MM",
@@ -322,11 +464,23 @@ CRITICAL OCR RULES:
      * If flightDay is "00:00" and flightNght > "00:00", set blockNght to totalBlockTime (or >= flightNght) and blockDay to "00:00".
      * If both flightDay > 0 and flightNght > 0, distribute block time proportionally so blockDay >= flightDay and blockNght >= flightNght.
      * Block Day must NEVER be less than Flight Day, and Block Night must NEVER be less than Flight Night. If block time is missing, default blockDay = flightDay and blockNght = flightNght.
-8. Handwriting disambiguation:
-   - When reading handwritten crew names, always cross-reference them with the provided REFERENCE CREW ROSTER.
-   - Choose the known company crew member that best matches the handwritten letters (e.g. "Сокуренко" / "Sokurenko", "Коцар" / "Kotsar", "Береговий" / "Berehovyy", "Форманюк" / "Formaniuk", "Дубінін" / "Dubinin").
-   - Do NOT substitute with other names if the letters match a known person on the roster.
-9. Return ONLY valid JSON, with NO preamble or extra markdown outside the JSON.
+8. Handwriting disambiguation & English Output:
+   - Always cross-reference handwritten crew names with the provided REFERENCE CREW ROSTER.
+   - ALWAYS return crew names and positions in ENGLISH.
+9. Company Position (pstn) Mapping Rules:
+   - Standard roles:
+     * "КПС" (Командир повітряного судна) -> "PIC" (Pilot in Command)
+     * "2П" (Другий пілот) -> "SIC" (Second in Command)
+     * "ІБ" (Інженер бортовий / бортінженер) -> "FE" (Flight Engineer)
+     * "БП" (Бортпровідник) -> "FA" (Flight Attendant)
+     * "БПАР" / "БП-АР" / "БП-РА" (Бортпровідник-рятувальник) -> "FA-AR" (Flight Attendant - Aerial Rescuer)
+     * If instructor checkbox is marked or notes say instructor: append " inst" (e.g. "PIC inst", "SIC inst", "FE inst", "FA inst", "FA-AR inst") and set "isInstructor": true.
+   - MANDATORY PERMANENT ROLES:
+     * Berehovyy Serhiy, Turchyn Oleksandr, Kutko Yuriy -> ALWAYS "PI" (Pilot Instructor) and "isInstructor": true
+     * Formaniuk Iurii, Chernysh Oleksii -> ALWAYS "FE inst" and "isInstructor": true
+     * Aleksa Sergii, Dubinin Andrii -> ALWAYS "FA-AR inst" and "isInstructor": true
+   - CRITICAL PILOT PROTECTION RULE: In training flights, multiple pilots (e.g. PIC and SIC or two PICs) fly together. Check the crew member's Rank in the REFERENCE CREW ROSTER! If a crew member's Rank is "КПС", they are "PIC" (or "PIC inst"), NEVER "FE"! If a crew member's Rank is "2П", they are "SIC" (or "SIC inst"), NEVER "FE"! ONLY crew members with Rank "ІБ" can be "FE"!
+10. Return ONLY valid JSON, with NO preamble or extra markdown outside the JSON.
 `;
 
 /**
@@ -801,7 +955,8 @@ export async function processScanBatch(files, apiKey, flightCrew, cabinCrew, exi
     .map(m => {
       const en = m.Full_Name_EN || '';
       const ua = m.Full_Name_UA || '';
-      return ua ? `${en} (${ua})` : en;
+      const norm = normalizeFlightCrewRole(en, m.Rank, false, m);
+      return `${en} (${ua}) [Role: ${norm.pstn}]`;
     })
     .filter(Boolean);
   const knownCrewRoster = knownCrewList.join(', ');
@@ -838,15 +993,25 @@ export async function processScanBatch(files, apiKey, flightCrew, cabinCrew, exi
       // Auto-normalize & derive crew block times if missing or zero
       normalizeParsedFlightBlockTimes(parsedData);
       
-      // Perform crew fuzzy matching
+      // Perform crew fuzzy matching & position validation
       if (Array.isArray(parsedData.crew)) {
         parsedData.crew = parsedData.crew.map(c => {
           const match = matchCrewMember(c.name, flightCrew, cabinCrew);
+          const norm = normalizeFlightCrewRole(
+            match.matchedMember ? (match.matchedMember.Full_Name_EN || c.name) : c.name,
+            c.pstn,
+            c.isInstructor,
+            match.matchedMember
+          );
+
           return {
             ...c,
+            name: norm.name,
+            pstn: norm.pstn,
+            isInstructor: norm.isInstructor,
             matchedCrewId: match.matchedMember ? match.matchedMember.id : null,
             matchedCrewType: match.matchedMember ? match.matchedMember.crewType : 'Flight',
-            matchedCrewName: match.matchedMember ? (match.matchedMember.Full_Name_EN || match.matchedMember.Full_Name_UA) : null,
+            matchedCrewName: norm.name,
             matchConfidence: match.confidence,
             candidates: match.candidates || []
           };
