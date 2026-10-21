@@ -442,7 +442,7 @@ EXTRACT INTO THIS STRICT JSON STRUCTURE:
       "instDay": "HH:MM",
       "instNght": "HH:MM",
       "flightTask": "e.g. SPO 356/26/1",
-      "trainingTypes": ["TRI", "NVG", "LPC", "OPC", "GI_275_PRCT", "HESLO_PRCT", "HHO_PRCT", "MSB", "PALL", "Before Rotation", "Type Rating"],
+      "trainingTypes": ["TRI", "NVG", "VFR night", "LPC", "OPC", "GI_275_PRCT", "HESLO_PRCT", "HHO_PRCT", "MSB", "PALL", "Before Rotation", "Type Rating"],
       "isInstructor": true/false
     }
   ]
@@ -452,7 +452,7 @@ CRITICAL OCR RULES:
 1. Ignore empty rows or crew rows that are crossed out with a diagonal Z-strike or horizontal strike.
 2. Ditto marks: If Flight Task or Time fields have repetition marks like -"-, //, do, ditto, copy the exact value from the row directly above it!
 3. Format all times strictly as 2-digit HH:MM (e.g. "02:30", "00:00"). If a field is empty, use "00:00" for times.
-4. Detect training checkboxes: Look at the headers or handwritten notes for TRI (Type Rating Instructor), NVG (Night Vision Goggles), LPC, OPC, GI 275, HESLO, HHO, MSB, Before Rotation, Type Rating. Include all detected training types in the trainingTypes array for each crew member.
+4. Detect training checkboxes: Look at the headers or handwritten notes for TRI (Type Rating Instructor), NVG (Night Vision Goggles), VFR night (Visual Flight Rules Night), LPC, OPC, GI 275, HESLO, HHO, MSB, Before Rotation, Type Rating. Include all detected training types in the trainingTypes array for each crew member.
 5. If the document has a header date like "16.10.2026", convert it to ISO format "2026-10-16".
 6. If the helicopter registration says "UR-UHB" or similar, extract the full registration "UR-UHB".
 7. Block Time vs Flight Time rules:

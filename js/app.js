@@ -1561,6 +1561,7 @@ function renderDashboard() {
                 const lower = t.toLowerCase();
                 if (lower === 'before rotation') return 'Before Rotation';
                 if (lower === 'type rating' || lower === 'type_rating') return 'Type Rating';
+                if (lower === 'vfr night' || lower === 'vfr_night') return 'VFR night';
                 return t;
               }).join(', ')}</span>
               <span style="color:var(--text-secondary);">${c.name}</span>
@@ -2393,6 +2394,7 @@ function updateTrainingTypesLayout(cardNode, crewType) {
       { value: 'Rappel', label: 'Rappel' },
       { value: 'Hoist', label: 'Hoist' },
       { value: 'EOIR', label: 'EOIR' },
+      { value: 'VFR night', label: 'VFR night' },
       { value: 'Before Rotation', label: 'Before Rotation' },
       { value: 'Type Rating', label: 'Type Rating' }
     ];
@@ -2407,6 +2409,7 @@ function updateTrainingTypesLayout(cardNode, crewType) {
     const types = [
       { value: 'GI_275_PRCT', label: 'GI_275_PRCT' },
       { value: 'NVG', label: 'NVG' },
+      { value: 'VFR night', label: 'VFR night' },
       { value: 'HESLO_PRCT', label: 'HESLO_PRCT' },
       { value: 'FFO', label: 'FFO' },
       { value: 'LPC', label: 'LPC' },
@@ -3651,6 +3654,7 @@ function generateFlightPrintHtml(flight, autoPrint = false) {
         const lower = String(t).toLowerCase();
         if (lower === 'before rotation') return 'Before Rotation';
         if (lower === 'type rating' || lower === 'type_rating') return 'Type Rating';
+        if (lower === 'vfr night' || lower === 'vfr_night') return 'VFR night';
         return t;
       }).join(', ') || '-'}</td>
     </tr>
@@ -4202,6 +4206,9 @@ window.startEditingFlight = function(flightId) {
       }
       if (!chk && tType && (tType.toLowerCase() === 'type rating' || tType.toLowerCase() === 'type_rating')) {
         chk = card.querySelector('.crew-training-type[value="Type Rating"]') || card.querySelector('.crew-training-type[value="type rating"]');
+      }
+      if (!chk && tType && (tType.toLowerCase() === 'vfr night' || tType.toLowerCase() === 'vfr_night')) {
+        chk = card.querySelector('.crew-training-type[value="VFR night"]') || card.querySelector('.crew-training-type[value="vfr night"]');
       }
       if (chk) chk.checked = true;
     });
@@ -5686,7 +5693,7 @@ let OCR_STATE = {
 };
 
 const OCR_TRAINING_TYPES = [
-  'TRI', 'NVG', 'LPC', 'OPC', 'GI_275_PRCT', 'HESLO_PRCT', 'HHO_PRCT', 'MSB', 'PALL', 'Before Rotation', 'Type Rating'
+  'TRI', 'NVG', 'VFR night', 'LPC', 'OPC', 'GI_275_PRCT', 'HESLO_PRCT', 'HHO_PRCT', 'MSB', 'PALL', 'Before Rotation', 'Type Rating'
 ];
 
 function openOcrImportModal() {

@@ -596,6 +596,7 @@ export function buildFlightsMatrix(flights = []) {
             const lower = t.toLowerCase();
             if (lower === 'before rotation') return 'Before Rotation';
             if (lower === 'type rating' || lower === 'type_rating') return 'Type Rating';
+            if (lower === 'vfr night' || lower === 'vfr_night') return 'VFR night';
             return t;
           })
           .join(', ');
