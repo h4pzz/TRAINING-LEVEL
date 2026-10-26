@@ -1049,6 +1049,8 @@ function getFormColumnShortTitle(colKey, lang = 'uk') {
 // ================= DEFAULT APP STATE =================
 export const APP_VERSION = '0.7';
 
+let googleAccessToken = (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('google_access_token') : null);
+
 const STATE = {
   version: APP_VERSION,
   currentView: 'dashboard',
@@ -1180,15 +1182,22 @@ function updateTranslations() {
  * Saves current STATE variables to localStorage
  */
 function saveStateToStorage() {
-  localStorage.setItem('aerocheck_flight_crew', JSON.stringify(STATE.flightCrew));
-  localStorage.setItem('aerocheck_cabin_crew', JSON.stringify(STATE.cabinCrew));
-  localStorage.setItem('aerocheck_changelog', JSON.stringify(STATE.changelog));
-  localStorage.setItem('aerocheck_settings', JSON.stringify(STATE.settings));
-  localStorage.setItem('aerocheck_flights', JSON.stringify(STATE.flights));
-  localStorage.setItem('aerocheck_forms', JSON.stringify(STATE.forms));
-  localStorage.setItem('aerocheck_pdf_blanks', JSON.stringify(STATE.pdfBlanks || []));
-  localStorage.setItem('aerocheck_snapshots', JSON.stringify(STATE.snapshots));
-  localStorage.setItem('aerocheck_custom_columns', JSON.stringify(STATE.customColumns || { Flight: [], Cabin: [] }));
+  try {
+    localStorage.setItem('aerocheck_flight_crew', JSON.stringify(STATE.flightCrew));
+    localStorage.setItem('aerocheck_cabin_crew', JSON.stringify(STATE.cabinCrew));
+    localStorage.setItem('aerocheck_changelog', JSON.stringify(STATE.changelog));
+    localStorage.setItem('aerocheck_settings', JSON.stringify(STATE.settings));
+    localStorage.setItem('aerocheck_flights', JSON.stringify(STATE.flights));
+    localStorage.setItem('aerocheck_forms', JSON.stringify(STATE.forms));
+    localStorage.setItem('aerocheck_pdf_blanks', JSON.stringify(STATE.pdfBlanks || []));
+    localStorage.setItem('aerocheck_snapshots', JSON.stringify(STATE.snapshots));
+    localStorage.setItem('aerocheck_custom_columns', JSON.stringify(STATE.customColumns || { Flight: [], Cabin: [] }));
+  } catch (err) {
+    console.warn('[LocalStorage Quota Warning]', err);
+    if (err.name === 'QuotaExceededError' || err.code === 22) {
+      showToast('Попередження: пам’ять LocalStorage заповнена. Рекомендується синхронізувати з Google Drive!', 'warning');
+    }
+  }
 }
 
 /**
@@ -9315,80 +9324,90 @@ function renderPersonalPortal() {
       
       const reader = new FileReader();
       reader.onload = async (event) => {
-        const fileData = event.target.result;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> ${STATE.lang === 'uk' ? 'Збереження...' : 'Saving...'}`;
+        try {
+          const fileData = event.target.result;
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> ${STATE.lang === 'uk' ? 'Збереження...' : 'Saving...'}`;
 
-        let driveLink = null;
-        let driveFolderDesc = getMemberFolderPath(member);
+          let driveLink = null;
+          let driveFolderDesc = getMemberFolderPath(member);
 
-        const token = googleAccessToken || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('google_access_token') : null);
-        if (token) {
-          try {
-            submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> Google Drive...`;
-            const driveRes = await uploadCrewDocumentToDrive(member, selectedType, generatedFileName, fileData, token);
-            driveLink = driveRes.webViewLink;
-            driveFolderDesc = driveRes.folderPath;
-            console.log(`[Google Drive] Uploaded "${generatedFileName}" -> ${driveRes.webViewLink}`);
-          } catch (driveErr) {
-            console.warn('[Google Drive Upload Warning]', driveErr);
-            showToast(`Попередження: не вдалося завантажити на Google Drive (${driveErr.message}). Збережено локально.`, 'warning');
+          const token = googleAccessToken || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('google_access_token') : null);
+          if (token) {
+            try {
+              submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> Google Drive...`;
+              const driveRes = await uploadCrewDocumentToDrive(member, selectedType, generatedFileName, fileData, token);
+              driveLink = driveRes.webViewLink;
+              driveFolderDesc = driveRes.folderPath;
+              console.log(`[Google Drive] Uploaded "${generatedFileName}" -> ${driveRes.webViewLink}`);
+            } catch (driveErr) {
+              console.warn('[Google Drive Upload Warning]', driveErr);
+              showToast(`Попередження: не вдалося завантажити на Google Drive (${driveErr.message}). Збережено локально.`, 'warning');
+            }
           }
-        }
 
+          // Update personal table date
+          member[selectedType] = dateToSave;
+
+          // Add to crew member's scan list
+          if (!member.scans) {
+            member.scans = [];
+          }
+          member.scans.push({
+            name: selectedType,
+            fileName: generatedFileName,
+            fileData: fileData,
+            driveLink: driveLink,
+            dateAdded: new Date().toISOString().split('T')[0]
+          });
+
+          // Log to audit log
+          STATE.changelog.unshift({
+            timestamp: new Date().toISOString(),
+            userEmail: STATE.currentUser ? STATE.currentUser.email : 'admin@ukr-helicopters.ua',
+            crewMember: member.Full_Name_EN || member.Full_Name_UA,
+            crewType: member.crewType,
+            type: 'MANUAL_EDIT',
+            details: [
+              {
+                field: selectedType,
+                oldValue: 'empty',
+                newValue: dateToSave
+              },
+              {
+                field: 'scans',
+                oldValue: 'none',
+                newValue: driveLink 
+                  ? `Scanned document "${selectedType}" uploaded as "${generatedFileName}" to Google Drive: ${driveFolderDesc}`
+                  : `Scanned document "${selectedType}" saved locally as "${generatedFileName}"`
+              }
+            ]
+          });
+
+          saveStateToStorage();
+          document.getElementById('scan-modal-backdrop').classList.remove('active');
+
+          if (driveLink) {
+            showToast(STATE.lang === 'uk' ? 'Документ збережено та завантажено на Google Диск!' : 'Document saved and uploaded to Google Drive!', 'success');
+          } else {
+            showToast(STATE.lang === 'uk' ? 'Документ збережено локально. Авторизуйте Drive у Налаштуваннях для хмари!' : 'Document saved locally. Authorize Drive in Settings for cloud sync!', 'info');
+          }
+          if (notificationMsg) {
+            showToast(notificationMsg);
+          }
+          renderPersonalPortal();
+        } catch (err) {
+          console.error('[Scan Save Error]', err);
+          showToast(`Помилка збереження документа: ${err.message}`, 'error');
+        } finally {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = STATE.lang === 'uk' ? 'Сканувати' : 'Scan';
+        }
+      };
+      reader.onerror = () => {
+        showToast('Помилка читання вибраного файлу', 'error');
         submitBtn.disabled = false;
         submitBtn.innerHTML = STATE.lang === 'uk' ? 'Сканувати' : 'Scan';
-
-        // Update personal table date
-        member[selectedType] = dateToSave;
-
-        // Add to crew member's scan list
-        if (!member.scans) {
-          member.scans = [];
-        }
-        member.scans.push({
-          name: selectedType,
-          fileName: generatedFileName,
-          fileData: fileData,
-          driveLink: driveLink,
-          dateAdded: new Date().toISOString().split('T')[0]
-        });
-
-        // Log to audit log
-        STATE.changelog.unshift({
-          timestamp: new Date().toISOString(),
-          userEmail: STATE.currentUser ? STATE.currentUser.email : 'admin@ukr-helicopters.ua',
-          crewMember: member.Full_Name_EN || member.Full_Name_UA,
-          crewType: member.crewType,
-          type: 'MANUAL_EDIT',
-          details: [
-            {
-              field: selectedType,
-              oldValue: 'empty',
-              newValue: dateToSave
-            },
-            {
-              field: 'scans',
-              oldValue: 'none',
-              newValue: driveLink 
-                ? `Scanned document "${selectedType}" uploaded as "${generatedFileName}" to Google Drive: ${driveFolderDesc}`
-                : `Scanned document "${selectedType}" saved locally as "${generatedFileName}"`
-            }
-          ]
-        });
-
-        saveStateToStorage();
-        document.getElementById('scan-modal-backdrop').classList.remove('active');
-
-        if (driveLink) {
-          showToast(STATE.lang === 'uk' ? 'Документ збережено та завантажено на Google Диск!' : 'Document saved and uploaded to Google Drive!', 'success');
-        } else {
-          showToast(STATE.lang === 'uk' ? 'Документ збережено локально. Авторизуйте Drive у Налаштуваннях для хмари!' : 'Document saved locally. Authorize Drive in Settings for cloud sync!', 'info');
-        }
-        if (notificationMsg) {
-          showToast(notificationMsg);
-        }
-        renderPersonalPortal();
       };
       reader.readAsDataURL(file);
     };
@@ -11016,7 +11035,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Google Drive Authorization & Real Folder Creation Listeners
-  let googleAccessToken = (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('google_access_token') : null);
+  if (!googleAccessToken && typeof sessionStorage !== 'undefined') {
+    googleAccessToken = sessionStorage.getItem('google_access_token');
+  }
 
   const btnAuthGoogleDrive = document.getElementById('btn-auth-google-drive');
   if (btnAuthGoogleDrive) {
