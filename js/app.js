@@ -8539,15 +8539,22 @@ function renderPersonalPortal() {
   
   // Find matching crew member record by selected ID or fallback to current user email
   const allCrew = [...STATE.flightCrew, ...STATE.cabinCrew];
+  const role = STATE.currentUser ? STATE.currentUser.role : 'CREW';
+  const currentEmail = STATE.currentUser ? (STATE.currentUser.email || '').trim().toLowerCase() : '';
   let member = null;
   
-  if (STATE.selectedCrewMemberId) {
+  if (role === ROLES.CREW) {
+    // Crew member is strictly locked to their own profile matching their login email
+    member = allCrew.find(c => c.Email && c.Email.trim().toLowerCase() === currentEmail);
+    if (member) {
+      STATE.selectedCrewMemberId = member.id;
+    }
+  } else if (STATE.selectedCrewMemberId) {
     member = allCrew.find(c => String(c.id) === String(STATE.selectedCrewMemberId));
   }
   
   if (!member) {
-    const email = STATE.currentUser ? STATE.currentUser.email : '';
-    member = allCrew.find(c => c.Email && c.Email.trim().toLowerCase() === email.trim().toLowerCase()) || allCrew[0];
+    member = allCrew.find(c => c.Email && c.Email.trim().toLowerCase() === currentEmail) || allCrew[0];
   }
   
   // Render back button if admin/instructor is viewing an individual crew member portal
@@ -8762,11 +8769,11 @@ function renderPersonalPortal() {
         <div style="font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
           <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
             <i data-lucide="folder" style="width: 14px; height: 14px; color: var(--accent); flex-shrink: 0;"></i>
-            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Папка на Google Drive (${member.crewType}):</span>
+            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${STATE.lang === 'uk' ? `Папка на Google Drive (${member.crewType}):` : `Google Drive Folder (${member.crewType}):`}</span>
           </div>
           ${getMemberDriveFolderLink(member) ? `
-            <a href="${getMemberDriveFolderLink(member)}" target="_blank" rel="noopener noreferrer" style="color: var(--accent); font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0;" title="Відкрити цю папку на Google Drive">
-              <span>Відкрити</span>
+            <a href="${getMemberDriveFolderLink(member)}" target="_blank" rel="noopener noreferrer" style="color: var(--accent); font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0;" title="${STATE.lang === 'uk' ? 'Відкрити цю папку на Google Drive' : 'Open this folder in Google Drive'}">
+              <span>${STATE.lang === 'uk' ? 'Відкрити' : 'Open'}</span>
               <i data-lucide="external-link" style="width: 12px; height: 12px;"></i>
             </a>
           ` : ''}
@@ -9687,6 +9694,9 @@ function executeLogin(email, role) {
     });
     
     if (role === ROLES.CREW) {
+      const allCrew = [...STATE.flightCrew, ...STATE.cabinCrew];
+      const myMember = allCrew.find(c => c.Email && c.Email.trim().toLowerCase() === email.trim().toLowerCase());
+      STATE.selectedCrewMemberId = myMember ? myMember.id : null;
       const navFlight = document.getElementById('nav-btn-flight');
       if (navFlight) navFlight.style.display = 'none';
       const navCabin = document.getElementById('nav-btn-cabin');
