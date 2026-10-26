@@ -259,10 +259,15 @@ ${report.comment || '(без коментаря)'}
           'Pragma': 'no-cache',
           'Expires': '0'
         });
-        res.end(content, 'utf-8');
+        res.end(content);
       }
     });
   });
+});
+
+server.on('clientError', (err, socket) => {
+  if (err.code === 'ECONNRESET' || !socket.writable) return;
+  socket.end('HTTP/1.1 400 Bad Request\r\n\r\n');
 });
 
 server.listen(PORT, () => {

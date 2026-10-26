@@ -8655,11 +8655,18 @@ function renderPersonalPortal() {
     editProfileBtn.style.display = (role === ROLES.ADMIN && !STATE.isEditingPortalProfile) ? 'inline-flex' : 'none';
   }
 
-  // Show / Hide report discrepancy button
-  const reportDiscrepancyBtn = document.getElementById('btn-report-discrepancy');
-  if (reportDiscrepancyBtn) {
-    reportDiscrepancyBtn.style.display = !STATE.isEditingPortalProfile ? 'inline-flex' : 'none';
-    reportDiscrepancyBtn.onclick = () => openDiscrepancyModal(member);
+  // Wire Report Discrepancy buttons for Expiries and Additional Trainings
+  const btnReportExpiries = document.getElementById('btn-report-expiries');
+  if (btnReportExpiries) {
+    btnReportExpiries.style.display = (role === ROLES.CREW || role === ROLES.ADMIN) ? 'inline-flex' : 'none';
+    btnReportExpiries.onclick = () => openDiscrepancyModal(member, 'OPC');
+  }
+
+  const btnReportAdditional = document.getElementById('btn-report-additional');
+  if (btnReportAdditional) {
+    const defaultAddCol = member.crewType === 'Flight' ? 'GI 275_T' : 'Resc';
+    btnReportAdditional.style.display = (role === ROLES.CREW || role === ROLES.ADMIN) ? 'inline-flex' : 'none';
+    btnReportAdditional.onclick = () => openDiscrepancyModal(member, defaultAddCol);
   }
 
 

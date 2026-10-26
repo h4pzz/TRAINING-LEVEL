@@ -2055,10 +2055,6 @@
             <div class="card" id="portal-profile-card">
               <div class="portal-profile-header" style="position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: var(--spacing-3); min-height: 32px;">
                 <h3 data-i18n="portal_profile_title" style="font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 0; text-align: center; width: 100%;">Особистий профіль</h3>
-                                <button id="btn-report-discrepancy" class="btn btn-warning-outline" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); height: 32px; padding: 0 var(--spacing-2); display: none; align-items: center; gap: 6px; font-size: 12px; font-weight: 600;" title="Повідомити про неточність або надіслати нові дані">
-                  <i data-lucide="alert-triangle" style="width: 14px; height: 14px;"></i>
-                  <span data-i18n="btn_report_discrepancy">Повідомити про неточність</span>
-                </button>
                 <button id="btn-edit-portal-profile" class="btn btn-secondary" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); height: 32px; padding: 0 var(--spacing-2); display: none; align-items: center; gap: 4px;" title="Edit Profile">
                   <i data-lucide="edit-3" style="width: 14px; height: 14px;"></i>
                 </button>
@@ -2071,7 +2067,13 @@
             <div style="display: flex; flex-direction: column; gap: var(--spacing-6);">
               <!-- Qualifications & Expirations Grid -->
               <div class="card">
-                <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; text-align: center; width: 100%; margin: 0 0 var(--spacing-3) 0;" data-i18n="portal_expiries_title">Терміни дії підготовок</h3>
+                <div style="position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: var(--spacing-3); min-height: 32px;">
+                  <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; text-align: center; width: 100%; margin: 0;" data-i18n="portal_expiries_title">Терміни дії підготовок</h3>
+                  <button id="btn-report-expiries" class="btn btn-warning-outline" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); height: 30px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600;" title="Повідомити про неточність термінів підготовок">
+                    <i data-lucide="alert-triangle" style="width: 13px; height: 13px;"></i>
+                    <span data-i18n="btn_report_discrepancy">Повідомити про неточність</span>
+                  </button>
+                </div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--spacing-4);" id="portal-expiries-grid">
                   <!-- Loaded dynamically -->
                 </div>
@@ -2079,7 +2081,13 @@
               
               <!-- Additional Trainings Grid -->
               <div class="card" id="portal-additional-card">
-                <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; text-align: center; width: 100%; margin: 0 0 var(--spacing-3) 0;" data-i18n="portal_additional_title">Додаткові підготовки</h3>
+                <div style="position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: var(--spacing-3); min-height: 32px;">
+                  <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; text-align: center; width: 100%; margin: 0;" data-i18n="portal_additional_title">Додаткові підготовки</h3>
+                  <button id="btn-report-additional" class="btn btn-warning-outline" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); height: 30px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600;" title="Повідомити про неточність додаткових підготовок">
+                    <i data-lucide="alert-triangle" style="width: 13px; height: 13px;"></i>
+                    <span data-i18n="btn_report_discrepancy">Повідомити про неточність</span>
+                  </button>
+                </div>
                 <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: var(--spacing-4);" id="portal-additional-grid">
                   <!-- Loaded dynamically -->
                 </div>
@@ -2984,6 +2992,6 @@
   </div>
 
   <!-- Main SPA Application logic script -->
-  <script type="module" src="js/app.js?v=0.7.2"></script>
+  <script type="module" src="js/app.js?v=0.7.3"></script>
 </body>
 </html>
