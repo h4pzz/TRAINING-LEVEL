@@ -70,6 +70,7 @@ const TRANSLATIONS = {
     nav_forms: "Бланки",
     nav_settings: "Налаштування",
     nav_portal: "Мій кабінет",
+    nav_manual: "Мануал користувача",
     sys_date_label: "Розрахункова дата:",
     
     // Header
@@ -442,7 +443,28 @@ const TRANSLATIONS = {
     btn_save: "Зберегти зміни",
     btn_no: "Ні",
     btn_yes: "Так, видалити",
-    confirm_title: "Підтвердження дії"
+    confirm_title: "Підтвердження дії",
+    btn_report_discrepancy: "Повідомити про неточність",
+    discrepancy_modal_title: "Повідомити про неточність даних",
+    label_discrepancy_field: "Оберіть параметр або допуск:",
+    label_discrepancy_new_date: "Нова правильна дата проходження:",
+    label_discrepancy_comment: "Коментар або деталі (номер протоколу, де проходили):",
+    btn_submit_discrepancy: "Надіслати на затвердження",
+    approvals_modal_title: "Запити на верифікацію даних екіпажу",
+    tab_pending_requests: "В очікуванні",
+    tab_approvals_history: "Архів опрацьованих",
+    msg_discrepancy_submitted: "Запит надіслано на затвердження навчальному відділу!",
+    msg_discrepancy_approved: "Зміну успішно затверджено та внесено в базу!",
+    msg_discrepancy_rejected: "Запит відхилено.",
+    btn_approve_1click: "Затвердити в 1 клік",
+    btn_reject: "Відхилити",
+    btn_view_profile: "Профіль",
+    status_pending_review: "На розгляді",
+    status_approved: "Затверджено",
+    status_rejected: "Відхилено",
+    no_pending_requests: "Немає відкритих запитів на верифікацію",
+    no_history_requests: "Архів опрацьованих запитів порожній",
+
   },
   en: {
     login_title: "Sign In",
@@ -465,6 +487,7 @@ const TRANSLATIONS = {
     nav_forms: "Blank Forms",
     nav_settings: "Settings",
     nav_portal: "Personal Portal",
+    nav_manual: "User Manual",
     sys_date_label: "Reference Date:",
     
     // Header
@@ -1061,6 +1084,8 @@ const STATE = {
   cabinCrew: [],
   changelog: [],
   flights: [],
+  discrepancies: [],
+  activeApprovalsTab: "pending",
   forms: [],
   pdfBlanks: [],
   activeBlanksTab: 'flight',
@@ -1191,6 +1216,7 @@ function saveStateToStorage() {
     localStorage.setItem('aerocheck_forms', JSON.stringify(STATE.forms));
     localStorage.setItem('aerocheck_pdf_blanks', JSON.stringify(STATE.pdfBlanks || []));
     localStorage.setItem('aerocheck_snapshots', JSON.stringify(STATE.snapshots));
+    localStorage.setItem('aerocheck_discrepancies', JSON.stringify(STATE.discrepancies || []));
     localStorage.setItem('aerocheck_custom_columns', JSON.stringify(STATE.customColumns || { Flight: [], Cabin: [] }));
   } catch (err) {
     console.warn('[LocalStorage Quota Warning]', err);
@@ -8630,6 +8656,14 @@ function renderPersonalPortal() {
     editProfileBtn.style.display = (role === ROLES.ADMIN && !STATE.isEditingPortalProfile) ? 'inline-flex' : 'none';
   }
 
+  // Show / Hide report discrepancy button
+  const reportDiscrepancyBtn = document.getElementById('btn-report-discrepancy');
+  if (reportDiscrepancyBtn) {
+    reportDiscrepancyBtn.style.display = !STATE.isEditingPortalProfile ? 'inline-flex' : 'none';
+    reportDiscrepancyBtn.onclick = () => openDiscrepancyModal(member);
+  }
+
+
   // Render profile (either Edit form or static view)
   if (STATE.isEditingPortalProfile && role === ROLES.ADMIN) {
     // Generate unique Ranks and Depts from the table
@@ -8909,18 +8943,28 @@ function renderPersonalPortal() {
       const status = determineStatus(val, sysDate, ruleKey);
       const theme = CREW_COMPLIANCE_RULES.STATUS_THEME[status];
       const label = theme.label[STATE.lang];
+      const pendingReq = getPendingDiscrepancyForField(member.id, colName);
+      const isCrew = (role === ROLES.CREW);
+      const cardTitle = canEditDates 
+        ? (STATE.lang === 'uk' ? 'Натисніть на дату для редагування' : 'Click date to edit')
+        : (isCrew ? (STATE.lang === 'uk' ? 'Натисніть, щоб повідомити про оновлення чи неточність' : 'Click to report discrepancy or update') : '');
       
       expiriesGrid.insertAdjacentHTML('beforeend', `
-        <div class="portal-training-card ${canEditDates ? 'portal-training-card--editable' : ''}"
+        <div class="portal-training-card ${canEditDates ? 'portal-training-card--editable' : (isCrew ? 'portal-training-card--editable portal-training-card--crew' : '')} ${pendingReq ? 'portal-training-card--pending' : ''}"
              data-col="${colName}" data-rule="${ruleKey}"
-             ${canEditDates ? `title="${editPrompt}"` : ''}
+             ${cardTitle ? `title="${cardTitle}"` : ''}
              style="border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: var(--spacing-3); display:flex; flex-direction:column; gap:4px; align-items:center; text-align:center; background-color: var(--bg-surface-alt);">
           <div style="font-size:12px; font-weight:700; font-family:var(--font-display);">${colName}</div>
           <span class="status-badge ${theme.class}" style="font-size:10px; padding: 2px 6px;">${label}</span>
           <div style="font-size:13px; font-weight:600; margin-top:2px; display:flex; align-items:center; justify-content:center; gap:4px;">
-            <span>${val ? formatDateUa(val) : (canEditDates ? `<span style="color:var(--accent); font-size:11px; font-weight:500;">${addDateText}</span>` : '-')}</span>
-            ${canEditDates ? '<i data-lucide="edit-3" class="portal-date-edit-icon" style="width:12px; height:12px; opacity:0.5; color:var(--text-secondary);"></i>' : ''}
+            <span>${val ? formatDateUa(val) : (canEditDates ? `<span style="color:var(--accent); font-size:11px; font-weight:500;">${addDateText}</span>` : (isCrew ? `<span style="color:#f59e0b; font-size:11px; font-weight:500;">+ Вказати</span>` : '-'))}</span>
+            ${canEditDates ? '<i data-lucide="edit-3" class="portal-date-edit-icon" style="width:12px; height:12px; opacity:0.5; color:var(--text-secondary);"></i>' : (isCrew ? '<i data-lucide="alert-triangle" class="portal-date-edit-icon" style="width:12px; height:12px; opacity:0.7; color:#f59e0b;"></i>' : '')}
           </div>
+          ${pendingReq ? `
+            <div class="portal-pending-badge" title="${pendingReq.comment || ''}">
+              <span>🟡 ${STATE.lang === 'uk' ? 'Запит:' : 'Req:'} ${formatDateUa(pendingReq.proposedValue)}</span>
+            </div>
+          ` : ''}
         </div>
       `);
     }
@@ -8941,29 +8985,48 @@ function renderPersonalPortal() {
       const theme = CREW_COMPLIANCE_RULES.STATUS_THEME[status];
       const label = theme.label[STATE.lang];
       
+      const pendingAddReq = getPendingDiscrepancyForField(member.id, colName);
+      const isCrewAdd = (role === ROLES.CREW);
+      const addCardTitle = canEditDates 
+        ? (STATE.lang === 'uk' ? 'Натисніть на дату для редагування' : 'Click date to edit')
+        : (isCrewAdd ? (STATE.lang === 'uk' ? 'Натисніть, щоб повідомити про оновлення чи неточність' : 'Click to report discrepancy or update') : '');
+
       additionalGrid.insertAdjacentHTML('beforeend', `
-        <div class="portal-training-card ${canEditDates ? 'portal-training-card--editable' : ''}"
+        <div class="portal-training-card ${canEditDates ? 'portal-training-card--editable' : (isCrewAdd ? 'portal-training-card--editable portal-training-card--crew' : '')} ${pendingAddReq ? 'portal-training-card--pending' : ''}"
              data-col="${colName}" data-rule=""
-             ${canEditDates ? `title="${editPrompt}"` : ''}
+             ${addCardTitle ? `title="${addCardTitle}"` : ''}
              style="border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: var(--spacing-3); display:flex; flex-direction:column; gap:4px; align-items:center; text-align:center; background-color: var(--bg-surface-alt);">
           <div style="font-size:12px; font-weight:700; font-family:var(--font-display);">${colName}</div>
           <span class="status-badge ${theme.class}" style="font-size:10px; padding: 2px 6px;">${label}</span>
           <div style="font-size:13px; font-weight:600; margin-top:2px; display:flex; align-items:center; justify-content:center; gap:4px;">
-            <span>${val ? formatDateUa(val) : (canEditDates ? `<span style="color:var(--accent); font-size:11px; font-weight:500;">${addDateText}</span>` : '-')}</span>
-            ${canEditDates ? '<i data-lucide="edit-3" class="portal-date-edit-icon" style="width:12px; height:12px; opacity:0.5; color:var(--text-secondary);"></i>' : ''}
+            <span>${val ? formatDateUa(val) : (canEditDates ? `<span style="color:var(--accent); font-size:11px; font-weight:500;">${addDateText}</span>` : (isCrewAdd ? `<span style="color:#f59e0b; font-size:11px; font-weight:500;">+ Вказати</span>` : '-'))}</span>
+            ${canEditDates ? '<i data-lucide="edit-3" class="portal-date-edit-icon" style="width:12px; height:12px; opacity:0.5; color:var(--text-secondary);"></i>' : (isCrewAdd ? '<i data-lucide="alert-triangle" class="portal-date-edit-icon" style="width:12px; height:12px; opacity:0.7; color:#f59e0b;"></i>' : '')}
           </div>
+          ${pendingAddReq ? `
+            <div class="portal-pending-badge" title="${pendingAddReq.comment || ''}">
+              <span>🟡 ${STATE.lang === 'uk' ? 'Запит:' : 'Req:'} ${formatDateUa(pendingAddReq.proposedValue)}</span>
+            </div>
+          ` : ''}
         </div>
       `);
     });
   }
   
-  // Wire up click event on editable cards for date modification
+  // Wire up click event on editable cards for date modification or discrepancy reporting
   if (canEditDates) {
     document.querySelectorAll('.portal-training-card--editable').forEach(card => {
       card.addEventListener('click', () => {
         const colName = card.dataset.col;
         const ruleKey = card.dataset.rule;
         openPortalDateEditModal(member, colName, ruleKey);
+      });
+    });
+  } else if (role === ROLES.CREW) {
+    document.querySelectorAll('.portal-training-card--crew').forEach(card => {
+      card.addEventListener('click', () => {
+        const colName = card.dataset.col;
+        const ruleKey = card.dataset.rule;
+        openDiscrepancyModal(member, colName, ruleKey);
       });
     });
   }
@@ -9474,6 +9537,437 @@ function renderPersonalPortal() {
 /**
  * Opens modal for editing training date directly from personal portal
  */
+
+// ================= CREW DISCREPANCY & PENDING APPROVAL FUNCTIONS =================
+
+function getPendingDiscrepanciesCount() {
+  if (!Array.isArray(STATE.discrepancies)) return 0;
+  return STATE.discrepancies.filter(d => d.status === 'PENDING').length;
+}
+
+function updateNotificationsBell() {
+  const bellContainer = document.getElementById('admin-notifications-bell');
+  const countBadge = document.getElementById('notifications-count-badge');
+  const role = STATE.currentUser ? STATE.currentUser.role : 'CREW';
+  const isAdminOrOffice = (role === ROLES.ADMIN || role === ROLES.OFFICE);
+
+  if (bellContainer) {
+    bellContainer.style.display = isAdminOrOffice ? 'flex' : 'none';
+  }
+
+  const count = getPendingDiscrepanciesCount();
+  if (countBadge) {
+    if (count > 0 && isAdminOrOffice) {
+      countBadge.textContent = count > 99 ? '99+' : String(count);
+      countBadge.style.display = 'flex';
+    } else {
+      countBadge.style.display = 'none';
+    }
+  }
+
+  const tabPendingBadge = document.getElementById('tab-pending-count-badge');
+  if (tabPendingBadge) {
+    tabPendingBadge.textContent = String(count);
+  }
+}
+
+function getPendingDiscrepancyForField(memberId, fieldName) {
+  if (!Array.isArray(STATE.discrepancies) || !memberId || !fieldName) return null;
+  return STATE.discrepancies.find(d => 
+    String(d.crewMemberId) === String(memberId) && 
+    d.fieldName === fieldName && 
+    d.status === 'PENDING'
+  ) || null;
+}
+
+async function submitDiscrepancyRequest({ crewMemberId, fieldName, ruleKey, proposedValue, comment }) {
+  const allCrew = [...STATE.flightCrew, ...STATE.cabinCrew];
+  const member = allCrew.find(c => String(c.id) === String(crewMemberId));
+  if (!member) {
+    showToast(STATE.lang === 'uk' ? 'Помилка: профіль не знайдено' : 'Error: Profile not found', 'error');
+    return false;
+  }
+
+  const currentValue = member[fieldName] || '';
+  const newReq = {
+    id: 'req_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+    timestamp: new Date().toISOString(),
+    crewMemberId: member.id,
+    crewMemberName: member.Full_Name_UA || member.Full_Name_EN || 'Член екіпажу',
+    crewMemberEmail: member.Email || '',
+    crewType: member.crewType || 'Flight',
+    rank: member.Rank || '',
+    fieldName: fieldName,
+    ruleKey: ruleKey || '',
+    currentValue: String(currentValue),
+    proposedValue: String(proposedValue),
+    comment: String(comment || '').trim(),
+    status: 'PENDING'
+  };
+
+  if (!Array.isArray(STATE.discrepancies)) {
+    STATE.discrepancies = [];
+  }
+  STATE.discrepancies.unshift(newReq);
+  saveStateToStorage();
+  updateNotificationsBell();
+
+  // Try background SMTP notification
+  try {
+    fetch('/api/discrepancy-report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(newReq)
+    }).catch(e => console.warn('[Discrepancy API Warning]', e));
+  } catch(e) {}
+
+  showToast(
+    STATE.lang === 'uk' 
+      ? 'Запит надіслано на затвердження навчальному відділу!' 
+      : 'Request submitted for training department approval!', 
+    'success'
+  );
+
+  renderPersonalPortal();
+  return true;
+}
+
+function approveDiscrepancyRequest(requestId) {
+  if (!Array.isArray(STATE.discrepancies)) return;
+  const req = STATE.discrepancies.find(r => r.id === requestId);
+  if (!req || req.status !== 'PENDING') return;
+
+  const allCrew = [...STATE.flightCrew, ...STATE.cabinCrew];
+  const member = allCrew.find(c => String(c.id) === String(req.crewMemberId));
+  
+  if (member) {
+    const oldValue = member[req.fieldName] || '';
+    member[req.fieldName] = req.proposedValue;
+
+    STATE.changelog.unshift({
+      timestamp: new Date().toISOString(),
+      userEmail: STATE.currentUser ? STATE.currentUser.email : 'admin@ukr-helicopters.ua',
+      crewMember: member.Full_Name_EN || member.Full_Name_UA,
+      crewType: member.crewType,
+      type: 'CREW_VERIFIED_EDIT',
+      details: [
+        {
+          field: req.fieldName,
+          oldValue: oldValue || 'empty',
+          newValue: req.proposedValue,
+          comment: req.comment || 'Verified crew discrepancy request'
+        }
+      ]
+    });
+  }
+
+  req.status = 'APPROVED';
+  req.reviewedAt = new Date().toISOString();
+  req.reviewedBy = STATE.currentUser ? STATE.currentUser.email : 'admin@ukr-helicopters.ua';
+
+  saveStateToStorage();
+  updateNotificationsBell();
+  renderPendingApprovalsModal();
+
+  if (STATE.currentView === 'personal-portal') {
+    renderPersonalPortal();
+  }
+
+  showToast(
+    STATE.lang === 'uk' 
+      ? 'Зміну успішно затверджено та внесено в базу!' 
+      : 'Change successfully approved and updated in database!', 
+    'success'
+  );
+}
+
+function rejectDiscrepancyRequest(requestId) {
+  if (!Array.isArray(STATE.discrepancies)) return;
+  const req = STATE.discrepancies.find(r => r.id === requestId);
+  if (!req || req.status !== 'PENDING') return;
+
+  req.status = 'REJECTED';
+  req.reviewedAt = new Date().toISOString();
+  req.reviewedBy = STATE.currentUser ? STATE.currentUser.email : 'admin@ukr-helicopters.ua';
+
+  saveStateToStorage();
+  updateNotificationsBell();
+  renderPendingApprovalsModal();
+
+  if (STATE.currentView === 'personal-portal') {
+    renderPersonalPortal();
+  }
+
+  showToast(
+    STATE.lang === 'uk' 
+      ? 'Запит відхилено' 
+      : 'Request rejected', 
+    'info'
+  );
+}
+
+function openDiscrepancyModal(member, preselectedCol = null, preselectedRule = null) {
+  if (!member) return;
+
+  const modal = document.getElementById('discrepancy-modal-backdrop');
+  if (!modal) return;
+
+  // Set member header info
+  const nameEl = document.getElementById('discrepancy-member-name');
+  if (nameEl) nameEl.textContent = member.Full_Name_UA || member.Full_Name_EN || '';
+  const rankEl = document.getElementById('discrepancy-member-rank');
+  if (rankEl) rankEl.textContent = `${member.Rank || ''} • ${member.crewType || 'Crew'}`;
+  const emailEl = document.getElementById('discrepancy-member-email');
+  if (emailEl) emailEl.textContent = member.Email || '';
+
+  // Populate trainings dropdown based on member crewType
+  const trainingsGroup = document.getElementById('discrepancy-trainings-group');
+  if (trainingsGroup) {
+    trainingsGroup.innerHTML = '';
+    const crewConfig = CREW_COMPLIANCE_RULES.CREW_TYPES[member.crewType];
+    if (crewConfig && crewConfig.columnMapping) {
+      Object.keys(crewConfig.columnMapping).forEach(col => {
+        if (['Rank', 'Department', 'Name_Shrt_UA', 'Full_Name_UA', 'Full_Name_EN'].includes(col)) return;
+        const opt = document.createElement('option');
+        opt.value = col;
+        opt.textContent = col;
+        trainingsGroup.appendChild(opt);
+      });
+    }
+
+    const additionalCols = member.crewType === 'Flight' 
+      ? ['GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'FFO', 'HHO_T', 'HHO_PRCT', 'NAIROBI']
+      : ['Resc', 'Rappel', 'Hoist', 'EOIR', 'NAIROBI'];
+    additionalCols.forEach(col => {
+      const opt = document.createElement('option');
+      opt.value = col;
+      opt.textContent = col;
+      trainingsGroup.appendChild(opt);
+    });
+  }
+
+  const fieldSelect = document.getElementById('discrepancy-field-select');
+  const dateInput = document.getElementById('discrepancy-date-input');
+  const textInput = document.getElementById('discrepancy-text-input');
+  const valLabel = document.getElementById('discrepancy-val-label');
+  const commentInput = document.getElementById('discrepancy-comment');
+
+  if (commentInput) commentInput.value = '';
+
+  const updateInputMode = () => {
+    const selectedField = fieldSelect ? fieldSelect.value : '';
+    const isTextOnly = ['Phone', 'Email', 'LICENSE', 'OTHER'].includes(selectedField);
+    if (isTextOnly) {
+      if (dateInput) dateInput.style.display = 'none';
+      if (textInput) {
+        textInput.style.display = 'block';
+        textInput.value = member[selectedField] || '';
+      }
+      if (valLabel) valLabel.textContent = STATE.lang === 'uk' ? 'Нове правильне значення:' : 'New correct value:';
+    } else {
+      if (dateInput) {
+        dateInput.style.display = 'block';
+        dateInput.value = '';
+      }
+      if (textInput) textInput.style.display = 'none';
+      if (valLabel) valLabel.textContent = STATE.lang === 'uk' ? 'Нова правильна дата проходження:' : 'New correct completion date:';
+    }
+  };
+
+  if (fieldSelect) {
+    if (preselectedCol) {
+      fieldSelect.value = preselectedCol;
+    } else {
+      fieldSelect.selectedIndex = 0;
+    }
+    fieldSelect.onchange = updateInputMode;
+  }
+  updateInputMode();
+
+  // Wire submit button
+  const submitBtn = document.getElementById('btn-submit-discrepancy');
+  if (submitBtn) {
+    submitBtn.onclick = async () => {
+      const field = fieldSelect.value;
+      const isTextOnly = ['Phone', 'Email', 'LICENSE', 'OTHER'].includes(field);
+      const proposedVal = isTextOnly ? (textInput.value || '').trim() : (dateInput.value || '').trim();
+      const comment = (commentInput ? commentInput.value : '').trim();
+
+      if (!proposedVal && !comment) {
+        showToast(STATE.lang === 'uk' ? 'Вкажіть нове значення або напишіть коментар' : 'Provide new value or note', 'warning');
+        return;
+      }
+
+      await submitDiscrepancyRequest({
+        crewMemberId: member.id,
+        fieldName: field,
+        ruleKey: preselectedRule || '',
+        proposedValue: proposedVal,
+        comment: comment
+      });
+
+      modal.classList.remove('active');
+    };
+  }
+
+  // Close listeners
+  const closeBtn = document.getElementById('btn-close-discrepancy-modal');
+  if (closeBtn) closeBtn.onclick = () => modal.classList.remove('active');
+  const cancelBtn = document.getElementById('btn-cancel-discrepancy');
+  if (cancelBtn) cancelBtn.onclick = () => modal.classList.remove('active');
+
+  modal.classList.add('active');
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function openPendingApprovalsModal() {
+  const modal = document.getElementById('pending-approvals-modal-backdrop');
+  if (!modal) return;
+
+  const tabPending = document.getElementById('tab-approvals-pending');
+  const tabHistory = document.getElementById('tab-approvals-history');
+
+  if (tabPending && tabHistory) {
+    tabPending.onclick = () => {
+      STATE.activeApprovalsTab = 'pending';
+      tabPending.classList.add('active');
+      tabHistory.classList.remove('active');
+      renderPendingApprovalsModal();
+    };
+    tabHistory.onclick = () => {
+      STATE.activeApprovalsTab = 'history';
+      tabHistory.classList.add('active');
+      tabPending.classList.remove('active');
+      renderPendingApprovalsModal();
+    };
+  }
+
+  const closeBtn = document.getElementById('btn-close-approvals-modal');
+  if (closeBtn) closeBtn.onclick = () => modal.classList.remove('active');
+
+  renderPendingApprovalsModal();
+  modal.classList.add('active');
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function renderPendingApprovalsModal() {
+  const listContainer = document.getElementById('pending-approvals-list');
+  if (!listContainer) return;
+
+  listContainer.innerHTML = '';
+  const isPendingTab = STATE.activeApprovalsTab !== 'history';
+
+  const items = (STATE.discrepancies || []).filter(item => {
+    return isPendingTab ? item.status === 'PENDING' : item.status !== 'PENDING';
+  });
+
+  if (items.length === 0) {
+    const emptyMsg = isPendingTab
+      ? (STATE.lang === 'uk' ? 'Немає відкритих запитів на верифікацію 👍' : 'No pending verification requests 👍')
+      : (STATE.lang === 'uk' ? 'Архів опрацьованих запитів порожній' : 'Processed request archive is empty');
+    listContainer.innerHTML = `
+      <div style="text-align: center; padding: 40px 20px; color: var(--text-tertiary); font-size: 13px;">
+        <i data-lucide="check-circle" style="width: 32px; height: 32px; margin: 0 auto 10px auto; opacity: 0.5; color: #10b981;"></i>
+        <div>${emptyMsg}</div>
+      </div>
+    `;
+    if (window.lucide) window.lucide.createIcons();
+    return;
+  }
+
+  items.forEach(req => {
+    const isPending = req.status === 'PENDING';
+    const isApproved = req.status === 'APPROVED';
+    const timeFormatted = req.timestamp ? new Date(req.timestamp).toLocaleString('uk-UA', { dateStyle: 'short', timeStyle: 'short' }) : '-';
+
+    const card = document.createElement('div');
+    card.className = 'approval-card';
+    card.innerHTML = `
+      <div class="approval-card-header">
+        <div>
+          <div style="font-weight: 700; font-size: 13px; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+            <span>${req.crewMemberName}</span>
+            <span class="status-badge status-neutral" style="font-size: 10px;">${req.rank} • ${req.crewType}</span>
+          </div>
+          <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">
+            Параметр: <strong style="color: var(--accent);">${req.fieldName}</strong> • Подано: ${timeFormatted}
+          </div>
+        </div>
+        <div>
+          ${isPending 
+            ? '<span class="status-badge status-warning" style="font-size: 10px;">В очікуванні</span>' 
+            : (isApproved 
+                ? '<span class="status-badge status-valid" style="font-size: 10px;">Затверджено</span>' 
+                : '<span class="status-badge status-expired" style="font-size: 10px;">Відхилено</span>')}
+        </div>
+      </div>
+
+      <div class="approval-card-diff">
+        <div class="diff-col-old">
+          <div class="diff-label">Поточне значення в базі</div>
+          <div class="diff-val-old">${req.currentValue ? formatDateUa(req.currentValue) : '(пусто)'}</div>
+        </div>
+        <div class="diff-col-new">
+          <div class="diff-label">Запропоновано екіпажем</div>
+          <div class="diff-val-new">${req.proposedValue ? formatDateUa(req.proposedValue) : '(не вказано)'}</div>
+        </div>
+      </div>
+
+      ${req.comment ? `
+        <div class="approval-card-comment">
+          💬 ${req.comment}
+        </div>
+      ` : ''}
+
+      ${isPending ? `
+        <div class="approval-card-actions">
+          <button class="btn btn-secondary btn-view-crew-profile" data-id="${req.crewMemberId}" style="height: 30px; font-size: 11.5px; padding: 0 10px;">
+            <i data-lucide="user" style="width: 12px; height: 12px;"></i>
+            <span>Профіль</span>
+          </button>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn btn-secondary btn-reject-discrepancy" data-id="${req.id}" style="height: 30px; font-size: 11.5px; padding: 0 10px; color: #ef4444;">
+              <i data-lucide="x" style="width: 12px; height: 12px;"></i>
+              <span>Відхилити</span>
+            </button>
+            <button class="btn btn-primary btn-approve-discrepancy" data-id="${req.id}" style="height: 30px; font-size: 11.5px; padding: 0 12px; background: #10b981; border-color: #059669; font-weight: 600;">
+              <i data-lucide="check" style="width: 12px; height: 12px;"></i>
+              <span>Затвердити в 1 клік</span>
+            </button>
+          </div>
+        </div>
+      ` : `
+        <div style="font-size: 11px; color: var(--text-tertiary); display: flex; justify-content: space-between; border-top: 1px solid var(--border-color); padding-top: 6px;">
+          <span>Розглянув: ${req.reviewedBy || '-'}</span>
+          <span>Час: ${req.reviewedAt ? new Date(req.reviewedAt).toLocaleString('uk-UA') : '-'}</span>
+        </div>
+      `}
+    `;
+
+    // Event listeners
+    const btnApprove = card.querySelector('.btn-approve-discrepancy');
+    if (btnApprove) {
+      btnApprove.onclick = () => approveDiscrepancyRequest(req.id);
+    }
+    const btnReject = card.querySelector('.btn-reject-discrepancy');
+    if (btnReject) {
+      btnReject.onclick = () => rejectDiscrepancyRequest(req.id);
+    }
+    const btnProfile = card.querySelector('.btn-view-crew-profile');
+    if (btnProfile) {
+      btnProfile.onclick = () => {
+        document.getElementById('pending-approvals-modal-backdrop').classList.remove('active');
+        STATE.selectedCrewMemberId = req.crewMemberId;
+        switchView('personal-portal');
+      };
+    }
+
+    listContainer.appendChild(card);
+  });
+
+  if (window.lucide) window.lucide.createIcons();
+}
+
 function openPortalDateEditModal(member, colName, ruleKey) {
   if (!member || !colName) return;
 
@@ -10027,6 +10521,7 @@ async function bootstrapDatabase() {
   if (localFlight && localCabin) {
     // Load cached state
     STATE.flightCrew = JSON.parse(localFlight);
+    STATE.discrepancies = JSON.parse(localStorage.getItem('aerocheck_discrepancies') || '[]');
     STATE.cabinCrew = JSON.parse(localCabin);
     STATE.flights = JSON.parse(localStorage.getItem('aerocheck_flights') || '[]');
     
@@ -10244,6 +10739,13 @@ function initAppComponents() {
 // ================= BIND EVENT LISTENERS & INITS =================
 document.addEventListener('DOMContentLoaded', () => {
   // Switch theme toggle
+  
+  // Notifications bell toggle
+  const btnBell = document.getElementById('btn-notifications-toggle');
+  if (btnBell) {
+    btnBell.onclick = () => openPendingApprovalsModal();
+  }
+
   document.getElementById('theme-toggle').addEventListener('click', () => {
     STATE.theme = STATE.theme === 'light' ? 'dark' : 'light';
     document.documentElement.setAttribute('data-theme', STATE.theme);

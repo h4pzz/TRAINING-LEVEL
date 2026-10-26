@@ -125,6 +125,85 @@ const server = http.createServer((req, res) => {
     });
     return;
   }
+
+  // API Endpoint: Send discrepancy / pending approval email notification
+  if (req.method === 'POST' && cleanUrl === '/api/discrepancy-report') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const report = JSON.parse(body || '{}');
+        const { spawn } = require('child_process');
+        const scriptPath = path.join(__dirname, 'execution', 'send_email_smtp.py');
+
+        const emailSubject = `[AeroCheck] Запит на верифікацію даних: ${report.crewMemberName || 'Екіпаж'} (${report.fieldName || 'Дані'})`;
+        const emailBody = `СИСТЕМА КОНТРОЛЮ КВАЛІФІКАЦІЙ AEROCHECK
+--------------------------------------------------
+ЗАПИТ НА ВЕРИФІКАЦІЮ ТА ЗАТВЕРДЖЕННЯ ЗМІН
+
+Член екіпажу:  ${report.crewMemberName || '-'}
+Посада:        ${report.rank || '-'} (${report.crewType || 'Crew'})
+Email пілота:  ${report.crewMemberEmail || '-'}
+Параметр/поле: ${report.fieldName || '-'}
+
+Було в базі:   ${report.currentValue || '(не встановлено)'}
+Запропоновано: ${report.proposedValue || '(пусто)'}
+
+Коментар:
+${report.comment || '(без коментаря)'}
+
+Дата подачі:   ${report.timestamp || new Date().toISOString()}
+--------------------------------------------------
+Для підтвердження або відхилення перейдіть до адміністративної панелі AeroCheck.
+`;
+
+        const pyPayload = {
+          recipient: 'training.dept@ukr-helicopters.ua',
+          subject: emailSubject,
+          body: emailBody
+        };
+
+        const pyProc = spawn('python', [scriptPath], { stdio: ['pipe', 'pipe', 'pipe'] });
+        let stdout = '';
+        pyProc.stdout.on('data', d => { stdout += d.toString('utf-8'); });
+        pyProc.on('close', () => {
+          let emailSent = false;
+          try {
+            const parsed = JSON.parse(stdout.trim());
+            emailSent = parsed.success;
+          } catch(e) {}
+          if (!res.headersSent) {
+            res.writeHead(200, {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            });
+            res.end(JSON.stringify({ success: true, emailSent: emailSent }));
+          }
+        });
+        pyProc.on('error', () => {
+          if (!res.headersSent) {
+            res.writeHead(200, {
+              'Content-Type': 'application/json',
+              'Access-Control-Allow-Origin': '*'
+            });
+            res.end(JSON.stringify({ success: true, emailSent: false, error: 'SMTP spawn skipped' }));
+          }
+        });
+        pyProc.stdin.write(JSON.stringify(pyPayload));
+        pyProc.stdin.end();
+      } catch (err) {
+        if (!res.headersSent) {
+          res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          });
+          res.end(JSON.stringify({ success: true, emailSent: false, error: err.message }));
+        }
+      }
+    });
+    return;
+  }
+
   let decodedUrl;
   try {
     decodedUrl = decodeURIComponent(cleanUrl);
