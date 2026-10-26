@@ -264,10 +264,11 @@ export function simulateDriveSync(data, callback) {
 }
 
 /**
- * Normalizes and extracts the English name (NAME_EN) for a crew member.
- * Strictly uses Full_Name_EN or NAME_EN, with sanitize for filesystem/drive compatibility.
+ * Normalizes and extracts the English folder name for a crew member.
+ * Strictly formats as LastName_FirstName separated by an underscore "_".
+ * Illegal filesystem and cloud characters are removed.
  * @param {object} member
- * @returns {string} Clean NAME_EN string
+ * @returns {string} Clean LastName_FirstName string
  */
 export function getMemberNameEn(member) {
   if (!member) return 'UNKNOWN_MEMBER';
@@ -278,19 +279,173 @@ export function getMemberNameEn(member) {
   if (!name && member.id) {
     name = String(member.id);
   }
-  return String(name).trim().replace(/[\\/:*?"<>|]/g, '_');
+  // Remove illegal characters and replace spaces between names with an underscore "_"
+  const sanitized = String(name).trim().replace(/[\\/:*?"<>|]/g, '');
+  const parts = sanitized.split(/\s+/).filter(p => p.length > 0);
+  return parts.join('_');
 }
 
 /**
  * Returns the standardized Google Drive folder path for a crew member:
- * Google Drive / FLIGHT / [NAME_EN]  or  Google Drive / CABIN / [NAME_EN]
+ * Training level / Flight Crew / [LastName_FirstName]  or  Training level / Cabin crew / [LastName_FirstName]
  * @param {object} member
  * @returns {string} Folder path
  */
 export function getMemberFolderPath(member) {
-  const crewCategory = (member.crewType && member.crewType.toUpperCase().includes('CABIN')) ? 'CABIN' : 'FLIGHT';
+  const isCabin = (member.crewType && member.crewType.toUpperCase().includes('CABIN'));
+  const subCategory = isCabin ? 'Cabin crew' : 'Flight Crew';
   const nameEn = getMemberNameEn(member);
-  return `Google Drive / ${crewCategory} / ${nameEn}`;
+  return `Training level / ${subCategory} / ${nameEn}`;
+}
+
+/**
+ * Helper to query or create a Google Drive folder via Drive API v3
+ */
+export async function findOrCreateDriveFolder(folderName, parentFolderId = null, accessToken) {
+  const safeName = folderName.replace(/'/g, "\\'");
+  let query = `name = '${safeName}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`;
+  if (parentFolderId) {
+    query += ` and '${parentFolderId}' in parents`;
+  }
+  
+  const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(query)}&fields=files(id,name,webViewLink)&pageSize=1`;
+  const searchRes = await fetch(searchUrl, {
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  });
+  
+  if (searchRes.ok) {
+    const data = await searchRes.json();
+    if (data.files && data.files.length > 0) {
+      return data.files[0];
+    }
+  }
+  
+  const createBody = {
+    name: folderName,
+    mimeType: 'application/vnd.google-apps.folder'
+  };
+  if (parentFolderId) {
+    createBody.parents = [parentFolderId];
+  }
+  
+  const createRes = await fetch('https://www.googleapis.com/drive/v3/files?fields=id,name,webViewLink', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(createBody)
+  });
+  
+  if (!createRes.ok) {
+    const errText = await createRes.text();
+    throw new Error(`Google Drive API error (${createRes.status}): ${errText}`);
+  }
+  
+  return await createRes.json();
+}
+
+/**
+ * Creates the complete Google Drive structure:
+ * Training level
+ * ├── Flight Crew
+ * │   └── [LastName_FirstName] (149 folders)
+ * └── Cabin crew
+ *     └── [LastName_FirstName] (47 folders)
+ */
+export async function createRealDriveCrewFolders(flightCrew = [], cabinCrew = [], accessToken, onProgress = null) {
+  const total = (flightCrew || []).length + (cabinCrew || []).length + 3;
+  let currentIdx = 0;
+  
+  // 1. Root folder: Training level
+  currentIdx++;
+  onProgress?.({ step: 'root', message: 'Створення основної папки "Training level"...', current: currentIdx, total });
+  const rootFolder = await findOrCreateDriveFolder('Training level', null, accessToken);
+  
+  // 2. Subfolder: Flight Crew
+  currentIdx++;
+  onProgress?.({ step: 'subfolder', message: 'Створення папки "Flight Crew"...', current: currentIdx, total });
+  const flightFolder = await findOrCreateDriveFolder('Flight Crew', rootFolder.id, accessToken);
+  
+  // 3. Subfolder: Cabin crew
+  currentIdx++;
+  onProgress?.({ step: 'subfolder', message: 'Створення папки "Cabin crew"...', current: currentIdx, total });
+  const cabinFolder = await findOrCreateDriveFolder('Cabin crew', rootFolder.id, accessToken);
+  
+  const flightFolders = [];
+  const cabinFolders = [];
+  
+  // 4. Flight Crew members
+  for (const member of (flightCrew || [])) {
+    const folderName = getMemberNameEn(member);
+    currentIdx++;
+    onProgress?.({ 
+      step: 'member', 
+      crewType: 'Flight', 
+      name: folderName, 
+      message: `Flight Crew / ${folderName}`, 
+      current: currentIdx, 
+      total 
+    });
+    const f = await findOrCreateDriveFolder(folderName, flightFolder.id, accessToken);
+    flightFolders.push({
+      id: member.id,
+      nameEn: folderName,
+      driveId: f.id,
+      link: f.webViewLink,
+      path: `Training level / Flight Crew / ${folderName}`,
+      status: 'VERIFIED'
+    });
+  }
+  
+  // 5. Cabin crew members
+  for (const member of (cabinCrew || [])) {
+    const folderName = getMemberNameEn(member);
+    currentIdx++;
+    onProgress?.({ 
+      step: 'member', 
+      crewType: 'Cabin', 
+      name: folderName, 
+      message: `Cabin crew / ${folderName}`, 
+      current: currentIdx, 
+      total 
+    });
+    const f = await findOrCreateDriveFolder(folderName, cabinFolder.id, accessToken);
+    cabinFolders.push({
+      id: member.id,
+      nameEn: folderName,
+      driveId: f.id,
+      link: f.webViewLink,
+      path: `Training level / Cabin crew / ${folderName}`,
+      status: 'VERIFIED'
+    });
+  }
+  
+  const result = {
+    success: true,
+    total: flightFolders.length + cabinFolders.length,
+    rootFolder,
+    flightFolder,
+    cabinFolder,
+    flightFolders,
+    cabinFolders,
+    timestamp: new Date().toLocaleTimeString()
+  };
+  
+  // Save folder registry to localStorage for persistent reference
+  if (typeof localStorage !== 'undefined') {
+    localStorage.setItem('aerocheck_drive_folders_registry', JSON.stringify({
+      lastVerified: new Date().toISOString(),
+      rootFolderId: rootFolder.id,
+      rootFolderLink: rootFolder.webViewLink,
+      flightCount: flightFolders.length,
+      cabinCount: cabinFolders.length,
+      flightFolders,
+      cabinFolders
+    }));
+  }
+  
+  return result;
 }
 
 /**

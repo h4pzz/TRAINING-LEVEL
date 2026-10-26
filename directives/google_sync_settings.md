@@ -21,31 +21,33 @@ Provide seamless synchronization of aviation training compliance data, personal 
   - Smart Merge: Records merged by unique employee ID / `Full_Name_EN`.
   - Date conflict resolution: newer valid dates take precedence over older dates.
 
-## 4. Google Drive Hierarchy & Crew Folder Convention (`NAME_EN`)
+## 4. Google Drive Hierarchy & Crew Folder Convention (`LastName_FirstName`)
 To ensure strict organizational clarity across departments, all documents and files must follow this hierarchy:
 
 ```
-[Google Drive Root Folder] (e.g. "AeroCheck_Documents")
-├── FLIGHT/
-│   ├── SURKOV_VOLODYMYR/
-│   │   ├── photo.jpg
-│   │   ├── LPC_scan.pdf
-│   │   ├── MED_certificate.pdf
-│   │   └── ...
-│   ├── IVANOV_OLEKSII/
-│   └── ...
-└── CABIN/
-    ├── PETROVA_ANNA/
-    │   ├── photo.jpg
-    │   ├── CC_Type_scan.pdf
-    │   └── ...
-    ├── SYDORENKO_MARIIA/
-    └── ...
+Google Drive Root
+└── Training level/
+    ├── Flight Crew/
+    │   ├── Berehovyy_Serhiy/
+    │   │   ├── photo.jpg
+    │   │   ├── LPC_scan.pdf
+    │   │   ├── MED_certificate.pdf
+    │   │   └── ...
+    │   ├── Sokurenko_Oleksandr/
+    │   └── ... (149 individual folders)
+    └── Cabin crew/
+        ├── Aleksa_Sergii/
+        │   ├── photo.jpg
+        │   ├── CC_Type_scan.pdf
+        │   └── ...
+        ├── Dubinin_Andrii/
+        └── ... (47 individual folders)
 ```
 
 ### Folder Naming Rule:
-- Each folder inside `FLIGHT/` and `CABIN/` must be strictly named using `NAME_EN` (`member.Full_Name_EN`).
-- If `Full_Name_EN` is empty or missing, it must fall back to the transliterated English name derived from `Full_Name_UA`, or member ID.
+- Each folder inside `Flight Crew` and `Cabin crew` must be strictly named using `LastName_FirstName` separated by an underscore `_`.
+- Derived from `member.Full_Name_EN` (or fallback `Full_Name_UA`).
+- Spaces between words are converted to `_`.
 - Special filesystem characters (`/ \ : * ? " < > |`) must be sanitized.
 
 ## 5. Recommended Settings

@@ -16,7 +16,8 @@ import {
   getMemberNameEn,
   getMemberFolderPath,
   verifyAndCreateCrewFolders,
-  testGoogleConnection
+  testGoogleConnection,
+  createRealDriveCrewFolders
 } from '../execution/drive_sync.js';
 import { dispatchFlightLogEmail, dispatchFlightsWeeklyEmail, formatFlightReportText, generateFlightPdfBase64 } from '../execution/email_dispatcher.js';
 import { 
@@ -10780,6 +10781,138 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   if (btnCloseFoldersModalX && foldersModalBackdrop) {
     btnCloseFoldersModalX.addEventListener('click', () => foldersModalBackdrop.classList.remove('active'));
+  }
+
+  // Google Drive Authorization & Real Folder Creation Listeners
+  let googleAccessToken = null;
+
+  const btnAuthGoogleDrive = document.getElementById('btn-auth-google-drive');
+  if (btnAuthGoogleDrive) {
+    btnAuthGoogleDrive.addEventListener('click', () => {
+      const clientId = (document.getElementById('settings-google-client-id')?.value || STATE.settings.googleClientId || '').trim();
+      if (!clientId) {
+        showToast("Введіть OAuth 2.0 Client ID у поле вище!", "warning");
+        document.getElementById('settings-google-client-id')?.focus();
+        return;
+      }
+
+      if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+        showToast("Бібліотека Google Identity Services завантажується. Спробуйте через 2 секунди.", "warning");
+        return;
+      }
+
+      try {
+        const tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive',
+          callback: (response) => {
+            if (response.error) {
+              showToast("Помилка авторизації Google: " + response.error, "error");
+              return;
+            }
+            if (response.access_token) {
+              googleAccessToken = response.access_token;
+              STATE.settings.googleClientId = clientId;
+              STATE.settings.syncMode = 'live';
+              saveStateToStorage();
+              
+              const badge = document.getElementById('google-conn-status-badge');
+              if (badge) {
+                badge.className = 'status-badge status-valid';
+                badge.textContent = 'Google Авторизовано';
+              }
+              showToast("Успішна авторизація в Google Drive!", "success");
+            }
+          }
+        });
+        tokenClient.requestAccessToken({ prompt: 'consent' });
+      } catch (err) {
+        showToast("Помилка Google OAuth: " + err.message, "error");
+      }
+    });
+  }
+
+  const btnCreateRealDriveFolders = document.getElementById('btn-create-real-drive-folders');
+  if (btnCreateRealDriveFolders) {
+    btnCreateRealDriveFolders.addEventListener('click', async () => {
+      const clientId = (document.getElementById('settings-google-client-id')?.value || STATE.settings.googleClientId || '').trim();
+      if (!clientId) {
+        showToast("Вкажіть Google OAuth 2.0 Client ID перед створенням папок!", "warning");
+        document.getElementById('settings-google-client-id')?.focus();
+        return;
+      }
+
+      // If token not yet present, request it first
+      if (!googleAccessToken) {
+        if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+          showToast("Бібліотека Google Identity Services недоступна.", "error");
+          return;
+        }
+
+        const tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive',
+          callback: async (response) => {
+            if (response.access_token) {
+              googleAccessToken = response.access_token;
+              await runDriveFolderCreation();
+            } else if (response.error) {
+              showToast("Авторизація відхилена: " + response.error, "error");
+            }
+          }
+        });
+        tokenClient.requestAccessToken({ prompt: '' });
+        return;
+      }
+
+      await runDriveFolderCreation();
+    });
+  }
+
+  async function runDriveFolderCreation() {
+    const progressContainer = document.getElementById('drive-folders-progress-container');
+    const progressBar = document.getElementById('drive-progress-bar');
+    const progressCounter = document.getElementById('drive-progress-counter');
+    const progressStatus = document.getElementById('drive-progress-status');
+    const progressTitle = document.getElementById('drive-progress-title');
+    const folderInput = document.getElementById('settings-google-drive-folder-id');
+    const linkOpenDrive = document.getElementById('link-open-drive-root');
+
+    if (progressContainer) progressContainer.style.display = 'block';
+    if (progressTitle) progressTitle.textContent = "Створення структури на Google Drive...";
+
+    try {
+      const res = await createRealDriveCrewFolders(
+        STATE.flightCrew,
+        STATE.cabinCrew,
+        googleAccessToken,
+        (p) => {
+          if (progressCounter) progressCounter.textContent = `${p.current} / ${p.total}`;
+          if (progressBar) {
+            const pct = Math.round((p.current / p.total) * 100);
+            progressBar.style.width = `${pct}%`;
+          }
+          if (progressStatus) progressStatus.textContent = p.message || '';
+        }
+      );
+
+      if (folderInput) folderInput.value = res.rootFolder.id;
+      STATE.settings.googleDriveFolderId = res.rootFolder.id;
+      saveStateToStorage();
+
+      if (linkOpenDrive && res.rootFolder.webViewLink) {
+        linkOpenDrive.href = res.rootFolder.webViewLink;
+        linkOpenDrive.style.display = 'inline-flex';
+      }
+
+      if (progressTitle) progressTitle.textContent = "Успішно створено!";
+      if (progressStatus) progressStatus.innerHTML = `<span style="color:#10b981; font-weight:600;">Всі папки створено: Training level (${res.flightFolders.length} Flight + ${res.cabinFolders.length} Cabin)</span>`;
+      showToast(`Успішно створено папки на Google Drive для ${res.total} членів екіпажу!`, "success");
+    } catch (err) {
+      if (progressTitle) progressTitle.textContent = "Помилка створення";
+      if (progressStatus) progressStatus.innerHTML = `<span style="color:#ef4444;">${err.message}</span>`;
+      showToast("Помилка створення папок на Drive: " + err.message, "error");
+    }
   }
 
   // ================= TAB 2: PERSONNEL LISTENERS =================
