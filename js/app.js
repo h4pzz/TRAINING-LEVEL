@@ -860,7 +860,44 @@ const TRANSLATIONS = {
     btn_save: "Save Changes",
     btn_no: "No",
     btn_yes: "Yes, delete",
-    confirm_title: "Confirm Action"
+    confirm_title: "Confirm Action",
+    // Crew Discrepancy & Pending Approval
+    btn_report_discrepancy: "Report Discrepancy",
+    btn_report_discrepancy_title: "Report discrepancy or propose updated data",
+    discrepancy_modal_title: "Report Data Discrepancy",
+    label_discrepancy_field: "Select field or qualification:",
+    label_discrepancy_new_date: "New correct completion date:",
+    label_discrepancy_new_val: "New correct value:",
+    label_discrepancy_comment: "Comment or details (protocol number, location):",
+    discrepancy_comment_placeholder: "e.g., Completed simulator training in Kyiv, protocol #482/T dated 15.10.2026",
+    discrepancy_info_banner: "ℹ️ After submission, data will be marked as 'Pending' and become official once verified by the training department.",
+    btn_submit_discrepancy: "Submit for Approval",
+    approvals_modal_title: "Crew Verification Requests",
+    approvals_modal_subtitle: "Pending verification by training department",
+    tab_pending_requests: "Pending Review",
+    tab_approvals_history: "Processed Archive",
+    msg_discrepancy_submitted: "Request submitted for training department approval!",
+    msg_discrepancy_approved: "Change successfully approved and updated in database!",
+    msg_discrepancy_rejected: "Request rejected.",
+    btn_approve_1click: "Approve in 1 Click",
+    btn_reject: "Reject",
+    btn_view_profile: "Profile",
+    status_pending_review: "Pending",
+    status_approved: "Approved",
+    status_rejected: "Rejected",
+    no_pending_requests: "No pending verification requests 👍",
+    no_history_requests: "Processed request archive is empty",
+    optgroup_trainings: "Qualifications & Checks",
+    optgroup_personal: "Personal Information",
+    opt_phone: "Phone Number",
+    opt_email: "Email Address",
+    opt_license: "License Number",
+    opt_other: "Other / General Question",
+    diff_current_value: "Current Database Value",
+    diff_proposed_value: "Proposed by Crew",
+    diff_empty: "(empty)",
+    diff_not_set: "(not specified)",
+    portal_pending_req_label: "Req:",
   }
 };
 
@@ -1191,6 +1228,20 @@ function updateTranslations() {
     const key = el.getAttribute('data-i18n-placeholder');
     if (dict[key]) {
       el.setAttribute('placeholder', dict[key]);
+    }
+  });
+
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const key = el.getAttribute('data-i18n-title');
+    if (dict[key]) {
+      el.setAttribute('title', dict[key]);
+    }
+  });
+
+  document.querySelectorAll('[data-i18n-label]').forEach(el => {
+    const key = el.getAttribute('data-i18n-label');
+    if (dict[key]) {
+      el.setAttribute('label', dict[key]);
     }
   });
   

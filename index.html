@@ -2069,7 +2069,7 @@
               <div class="card">
                 <div style="position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: var(--spacing-3); min-height: 32px;">
                   <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; text-align: center; width: 100%; margin: 0;" data-i18n="portal_expiries_title">Терміни дії підготовок</h3>
-                  <button id="btn-report-expiries" class="btn btn-warning-outline" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); height: 30px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600;" title="Повідомити про неточність термінів підготовок">
+                  <button id="btn-report-expiries" class="btn btn-warning-outline" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); height: 30px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600;" data-i18n-title="btn_report_discrepancy_title" title="Повідомити про неточність термінів підготовок">
                     <i data-lucide="alert-triangle" style="width: 13px; height: 13px;"></i>
                     <span data-i18n="btn_report_discrepancy">Повідомити про неточність</span>
                   </button>
@@ -2083,7 +2083,7 @@
               <div class="card" id="portal-additional-card">
                 <div style="position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: var(--spacing-3); min-height: 32px;">
                   <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; text-align: center; width: 100%; margin: 0;" data-i18n="portal_additional_title">Додаткові підготовки</h3>
-                  <button id="btn-report-additional" class="btn btn-warning-outline" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); height: 30px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600;" title="Повідомити про неточність додаткових підготовок">
+                  <button id="btn-report-additional" class="btn btn-warning-outline" style="position: absolute; right: 0; top: 50%; transform: translateY(-50%); height: 30px; padding: 0 10px; display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600;" data-i18n-title="btn_report_discrepancy_title" title="Повідомити про неточність додаткових підготовок">
                     <i data-lucide="alert-triangle" style="width: 13px; height: 13px;"></i>
                     <span data-i18n="btn_report_discrepancy">Повідомити про неточність</span>
                   </button>
@@ -2913,14 +2913,14 @@
         <div class="form-group">
           <label style="font-weight: 600; font-size: 12px;" data-i18n="label_discrepancy_field">Оберіть параметр або допуск:</label>
           <select id="discrepancy-field-select" class="form-input" style="height: 36px; font-size: 13px;">
-            <optgroup label="Кваліфікаційні перевірки та допуски" id="discrepancy-trainings-group">
+            <optgroup label="Кваліфікаційні перевірки та допуски" id="discrepancy-trainings-group" data-i18n-label="optgroup_trainings">
               <!-- Populated dynamically -->
             </optgroup>
-            <optgroup label="Особисті дані">
-              <option value="Phone">Телефон / Phone</option>
-              <option value="Email">Email</option>
-              <option value="LICENSE">Номер свідоцтва / License No</option>
-              <option value="OTHER">Інше / Загальне питання</option>
+            <optgroup label="Особисті дані" data-i18n-label="optgroup_personal">
+              <option value="Phone" data-i18n="opt_phone">Телефон / Phone</option>
+              <option value="Email" data-i18n="opt_email">Email</option>
+              <option value="LICENSE" data-i18n="opt_license">Номер свідоцтва / License No</option>
+              <option value="OTHER" data-i18n="opt_other">Інше / Загальне питання</option>
             </optgroup>
           </select>
         </div>
@@ -2934,11 +2934,11 @@
 
         <div class="form-group">
           <label style="font-weight: 600; font-size: 12px;" data-i18n="label_discrepancy_comment">Коментар або деталі (номер протоколу, де проходили):</label>
-          <textarea id="discrepancy-comment" class="form-input" style="height: 80px; font-size: 12px; resize: vertical;" placeholder="Наприклад: Пройшов тренажер у Києві, протокол №482/Т від 15.10.2026"></textarea>
+          <textarea id="discrepancy-comment" class="form-input" style="height: 80px; font-size: 12px; resize: vertical;" data-i18n-placeholder="discrepancy_comment_placeholder" placeholder="Наприклад: Пройшов тренажер у Києві, протокол №482/Т від 15.10.2026"></textarea>
         </div>
 
         <div style="padding: 8px 10px; background: rgba(245, 158, 11, 0.1); border-left: 3px solid #f59e0b; border-radius: 4px; font-size: 11px; color: var(--text-secondary);">
-          ℹ️ Після надсилання запиту дані перейдуть у статус <strong style="color: #f59e0b;">«На розгляді»</strong> та стануть офіційними після перевірки навчальним відділом.
+          <span data-i18n="discrepancy_info_banner">ℹ️ Після надсилання запиту дані перейдуть у статус «На розгляді» та стануть офіційними після перевірки навчальним відділом.</span>
         </div>
 
         <div style="display: flex; gap: var(--spacing-2); margin-top: var(--spacing-2);">
@@ -2992,6 +2992,6 @@
   </div>
 
   <!-- Main SPA Application logic script -->
-  <script type="module" src="js/app.js?v=0.7.3"></script>
+  <script type="module" src="js/app.js?v=0.7.6"></script>
 </body>
 </html>
