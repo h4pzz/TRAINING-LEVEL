@@ -15,9 +15,12 @@ import {
   simulateDriveDocumentUpload,
   getMemberNameEn,
   getMemberFolderPath,
+  getMemberDriveFolderLink,
   verifyAndCreateCrewFolders,
   testGoogleConnection,
-  createRealDriveCrewFolders
+  createRealDriveCrewFolders,
+  uploadCrewDocumentToDrive,
+  uploadCrewPhotoToDrive
 } from '../execution/drive_sync.js';
 import { dispatchFlightLogEmail, dispatchFlightsWeeklyEmail, formatFlightReportText, generateFlightPdfBase64 } from '../execution/email_dispatcher.js';
 import { 
@@ -8747,9 +8750,17 @@ function renderPersonalPortal() {
       <div><strong>Phone:</strong> ${member.Phone || '-'}</div>
       ${member.LICENSE ? `<div><strong>License:</strong> <code>${member.LICENSE}</code></div>` : ''}
       <div style="margin-top: 8px; padding: 10px; background-color: var(--bg-surface-alt); border-radius: var(--radius-md); border: 1px solid var(--border-color); font-size: 12px; box-sizing: border-box; max-width: 100%;">
-        <div style="font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-          <i data-lucide="folder" style="width: 14px; height: 14px; color: var(--accent); flex-shrink: 0;"></i>
-          <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Папка на Google Drive (${member.crewType}):</span>
+        <div style="font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
+          <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+            <i data-lucide="folder" style="width: 14px; height: 14px; color: var(--accent); flex-shrink: 0;"></i>
+            <span style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Папка на Google Drive (${member.crewType}):</span>
+          </div>
+          ${getMemberDriveFolderLink(member) ? `
+            <a href="${getMemberDriveFolderLink(member)}" target="_blank" rel="noopener noreferrer" style="color: var(--accent); font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 3px; flex-shrink: 0;" title="Відкрити цю папку на Google Drive">
+              <span>Відкрити</span>
+              <i data-lucide="external-link" style="width: 12px; height: 12px;"></i>
+            </a>
+          ` : ''}
         </div>
         <code style="word-break: break-all; color: var(--text-primary); font-size: 11px; display: block;">${getMemberFolderPath(member)}</code>
       </div>
@@ -8974,7 +8985,16 @@ function renderPersonalPortal() {
             </div>
           </div>
           <div class="portal-doc-actions">
-            <button class="btn btn-secondary portal-doc-btn" onclick="alert('Скачування скан-копії: ${scan.fileName} ...')" title="${downloadTitle}">
+            ${scan.driveLink ? `
+            <a href="${scan.driveLink}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary portal-doc-btn" style="border-color: #10b981; color: #10b981;" title="Відкрити на Google Drive">
+              <i data-lucide="external-link" style="width: 14px; height: 14px;"></i>
+            </a>
+            ` : (scan.fileData ? `
+            <button class="btn btn-secondary portal-doc-btn btn-upload-scan-drive" data-index="${scanIdx}" style="border-color: var(--accent); color: var(--accent);" title="Завантажити на Google Drive">
+              <i data-lucide="cloud-upload" style="width: 14px; height: 14px;"></i>
+            </button>
+            ` : '')}
+            <button class="btn btn-secondary portal-doc-btn btn-download-scan" data-index="${scanIdx}" title="${downloadTitle}">
               <i data-lucide="download" style="width: 14px; height: 14px;"></i>
             </button>
             ${role === ROLES.ADMIN ? `
@@ -8987,6 +9007,52 @@ function renderPersonalPortal() {
       `);
     });
   }
+
+  // Attach download handlers for scans
+  document.querySelectorAll('.btn-download-scan').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.getAttribute('data-index'), 10);
+      const scan = member.scans[idx];
+      if (scan && scan.fileData) {
+        const a = document.createElement('a');
+        a.href = scan.fileData;
+        a.download = scan.fileName || `${scan.name}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } else {
+        showToast("Скан-копія збережена як запис без локального файлу", "warning");
+      }
+    });
+  });
+
+  // Attach upload to Drive handlers
+  document.querySelectorAll('.btn-upload-scan-drive').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const idx = parseInt(btn.getAttribute('data-index'), 10);
+      const scan = member.scans[idx];
+      if (!scan || !scan.fileData) return;
+
+      const token = googleAccessToken || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('google_access_token') : null);
+      if (!token) {
+        showToast("Будь ласка, авторизуйтеся в Google Drive у Налаштуваннях!", "warning");
+        return;
+      }
+
+      btn.disabled = true;
+      showToast(`Завантаження "${scan.fileName}" на Google Drive...`);
+      try {
+        const driveRes = await uploadCrewDocumentToDrive(member, scan.name, scan.fileName, scan.fileData, token);
+        scan.driveLink = driveRes.webViewLink;
+        saveStateToStorage();
+        showToast("Файл успішно завантажено на Google Drive!", "success");
+        renderPersonalPortal();
+      } catch (err) {
+        showToast("Помилка завантаження на Drive: " + err.message, "error");
+        btn.disabled = false;
+      }
+    });
+  });
 
   // Attach delete handlers for scans
   if (role === ROLES.ADMIN) {
@@ -9127,62 +9193,81 @@ function renderPersonalPortal() {
       const generatedFileName = `${cleanTypeName}_${cleanName}_${currentYear}${fileExt}`;
       
       const reader = new FileReader();
-      reader.onload = (event) => {
+      reader.onload = async (event) => {
         const fileData = event.target.result;
-        
-        simulateDriveDocumentUpload(member, selectedType, generatedFileName, fileData, (res) => {
-          submitBtn.disabled = false;
-          submitBtn.innerHTML = STATE.lang === 'uk' ? 'Сканувати' : 'Scan';
-          
-          if (res.success) {
-            // Update personal table date
-            member[selectedType] = dateToSave;
-            
-            // Add to crew member's scan list
-            if (!member.scans) {
-              member.scans = [];
-            }
-            member.scans.push({
-              name: selectedType,
-              fileName: generatedFileName,
-              fileData: fileData,
-              dateAdded: new Date().toISOString().split('T')[0]
-            });
-            
-            // Log to audit log
-            STATE.changelog.unshift({
-              timestamp: new Date().toISOString(),
-              userEmail: STATE.currentUser ? STATE.currentUser.email : 'admin@ukr-helicopters.ua',
-              crewMember: member.Full_Name_EN || member.Full_Name_UA,
-              crewType: member.crewType,
-              type: 'MANUAL_EDIT',
-              details: [
-                {
-                  field: selectedType,
-                  oldValue: 'empty',
-                  newValue: dateToSave
-                },
-                {
-                  field: 'scans',
-                  oldValue: 'none',
-                  newValue: `Scanned document "${selectedType}" uploaded as "${generatedFileName}" to Drive folder: ${res.folder}`
-                }
-              ]
-            });
-            
-            saveStateToStorage();
-            document.getElementById('scan-modal-backdrop').classList.remove('active');
-            
-            showToast(STATE.lang === 'uk' ? 'Документ збережено, таблицю оновлено!' : 'Document saved and table updated!');
-            if (notificationMsg) {
-              showToast(notificationMsg);
-            }
-            
-            renderPersonalPortal();
-          } else {
-            showToast(res.error || 'Scan failed', 'error');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> ${STATE.lang === 'uk' ? 'Збереження...' : 'Saving...'}`;
+
+        let driveLink = null;
+        let driveFolderDesc = getMemberFolderPath(member);
+
+        const token = googleAccessToken || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('google_access_token') : null);
+        if (token) {
+          try {
+            submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> Google Drive...`;
+            const driveRes = await uploadCrewDocumentToDrive(member, selectedType, generatedFileName, fileData, token);
+            driveLink = driveRes.webViewLink;
+            driveFolderDesc = driveRes.folderPath;
+            console.log(`[Google Drive] Uploaded "${generatedFileName}" -> ${driveRes.webViewLink}`);
+          } catch (driveErr) {
+            console.warn('[Google Drive Upload Warning]', driveErr);
+            showToast(`Попередження: не вдалося завантажити на Google Drive (${driveErr.message}). Збережено локально.`, 'warning');
           }
+        }
+
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = STATE.lang === 'uk' ? 'Сканувати' : 'Scan';
+
+        // Update personal table date
+        member[selectedType] = dateToSave;
+
+        // Add to crew member's scan list
+        if (!member.scans) {
+          member.scans = [];
+        }
+        member.scans.push({
+          name: selectedType,
+          fileName: generatedFileName,
+          fileData: fileData,
+          driveLink: driveLink,
+          dateAdded: new Date().toISOString().split('T')[0]
         });
+
+        // Log to audit log
+        STATE.changelog.unshift({
+          timestamp: new Date().toISOString(),
+          userEmail: STATE.currentUser ? STATE.currentUser.email : 'admin@ukr-helicopters.ua',
+          crewMember: member.Full_Name_EN || member.Full_Name_UA,
+          crewType: member.crewType,
+          type: 'MANUAL_EDIT',
+          details: [
+            {
+              field: selectedType,
+              oldValue: 'empty',
+              newValue: dateToSave
+            },
+            {
+              field: 'scans',
+              oldValue: 'none',
+              newValue: driveLink 
+                ? `Scanned document "${selectedType}" uploaded as "${generatedFileName}" to Google Drive: ${driveFolderDesc}`
+                : `Scanned document "${selectedType}" saved locally as "${generatedFileName}"`
+            }
+          ]
+        });
+
+        saveStateToStorage();
+        document.getElementById('scan-modal-backdrop').classList.remove('active');
+
+        if (driveLink) {
+          showToast(STATE.lang === 'uk' ? 'Документ збережено та завантажено на Google Диск!' : 'Document saved and uploaded to Google Drive!', 'success');
+        } else {
+          showToast(STATE.lang === 'uk' ? 'Документ збережено локально. Авторизуйте Drive у Налаштуваннях для хмари!' : 'Document saved locally. Authorize Drive in Settings for cloud sync!', 'info');
+        }
+        if (notificationMsg) {
+          showToast(notificationMsg);
+        }
+        renderPersonalPortal();
       };
       reader.readAsDataURL(file);
     };
@@ -10784,7 +10869,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // Google Drive Authorization & Real Folder Creation Listeners
-  let googleAccessToken = null;
+  let googleAccessToken = (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('google_access_token') : null);
 
   const btnAuthGoogleDrive = document.getElementById('btn-auth-google-drive');
   if (btnAuthGoogleDrive) {
@@ -10812,6 +10897,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             if (response.access_token) {
               googleAccessToken = response.access_token;
+              if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('google_access_token', response.access_token);
+              }
               STATE.settings.googleClientId = clientId;
               STATE.settings.syncMode = 'live';
               saveStateToStorage();
@@ -10855,6 +10943,9 @@ document.addEventListener('DOMContentLoaded', () => {
           callback: async (response) => {
             if (response.access_token) {
               googleAccessToken = response.access_token;
+              if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('google_access_token', response.access_token);
+              }
               await runDriveFolderCreation();
             } else if (response.error) {
               showToast("Авторизація відхилена: " + response.error, "error");

@@ -449,6 +449,151 @@ export async function createRealDriveCrewFolders(flightCrew = [], cabinCrew = []
 }
 
 /**
+ * Returns the web link to a member's Google Drive folder from registry if available
+ */
+export function getMemberDriveFolderLink(member) {
+  if (typeof localStorage === 'undefined') return null;
+  const regStr = localStorage.getItem('aerocheck_drive_folders_registry');
+  if (!regStr) return null;
+  try {
+    const reg = JSON.parse(regStr);
+    const isCabin = (member.crewType && member.crewType.toUpperCase().includes('CABIN'));
+    const list = isCabin ? reg.cabinFolders : reg.flightFolders;
+    const found = (list || []).find(f => String(f.id) === String(member.id));
+    return found ? found.link : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Uploads a file (Base64 data URL or Blob) to a specific Google Drive folder ID via Drive API v3 multipart upload.
+ * @param {string} folderId
+ * @param {string} fileName
+ * @param {string|Blob} fileDataUrlOrBlob
+ * @param {string} accessToken
+ * @returns {Promise<{id: string, name: string, webViewLink: string}>}
+ */
+export async function uploadFileToDriveFolder(folderId, fileName, fileDataUrlOrBlob, accessToken) {
+  let mimeType = 'application/pdf';
+  let blob;
+  
+  if (typeof fileDataUrlOrBlob === 'string' && fileDataUrlOrBlob.startsWith('data:')) {
+    const parts = fileDataUrlOrBlob.split(',');
+    const match = parts[0].match(/:(.*?);/);
+    if (match) mimeType = match[1];
+    const byteCharacters = atob(parts[1]);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    blob = new Blob([byteArray], { type: mimeType });
+  } else if (fileDataUrlOrBlob instanceof Blob) {
+    blob = fileDataUrlOrBlob;
+    mimeType = blob.type || mimeType;
+  } else {
+    throw new Error('Невірний формат файлу для завантаження на Google Drive');
+  }
+  
+  const metadata = {
+    name: fileName,
+    parents: [folderId]
+  };
+  
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', blob);
+  
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,webViewLink', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`
+    },
+    body: form
+  });
+  
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Google Drive API upload error (${res.status}): ${errText}`);
+  }
+  
+  return await res.json();
+}
+
+/**
+ * Resolves or creates the Google Drive folder ID for a specific crew member.
+ */
+export async function getOrCreateMemberDriveFolderId(member, accessToken) {
+  // 1. Check saved registry
+  if (typeof localStorage !== 'undefined') {
+    const regStr = localStorage.getItem('aerocheck_drive_folders_registry');
+    if (regStr) {
+      try {
+        const reg = JSON.parse(regStr);
+        const isCabin = (member.crewType && member.crewType.toUpperCase().includes('CABIN'));
+        const list = isCabin ? reg.cabinFolders : reg.flightFolders;
+        const found = (list || []).find(f => String(f.id) === String(member.id));
+        if (found && found.driveId) {
+          return found.driveId;
+        }
+      } catch (e) {
+        console.warn('Error reading registry:', e);
+      }
+    }
+  }
+  
+  // 2. Lookup on Drive
+  const isCabin = (member.crewType && member.crewType.toUpperCase().includes('CABIN'));
+  const subCategory = isCabin ? 'Cabin crew' : 'Flight Crew';
+  const folderName = getMemberNameEn(member);
+  
+  const root = await findOrCreateDriveFolder('Training level', null, accessToken);
+  const sub = await findOrCreateDriveFolder(subCategory, root.id, accessToken);
+  const memberFolder = await findOrCreateDriveFolder(folderName, sub.id, accessToken);
+  
+  return memberFolder.id;
+}
+
+/**
+ * Uploads a document scan copy to the crew member's personal folder on Google Drive.
+ */
+export async function uploadCrewDocumentToDrive(member, docName, fileName, fileData, accessToken) {
+  const folderId = await getOrCreateMemberDriveFolderId(member, accessToken);
+  const uploadRes = await uploadFileToDriveFolder(folderId, fileName, fileData, accessToken);
+  const folderPath = getMemberFolderPath(member);
+  
+  return {
+    success: true,
+    folderId,
+    fileId: uploadRes.id,
+    webViewLink: uploadRes.webViewLink,
+    folderPath,
+    fileName,
+    timestamp: new Date().toLocaleTimeString()
+  };
+}
+
+/**
+ * Uploads a profile photo to the crew member's personal folder on Google Drive.
+ */
+export async function uploadCrewPhotoToDrive(member, base64Data, accessToken) {
+  const folderId = await getOrCreateMemberDriveFolderId(member, accessToken);
+  const uploadRes = await uploadFileToDriveFolder(folderId, 'photo.jpg', base64Data, accessToken);
+  const folderPath = getMemberFolderPath(member);
+  
+  return {
+    success: true,
+    folderId,
+    fileId: uploadRes.id,
+    webViewLink: uploadRes.webViewLink,
+    folderPath,
+    fileName: 'photo.jpg',
+    timestamp: new Date().toLocaleTimeString()
+  };
+}
+
+/**
  * Simulates a photo upload to the crew member's personal folder on Google Drive.
  * Folder path structure: Google Drive / [FLIGHT|CABIN] / [NAME_EN]
  * 
