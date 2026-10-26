@@ -2222,7 +2222,49 @@
     </div>
   </div>
 
-  <!-- ================= ADD USER MODAL ================= -->
+    <!-- ================= DOCUMENT SCAN PREVIEW MODAL ================= -->
+  <div id="doc-preview-modal-backdrop" class="modal-backdrop">
+    <div class="modal-content" style="width: 900px; max-width: 95vw; height: 90vh; max-height: 90vh; display: flex; flex-direction: column; padding: 0; overflow: hidden; background: var(--bg-card); border: 1px solid var(--border-color); border-radius: var(--radius-lg);">
+      <div class="modal-header" style="padding: 12px 18px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background: var(--bg-surface);">
+        <div style="display: flex; align-items: center; gap: 10px; overflow: hidden;">
+          <div style="width: 32px; height: 32px; border-radius: 6px; background: rgba(37, 99, 235, 0.1); color: var(--accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+            <i data-lucide="file-text" style="width: 18px; height: 18px;"></i>
+          </div>
+          <div style="overflow: hidden;">
+            <h3 id="doc-preview-modal-title" style="font-size: 15px; font-weight: 600; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-primary);">Перегляд скан-копії</h3>
+            <span id="doc-preview-modal-filename" style="font-size: 11px; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block;"></span>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
+          <a id="doc-preview-drive-btn" href="#" target="_blank" rel="noopener noreferrer" class="btn btn-secondary" style="display: none; height: 32px; padding: 0 10px; font-size: 12px; align-items: center; gap: 4px; border-color: #10b981; color: #10b981;" title="Відкрити на Google Drive">
+            <i data-lucide="external-link" style="width: 13px; height: 13px;"></i>
+            <span>Google Drive</span>
+          </a>
+          <button type="button" class="btn btn-secondary" id="doc-preview-download-btn" style="height: 32px; padding: 0 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;" title="Завантажити файл">
+            <i data-lucide="download" style="width: 13px; height: 13px;"></i>
+            <span>Завантажити</span>
+          </button>
+          <button type="button" class="btn btn-secondary" id="doc-preview-tab-btn" style="height: 32px; padding: 0 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px;" title="Відкрити в новій вкладці">
+            <i data-lucide="maximize-2" style="width: 13px; height: 13px;"></i>
+            <span>Вкладка</span>
+          </button>
+          <button class="modal-close-btn" id="btn-close-doc-preview-modal" style="margin-left: 4px;">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+      </div>
+      <div id="doc-preview-body" style="flex: 1; background: #0f172a; display: flex; align-items: center; justify-content: center; overflow: auto; position: relative;">
+        <iframe id="doc-preview-iframe" style="width: 100%; height: 100%; border: none; display: none;"></iframe>
+        <img id="doc-preview-img" style="max-width: 100%; max-height: 100%; object-fit: contain; display: none; padding: 12px;" alt="Скан-копія">
+        <div id="doc-preview-empty" style="color: #94a3b8; text-align: center; padding: 30px; font-size: 13px;">
+          <i data-lucide="alert-circle" style="width: 40px; height: 40px; margin-bottom: 8px; opacity: 0.6;"></i>
+          <div>Файл відсутній для попереднього перегляду</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<!-- ================= ADD USER MODAL ================= -->
   <div id="user-modal-backdrop" class="modal-backdrop">
     <div class="modal-content" style="width: 440px;">
       <div class="modal-header">

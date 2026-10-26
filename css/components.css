@@ -1387,6 +1387,13 @@
   gap: 10px;
   min-width: 0;
   flex: 1;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.portal-doc-content:hover .portal-doc-title {
+  color: var(--accent);
+  text-decoration: underline;
 }
 
 .portal-doc-icon {

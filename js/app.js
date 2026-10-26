@@ -8975,7 +8975,7 @@ function renderPersonalPortal() {
       
       documentsList.insertAdjacentHTML('beforeend', `
         <div class="portal-doc-item">
-          <div class="portal-doc-content">
+          <div class="portal-doc-content btn-open-scan-content" data-index="${scanIdx}" style="cursor: pointer;" title="${STATE.lang === 'uk' ? 'Натисніть, щоб відкрити скан-копію' : 'Click to open document preview'}">
             <div class="portal-doc-icon">
               <i data-lucide="file-text" style="width: 18px; height: 18px;"></i>
             </div>
@@ -8985,6 +8985,9 @@ function renderPersonalPortal() {
             </div>
           </div>
           <div class="portal-doc-actions">
+            <button class="btn btn-secondary portal-doc-btn btn-view-scan" data-index="${scanIdx}" title="${STATE.lang === 'uk' ? 'Переглянути скан-копію' : 'View scan copy'}">
+              <i data-lucide="eye" style="width: 14px; height: 14px;"></i>
+            </button>
             ${scan.driveLink ? `
             <a href="${scan.driveLink}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary portal-doc-btn" style="border-color: #10b981; color: #10b981;" title="Відкрити на Google Drive">
               <i data-lucide="external-link" style="width: 14px; height: 14px;"></i>
@@ -9007,6 +9010,16 @@ function renderPersonalPortal() {
       `);
     });
   }
+
+  // Attach preview handlers for scans (click on row content or eye button)
+  document.querySelectorAll('.btn-open-scan-content, .btn-view-scan').forEach(el => {
+    el.addEventListener('click', (e) => {
+      if (e.target.closest('.portal-doc-actions') && !e.target.closest('.btn-view-scan')) return;
+      const idx = parseInt(el.getAttribute('data-index'), 10);
+      const scan = member.scans[idx];
+      openScanDocumentPreview(scan, member);
+    });
+  });
 
   // Attach download handlers for scans
   document.querySelectorAll('.btn-download-scan').forEach(btn => {
@@ -9081,6 +9094,114 @@ function renderPersonalPortal() {
         renderPersonalPortal();
       });
     });
+  }
+
+  /**
+   * Opens document preview modal or direct Google Drive link
+   */
+  function openScanDocumentPreview(scan, member) {
+    if (!scan) return;
+
+    // Case 1: Has fileData (local Base64 dataURL)
+    if (scan.fileData) {
+      const backdrop = document.getElementById('doc-preview-modal-backdrop');
+      const titleEl = document.getElementById('doc-preview-modal-title');
+      const filenameEl = document.getElementById('doc-preview-modal-filename');
+      const iframeEl = document.getElementById('doc-preview-iframe');
+      const imgEl = document.getElementById('doc-preview-img');
+      const emptyEl = document.getElementById('doc-preview-empty');
+      const driveBtn = document.getElementById('doc-preview-drive-btn');
+      const downloadBtn = document.getElementById('doc-preview-download-btn');
+      const tabBtn = document.getElementById('doc-preview-tab-btn');
+
+      let blobUrl = null;
+      let isPdf = false;
+      let isImage = false;
+
+      if (scan.fileData.startsWith('data:application/pdf') || (scan.fileName && scan.fileName.toLowerCase().endsWith('.pdf'))) {
+        isPdf = true;
+        try {
+          const parts = scan.fileData.split(',');
+          const b64 = parts[1] || parts[0];
+          const byteCharacters = atob(b64);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: 'application/pdf' });
+          blobUrl = URL.createObjectURL(blob);
+        } catch (e) {
+          blobUrl = scan.fileData;
+        }
+      } else if (scan.fileData.startsWith('data:image')) {
+        isImage = true;
+      }
+
+      if (!backdrop) {
+        if (blobUrl) window.open(blobUrl, '_blank');
+        else if (scan.driveLink) window.open(scan.driveLink, '_blank');
+        return;
+      }
+
+      if (titleEl) titleEl.textContent = scan.name || 'Скан-копія';
+      if (filenameEl) filenameEl.textContent = `${scan.fileName || ''} — ${member.Full_Name_EN || member.Full_Name_UA || ''}`;
+
+      if (isPdf && blobUrl) {
+        if (iframeEl) { iframeEl.src = blobUrl; iframeEl.style.display = 'block'; }
+        if (imgEl) { imgEl.style.display = 'none'; }
+        if (emptyEl) { emptyEl.style.display = 'none'; }
+      } else if (isImage) {
+        if (imgEl) { imgEl.src = scan.fileData; imgEl.style.display = 'block'; }
+        if (iframeEl) { iframeEl.style.display = 'none'; }
+        if (emptyEl) { emptyEl.style.display = 'none'; }
+      } else {
+        if (iframeEl) { iframeEl.style.display = 'none'; }
+        if (imgEl) { imgEl.style.display = 'none'; }
+        if (emptyEl) { emptyEl.style.display = 'block'; }
+      }
+
+      if (driveBtn) {
+        if (scan.driveLink) {
+          driveBtn.href = scan.driveLink;
+          driveBtn.style.display = 'inline-flex';
+        } else {
+          driveBtn.style.display = 'none';
+        }
+      }
+
+      if (downloadBtn) {
+        downloadBtn.onclick = () => {
+          const a = document.createElement('a');
+          a.href = blobUrl || scan.fileData;
+          a.download = scan.fileName || `${scan.name}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        };
+      }
+
+      if (tabBtn) {
+        tabBtn.onclick = () => {
+          if (blobUrl) window.open(blobUrl, '_blank');
+          else if (scan.driveLink) window.open(scan.driveLink, '_blank');
+          else window.open(scan.fileData, '_blank');
+        };
+      }
+
+      backdrop.classList.add('active');
+      if (window.lucide) window.lucide.createIcons();
+      return;
+    }
+
+    // Case 2: No local fileData, but has Google Drive link
+    if (scan.driveLink) {
+      window.open(scan.driveLink, '_blank');
+      return;
+    }
+
+    // Case 3: Neither
+    showToast(STATE.lang === 'uk' ? 'Цей запис не містить збереженого файлу (скан відсутній)' : 'No file data available for this scan', 'warning');
   }
 
   // Show / Hide scan button for admin
@@ -10867,6 +10988,32 @@ document.addEventListener('DOMContentLoaded', () => {
   if (btnCloseFoldersModalX && foldersModalBackdrop) {
     btnCloseFoldersModalX.addEventListener('click', () => foldersModalBackdrop.classList.remove('active'));
   }
+
+  // Document scan preview modal close listeners
+  const btnCloseDocPreview = document.getElementById('btn-close-doc-preview-modal');
+  const docPreviewBackdrop = document.getElementById('doc-preview-modal-backdrop');
+  const closeDocPreviewModal = () => {
+    if (docPreviewBackdrop) docPreviewBackdrop.classList.remove('active');
+    const iframeEl = document.getElementById('doc-preview-iframe');
+    if (iframeEl) iframeEl.src = '';
+    const imgEl = document.getElementById('doc-preview-img');
+    if (imgEl) imgEl.src = '';
+  };
+  if (btnCloseDocPreview) {
+    btnCloseDocPreview.addEventListener('click', closeDocPreviewModal);
+  }
+  if (docPreviewBackdrop) {
+    docPreviewBackdrop.addEventListener('click', (e) => {
+      if (e.target === docPreviewBackdrop) {
+        closeDocPreviewModal();
+      }
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && docPreviewBackdrop && docPreviewBackdrop.classList.contains('active')) {
+      closeDocPreviewModal();
+    }
+  });
 
   // Google Drive Authorization & Real Folder Creation Listeners
   let googleAccessToken = (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('google_access_token') : null);
