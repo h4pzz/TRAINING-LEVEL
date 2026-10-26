@@ -180,7 +180,8 @@ ${report.comment || '(без коментаря)'}
             res.end(JSON.stringify({ success: true, emailSent: emailSent }));
           }
         });
-        pyProc.on('error', () => {
+        pyProc.on('error', (err) => {
+          console.warn('[Discrepancy Email] Spawn error:', err.message);
           if (!res.headersSent) {
             res.writeHead(200, {
               'Content-Type': 'application/json',
@@ -189,8 +190,17 @@ ${report.comment || '(без коментаря)'}
             res.end(JSON.stringify({ success: true, emailSent: false, error: 'SMTP spawn skipped' }));
           }
         });
-        pyProc.stdin.write(JSON.stringify(pyPayload));
-        pyProc.stdin.end();
+
+        pyProc.stdin.on('error', (err) => {
+          console.warn('[Discrepancy Email] stdin error:', err.message);
+        });
+
+        try {
+          pyProc.stdin.write(JSON.stringify(pyPayload));
+          pyProc.stdin.end();
+        } catch (writeErr) {
+          console.warn('[Discrepancy Email] write error:', writeErr.message);
+        }
       } catch (err) {
         if (!res.headersSent) {
           res.writeHead(200, {
