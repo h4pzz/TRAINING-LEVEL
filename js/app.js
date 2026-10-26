@@ -8587,7 +8587,6 @@ function renderPersonalPortal() {
   const backContainer = document.getElementById('portal-back-btn-container');
   backContainer.innerHTML = '';
   
-  const role = STATE.currentUser ? STATE.currentUser.role : 'CREW';
   if ((role === ROLES.ADMIN || role === ROLES.INSTRUCTOR || role === ROLES.OFFICE) && STATE.selectedCrewMemberId) {
     const backBtnText = STATE.lang === 'uk' ? 'Назад до списку' : 'Back to list';
     backContainer.innerHTML = `
