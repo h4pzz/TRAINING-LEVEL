@@ -1,3 +1,4 @@
+import { initRouter, navigateTo, getRouteByView, ROUTES, canAccessRoute } from './router.js';
 import { CREW_COMPLIANCE_RULES, isExpiring } from '../execution/compliance_rules.js';
 import { parseCrewXlsx } from '../execution/excel_parser.js';
 import { mergeCrewData } from '../execution/data_merger.js';
@@ -67,7 +68,8 @@ const TRANSLATIONS = {
     nav_flight_crew: "Льотний склад",
     nav_cabin_crew: "Кабінний склад",
     nav_training_flights: "Тренувальні польоти",
-    nav_forms: "Бланки",
+    nav_blanks: "Бланки",
+    nav_forms: "Форми",
     nav_settings: "Налаштування",
     nav_portal: "Мій кабінет",
     nav_manual: "Мануал користувача",
@@ -83,8 +85,12 @@ const TRANSLATIONS = {
     title_flight_crew: "Льотний склад",
     title_cabin_crew: "Кабінний склад",
     title_training_flights: "Тренувальні польоти",
-    title_forms: "Бланки",
+    title_blanks: "Бланки для друку",
+    title_forms: "Інтерактивні форми",
     title_settings: "Налаштування",
+    blanks_list_title: "Каталог бланків для друку",
+    blanks_list_desc: "Оригінальні та стандартизовані PDF бланки та шаблони для польотів і чергувань.",
+    badge_office_readonly: "Режим перегляду (Офіс)",
     title_portal: "Особистий кабінет",
     
     // KPI Cards
@@ -484,7 +490,8 @@ const TRANSLATIONS = {
     nav_flight_crew: "Flight Crew",
     nav_cabin_crew: "Cabin Crew",
     nav_training_flights: "Training Flights",
-    nav_forms: "Blank Forms",
+    nav_blanks: "Printable Blanks",
+    nav_forms: "Smart Forms",
     nav_settings: "Settings",
     nav_portal: "Personal Portal",
     nav_manual: "User Manual",
@@ -1303,7 +1310,10 @@ function showToast(message, type = 'success') {
 /**
  * Coordinates routing and displays the requested section
  */
-function switchView(viewName) {
+/**
+ * Core internal view switcher (DOM toggling & view rendering)
+ */
+function executeViewSwitch(viewName) {
   if (viewName !== 'personal-portal') {
     STATE.selectedCrewMemberId = null;
   }
@@ -1313,7 +1323,7 @@ function switchView(viewName) {
     const role = STATE.currentUser.role;
     if (role === ROLES.CREW && viewName !== 'personal-portal') {
       viewName = 'personal-portal';
-    } else if (role === ROLES.OFFICE && ['settings', 'training-flights'].includes(viewName)) {
+    } else if (role === ROLES.OFFICE && viewName === 'settings') {
       viewName = 'dashboard';
     } else if (role === ROLES.INSTRUCTOR && viewName === 'settings') {
       viewName = 'dashboard';
@@ -1369,6 +1379,8 @@ function switchView(viewName) {
     renderPersonalPortal();
   } else if (viewName === 'training-flights') {
     renderTrainingFlightsForm();
+  } else if (viewName === 'blanks') {
+    renderBlanks();
   } else if (viewName === 'forms') {
     renderForms();
   }
@@ -1376,6 +1388,21 @@ function switchView(viewName) {
   // Re-initialize Lucide Icons
   if (window.lucide) {
     window.lucide.createIcons();
+  }
+}
+
+// Make accessible to router
+window.executeViewSwitch = executeViewSwitch;
+
+/**
+ * Public switchView: triggers navigateTo so URL updates in address bar
+ */
+function switchView(viewName) {
+  const route = getRouteByView(viewName);
+  if (route && route.path) {
+    navigateTo(route.path);
+  } else {
+    executeViewSwitch(viewName);
   }
 }
 
@@ -4316,6 +4343,25 @@ function renderTrainingFlightsForm() {
   if (!container) return;
   container.innerHTML = '';
   
+  // Check OFFICE role
+  const role = STATE.currentUser ? STATE.currentUser.role : 'ADMIN';
+  const isOffice = role === ROLES.OFFICE;
+  const officeBadge = document.getElementById('flights-office-readonly-badge');
+  if (officeBadge) {
+    officeBadge.style.display = isOffice ? 'inline-flex' : 'none';
+  }
+
+  const btnTabEntry = document.getElementById('btn-flights-tab-entry');
+  const btnImportAi = document.getElementById('btn-import-scans-ai');
+  if (isOffice) {
+    if (btnTabEntry) btnTabEntry.style.display = 'none';
+    if (btnImportAi) btnImportAi.style.display = 'none';
+    switchTrainingFlightsTab('archive');
+  } else {
+    if (btnTabEntry) btnTabEntry.style.display = 'inline-flex';
+    if (btnImportAi) btnImportAi.style.display = 'inline-flex';
+  }
+
   // Clear edit mode
   STATE.editingFlightId = null;
   const banner = document.getElementById('flight-editing-banner');
@@ -7631,6 +7677,169 @@ function getFormTargetTab(form) {
  * Tabs: 'flight' (Льотний екіпаж), 'cabin' (Кабінний екіпаж), 'forms' (Форми)
  * Only ADMIN has rights to upload/manage blanks
  */
+/**
+ * Renders the dedicated Printable Blanks catalog (#view-blanks)
+ */
+function renderBlanks() {
+  const container = document.getElementById('blanks-list-container');
+  if (!container) return;
+
+  const role = STATE.currentUser ? STATE.currentUser.role : 'ADMIN';
+  const isAdmin = role === ROLES.ADMIN;
+
+  const btnQuickUploadPdf = document.getElementById('btn-blanks-quick-upload-pdf');
+  if (btnQuickUploadPdf) {
+    btnQuickUploadPdf.style.display = isAdmin ? 'inline-flex' : 'none';
+    btnQuickUploadPdf.onclick = () => {
+      switchView('settings');
+      activateSettingsTab('forms');
+      document.getElementById('settings-pdf-upload-card')?.scrollIntoView({ behavior: 'smooth' });
+    };
+  }
+
+  if (!STATE.activeBlanksTab) {
+    STATE.activeBlanksTab = 'flight';
+  }
+  const currentTab = STATE.activeBlanksTab;
+
+  document.querySelectorAll('.blanks-tab-btn').forEach(btn => {
+    const tabKey = btn.getAttribute('data-blanks-tab');
+    btn.classList.toggle('active', tabKey === currentTab);
+    btn.onclick = () => {
+      STATE.activeBlanksTab = tabKey;
+      renderBlanks();
+    };
+  });
+
+  const allPdfs = STATE.pdfBlanks || [];
+  const flightCount = allPdfs.filter(b => b.targetTab === 'flight').length;
+  const cabinCount = allPdfs.filter(b => b.targetTab === 'cabin').length;
+  const formsCount = allPdfs.filter(b => b.targetTab === 'forms').length;
+
+  const bFlight = document.getElementById('blanks-tab-count-flight');
+  if (bFlight) bFlight.textContent = flightCount;
+  const bCabin = document.getElementById('blanks-tab-count-cabin');
+  if (bCabin) bCabin.textContent = cabinCount;
+  const bForms = document.getElementById('blanks-tab-count-forms');
+  if (bForms) bForms.textContent = formsCount;
+
+  const tabPdfs = allPdfs.filter(b => b.targetTab === currentTab);
+  container.innerHTML = '';
+
+  if (tabPdfs.length === 0) {
+    const emptyMsg = STATE.lang === 'uk' ? 'У цій вкладці ще немає завантажених PDF бланків.' : 'No PDF blanks in this tab yet.';
+    container.innerHTML = `
+      <div style="text-align: center; color: var(--text-secondary); padding: 40px 20px; background: var(--bg-surface-alt); border-radius: var(--radius-md); border: 1px dashed var(--border-color);">
+        <div style="font-size: 14px; font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">${emptyMsg}</div>
+        ${isAdmin ? `
+          <button class="btn btn-primary btn-sm btn-quick-jump-upload" style="height: 32px; font-size: 12px; margin-top: 10px;">
+            <i data-lucide="file-up" style="width: 14px; height: 14px;"></i>
+            <span>Завантажити PDF бланк</span>
+          </button>
+        ` : ''}
+      </div>
+    `;
+
+    container.querySelectorAll('.btn-quick-jump-upload').forEach(btn => {
+      btn.addEventListener('click', () => {
+        switchView('settings');
+        activateSettingsTab('forms');
+      });
+    });
+
+    if (window.lucide) window.lucide.createIcons();
+    return;
+  }
+
+  tabPdfs.forEach(pdfBlank => {
+    const card = document.createElement('div');
+    card.className = 'blank-card-item blank-card-pdf';
+    card.innerHTML = `
+      <div class="blank-card-header-row">
+        <div class="blank-card-meta">
+          <div class="pdf-icon-box">
+            <i data-lucide="file-text" style="width: 22px; height: 22px;"></i>
+          </div>
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+              <strong style="font-size: 15px; color: var(--text-primary);">${pdfBlank.name}</strong>
+              <span class="status-badge status-neutral" style="font-size: 10px; font-weight: 700;">${pdfBlank.code || 'PDF'}</span>
+              <span class="pdf-badge-tag"><i data-lucide="file-check" style="width:11px; height:11px;"></i> ${TRANSLATIONS[STATE.lang].badge_pdf_blank || 'PDF БЛАНК'}</span>
+              <span class="status-badge status-neutral" style="font-size: 10px;">${formatFileSize(pdfBlank.fileSize)}</span>
+            </div>
+            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 3px;">
+              ${pdfBlank.description || (STATE.lang === 'uk' ? 'Стандартний PDF бланк для друку' : 'Standard printable PDF')} • ${pdfBlank.fileName || 'document.pdf'} ${pdfBlank.uploadDate ? ` • ${new Date(pdfBlank.uploadDate).toLocaleDateString()}` : ''}
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <button class="btn btn-primary btn-view-pdf-blank" data-pdf-id="${pdfBlank.id}" style="height: 36px;">
+            <i data-lucide="eye"></i>
+            <span>${TRANSLATIONS[STATE.lang].btn_view_pdf || 'Відкрити PDF'}</span>
+          </button>
+          <button class="btn btn-secondary btn-download-pdf-blank" data-pdf-id="${pdfBlank.id}" style="height: 36px; padding: 0 12px;" title="${TRANSLATIONS[STATE.lang].btn_download_file || 'Завантажити файл'}">
+            <i data-lucide="download" style="width: 14px; height: 14px;"></i>
+            <span>${TRANSLATIONS[STATE.lang].btn_download_file || 'Завантажити'}</span>
+          </button>
+          ${isAdmin ? `
+          <button class="btn btn-secondary btn-delete-pdf-blank" data-pdf-id="${pdfBlank.id}" style="height: 36px; padding: 0 10px; color: var(--badge-expired-color);" title="${TRANSLATIONS[STATE.lang].btn_delete_blank || 'Видалити бланк'}">
+            <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+          </button>
+          ` : ''}
+        </div>
+      </div>
+    `;
+    container.appendChild(card);
+  });
+
+  // Attach handlers for view/download/delete
+  attachPdfBlankActions(container);
+  if (window.lucide) window.lucide.createIcons();
+}
+
+/**
+ * Attaches event listeners for PDF blanks
+ */
+function attachPdfBlankActions(container) {
+  container.querySelectorAll('.btn-view-pdf-blank').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-pdf-id');
+      const blank = (STATE.pdfBlanks || []).find(b => b.id === id);
+      if (blank) openPdfViewerModal(blank);
+    });
+  });
+
+  container.querySelectorAll('.btn-download-pdf-blank').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-pdf-id');
+      const blank = (STATE.pdfBlanks || []).find(b => b.id === id);
+      if (blank && blank.data) {
+        const a = document.createElement('a');
+        a.href = blank.data;
+        a.download = blank.fileName || `${blank.code || 'blank'}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    });
+  });
+
+  container.querySelectorAll('.btn-delete-pdf-blank').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-pdf-id');
+      const blank = (STATE.pdfBlanks || []).find(b => b.id === id);
+      if (!blank) return;
+      if (confirm(STATE.lang === 'uk' ? `Ви впевнені, що хочете видалити бланк "${blank.name}"?` : `Are you sure you want to delete blank "${blank.name}"?`)) {
+        STATE.pdfBlanks = STATE.pdfBlanks.filter(b => b.id !== id);
+        saveStateToStorage();
+        renderBlanks();
+        showToast(STATE.lang === 'uk' ? 'Бланк успішно видалено' : 'Blank removed');
+      }
+    });
+  });
+}
+
 function renderForms() {
   const container = document.getElementById('forms-list-container');
   if (!container) return;
@@ -7642,11 +7851,6 @@ function renderForms() {
   const btnGotoFormsBuilder = document.getElementById('btn-goto-forms-builder');
   if (btnGotoFormsBuilder) {
     btnGotoFormsBuilder.style.display = isAdmin ? 'inline-flex' : 'none';
-  }
-
-  const btnQuickUploadPdf = document.getElementById('btn-forms-quick-upload-pdf');
-  if (btnQuickUploadPdf) {
-    btnQuickUploadPdf.style.display = isAdmin ? 'inline-flex' : 'none';
   }
 
   // Active tab selection
@@ -10213,13 +10417,15 @@ function executeLogin(email, role) {
     const ddRole = document.getElementById('dropdown-user-role');
     if (ddRole) ddRole.textContent = (STATE.lang === 'uk' ? 'Роль: ' : 'Role: ') + role;
     
-    // Hide settings and forms button for unauthorized roles
+    // Update navigation sidebar for roles
     const navSettings = document.getElementById('nav-btn-settings');
     if (navSettings) navSettings.style.display = role === ROLES.ADMIN ? 'flex' : 'none';
+    const navBlanks = document.getElementById('nav-btn-blanks');
+    if (navBlanks) navBlanks.style.display = (role === ROLES.ADMIN || role === ROLES.INSTRUCTOR || role === ROLES.OFFICE) ? 'flex' : 'none';
     const navForms = document.getElementById('nav-btn-forms');
     if (navForms) navForms.style.display = (role === ROLES.ADMIN || role === ROLES.INSTRUCTOR || role === ROLES.OFFICE) ? 'flex' : 'none';
     const navFlights = document.getElementById('nav-btn-flights');
-    if (navFlights) navFlights.style.display = (role === ROLES.ADMIN || role === ROLES.INSTRUCTOR) ? 'flex' : 'none';
+    if (navFlights) navFlights.style.display = (role === ROLES.ADMIN || role === ROLES.INSTRUCTOR || role === ROLES.OFFICE) ? 'flex' : 'none';
     
     // Hide action buttons in table lists for non-editors (Add crew member)
     const isEditor = role === ROLES.ADMIN || role === ROLES.INSTRUCTOR;
@@ -10246,28 +10452,37 @@ function executeLogin(email, role) {
       btn.style.display = canExport ? 'inline-flex' : 'none';
     });
     
+    const navDash = document.querySelector('.nav-item[data-view="dashboard"]');
+    const navManual = document.getElementById('nav-btn-manual');
     if (role === ROLES.CREW) {
       const allCrew = [...STATE.flightCrew, ...STATE.cabinCrew];
       const myMember = allCrew.find(c => c.Email && c.Email.trim().toLowerCase() === email.trim().toLowerCase());
       STATE.selectedCrewMemberId = myMember ? myMember.id : null;
+      if (navDash) navDash.style.display = 'none';
       const navFlight = document.getElementById('nav-btn-flight');
       if (navFlight) navFlight.style.display = 'none';
       const navCabin = document.getElementById('nav-btn-cabin');
       if (navCabin) navCabin.style.display = 'none';
       if (navFlights) navFlights.style.display = 'none';
+      if (navBlanks) navBlanks.style.display = 'none';
       if (navForms) navForms.style.display = 'none';
       if (navSettings) navSettings.style.display = 'none';
+      if (navManual) navManual.style.display = 'none';
       const navPortal = document.getElementById('nav-btn-portal');
       if (navPortal) navPortal.style.display = 'flex';
-      switchView('personal-portal');
+      navigateTo('/portal', true);
     } else {
+      if (navDash) navDash.style.display = 'flex';
       const navFlight = document.getElementById('nav-btn-flight');
       if (navFlight) navFlight.style.display = 'flex';
       const navCabin = document.getElementById('nav-btn-cabin');
       if (navCabin) navCabin.style.display = 'flex';
+      if (navManual) navManual.style.display = 'flex';
       const navPortal = document.getElementById('nav-btn-portal');
       if (navPortal) navPortal.style.display = 'none';
-      switchView('dashboard');
+      const currentPath = window.location.pathname;
+      const initialPath = (currentPath && currentPath !== '/' && canAccessRoute(role, currentPath)) ? currentPath : '/dashboard';
+      navigateTo(initialPath, true);
     }
     
     if (window.lucide) window.lucide.createIcons();
@@ -12556,6 +12771,20 @@ document.addEventListener('DOMContentLoaded', () => {
   
   // Update translation text
   updateTranslations();
+
+  // Initialize HTML5 History API Router
+  initRouter();
+
+  // Route to current browser pathname on initial load
+  const initialPath = window.location.pathname || '/dashboard';
+  const role = STATE.currentUser ? STATE.currentUser.role : 'ADMIN';
+  if (role === ROLES.CREW) {
+    navigateTo('/portal', true);
+  } else if (initialPath && initialPath !== '/') {
+    navigateTo(initialPath, true);
+  } else {
+    navigateTo('/dashboard', true);
+  }
   
   // Resize listener to recalculate sticky column offsets
   window.addEventListener('resize', () => {

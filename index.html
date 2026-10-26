@@ -105,11 +105,11 @@
       </div>
       
       <nav class="nav-links">
-        <button class="nav-item active" data-view="dashboard">
+        <button class="nav-item active" data-view="dashboard" data-route="/dashboard">
           <i data-lucide="layout-dashboard"></i>
           <span data-i18n="nav_dashboard">Статистика</span>
         </button>
-        <button class="nav-item" data-view="flight-crew" id="nav-btn-flight">
+        <button class="nav-item" data-view="flight-crew" data-route="/flight-crew" id="nav-btn-flight">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-helicopter">
             <path d="M3 10l1 2h6" />
             <path d="M12 9a2 2 0 0 0 -2 2v3c0 1.1 .9 2 2 2h7a2 2 0 0 0 2 -2c0 -3.31 -3.13 -5 -7 -5h-2" />
@@ -121,23 +121,27 @@
           </svg>
           <span data-i18n="nav_flight_crew">Льотний склад</span>
         </button>
-        <button class="nav-item" data-view="cabin-crew" id="nav-btn-cabin">
+        <button class="nav-item" data-view="cabin-crew" data-route="/cabin-crew" id="nav-btn-cabin">
           <i data-lucide="users"></i>
           <span data-i18n="nav_cabin_crew">Кабінний склад</span>
         </button>
-        <button class="nav-item" data-view="training-flights" id="nav-btn-flights">
+        <button class="nav-item" data-view="training-flights" data-route="/training-flights" id="nav-btn-flights">
           <i data-lucide="clipboard-list"></i>
           <span data-i18n="nav_training_flights">Тренувальні польоти</span>
         </button>
-        <button class="nav-item" data-view="forms" id="nav-btn-forms">
-          <i data-lucide="file-text"></i>
-          <span data-i18n="nav_forms">Бланки</span>
+        <button class="nav-item" data-view="blanks" data-route="/blanks" id="nav-btn-blanks">
+          <i data-lucide="printer"></i>
+          <span data-i18n="nav_blanks">Бланки</span>
         </button>
-        <button class="nav-item" data-view="settings" id="nav-btn-settings">
+        <button class="nav-item" data-view="forms" data-route="/forms" id="nav-btn-forms">
+          <i data-lucide="file-edit"></i>
+          <span data-i18n="nav_forms">Форми</span>
+        </button>
+        <button class="nav-item" data-view="settings" data-route="/settings" id="nav-btn-settings">
           <i data-lucide="settings"></i>
           <span data-i18n="nav_settings">Налаштування</span>
         </button>
-        <button class="nav-item" data-view="personal-portal" id="nav-btn-portal" style="display: none;">
+        <button class="nav-item" data-view="personal-portal" data-route="/portal" id="nav-btn-portal" style="display: none;">
           <i data-lucide="user"></i>
           <span data-i18n="nav_portal">Мій кабінет</span>
         </button>
@@ -480,7 +484,13 @@
               
               <!-- Left Card: Form -->
               <div class="card" style="width: 100%;">
-                <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600;" data-i18n="flights_title">Training Flight Log</h3>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--spacing-2);">
+                  <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 0;" data-i18n="flights_title">Training Flight Log</h3>
+                  <span id="flights-office-readonly-badge" class="status-badge status-warning" style="display: none; font-size: 11px; font-weight: 700;">
+                    <i data-lucide="eye" style="width: 12px; height: 12px; margin-right: 4px;"></i>
+                    <span data-i18n="badge_office_readonly">Режим перегляду (Офіс)</span>
+                  </span>
+                </div>
                 <form id="training-flight-form" style="display: flex; flex-direction: column; gap: var(--spacing-4);">
                 
                 <!-- GROUP 1: General Information / Загальна інформація -->
@@ -760,21 +770,60 @@
         </div><!-- #flights-tab-archive -->
       </div><!-- #view-training-flights -->
 
-        <!-- 5. FORMS VIEW (БЛАНКИ) -->
+        <!-- 5. BLANKS VIEW (БЛАНКИ ДЛЯ ДРУКУ) -->
+        <div class="view-panel" id="view-blanks">
+          <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-4); margin-bottom: var(--spacing-4);">
+              <div>
+                <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 0;" data-i18n="blanks_list_title">Каталог бланків для друку</h3>
+                <p style="font-size: 13px; color: var(--text-secondary); margin: 4px 0 0 0;" data-i18n="blanks_list_desc">
+                  Оригінальні та стандартизовані PDF бланки та шаблони для польотів і чергувань.
+                </p>
+              </div>
+              <div style="display: flex; gap: var(--spacing-2); flex-wrap: wrap;">
+                <button class="btn btn-primary" id="btn-blanks-quick-upload-pdf" style="display: none;">
+                  <i data-lucide="file-up"></i>
+                  <span data-i18n="btn_quick_upload_pdf">Завантажити PDF бланк</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Вкладки категорій бланків: Льотний, Кабінний, Загальні -->
+            <div class="forms-subnav-container" id="blanks-tabs-subnav">
+              <button class="settings-tab-btn blanks-tab-btn active" data-blanks-tab="flight">
+                <i data-lucide="plane"></i>
+                <span data-i18n="tab_blanks_flight">Льотний екіпаж</span>
+                <span class="tab-badge" id="blanks-tab-count-flight">0</span>
+              </button>
+              <button class="settings-tab-btn blanks-tab-btn" data-blanks-tab="cabin">
+                <i data-lucide="users"></i>
+                <span data-i18n="tab_blanks_cabin">Кабінний екіпаж</span>
+                <span class="tab-badge" id="blanks-tab-count-cabin">0</span>
+              </button>
+              <button class="settings-tab-btn blanks-tab-btn" data-blanks-tab="forms">
+                <i data-lucide="file-text"></i>
+                <span data-i18n="tab_blanks_forms">Загальні бланки</span>
+                <span class="tab-badge" id="blanks-tab-count-forms">0</span>
+              </button>
+            </div>
+            
+            <div id="blanks-list-container" style="display: flex; flex-direction: column; gap: var(--spacing-3);">
+              <!-- Rendered dynamically by renderBlanks() -->
+            </div>
+          </div>
+        </div>
+
+        <!-- 6. FORMS VIEW (ІНТЕРАКТИВНІ ФОРМИ ТА ВІДОМОСТІ) -->
         <div class="view-panel" id="view-forms">
           <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-4); margin-bottom: var(--spacing-4);">
               <div>
-                <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 0;" data-i18n="forms_list_title">Бланки для заповнення та друку</h3>
+                <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 0;" data-i18n="forms_list_title">Інтерактивні форми та відомості</h3>
                 <p style="font-size: 13px; color: var(--text-secondary); margin: 4px 0 0 0;" data-i18n="forms_list_desc">
-                  Виберіть бланк, вкажіть співробітника та відкрийте для друку або експорту в PDF. Налаштувати шаблони можна в Генераторі форм.
+                  Виберіть форму, вкажіть співробітників (дані автоматично підтягнуться з бази) та роздрукуйте готову відомість або збережіть у PDF.
                 </p>
               </div>
               <div style="display: flex; gap: var(--spacing-2); flex-wrap: wrap;">
-                <button class="btn btn-primary" id="btn-forms-quick-upload-pdf" style="display: none;">
-                  <i data-lucide="file-up"></i>
-                  <span data-i18n="btn_quick_upload_pdf">Завантажити PDF бланк</span>
-                </button>
                 <button class="btn btn-secondary" id="btn-goto-forms-builder" style="display: none;">
                   <i data-lucide="sliders"></i>
                   <span data-i18n="btn_manage_forms">Конструктор та редактор форм</span>
@@ -782,7 +831,7 @@
               </div>
             </div>
 
-            <!-- 3 Вкладки розділу БЛАНКИ: Льотний екіпаж, Кабінний екіпаж, Форми -->
+            <!-- Вкладки розділу ФОРМИ: Льотний екіпаж, Кабінний екіпаж, Форми -->
             <div class="forms-subnav-container" id="forms-tabs-subnav">
               <button class="settings-tab-btn forms-tab-btn active" data-forms-tab="flight">
                 <i data-lucide="plane"></i>
@@ -2992,6 +3041,6 @@
   </div>
 
   <!-- Main SPA Application logic script -->
-  <script type="module" src="js/app.js?v=0.7.6"></script>
+  <script type="module" src="js/app.js?v=0.8.0"></script>
 </body>
 </html>

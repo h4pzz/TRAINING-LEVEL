@@ -1144,7 +1144,8 @@
   scrollbar-width: thin;
 }
 
-.forms-tab-btn .tab-badge {
+.forms-tab-btn .tab-badge,
+.blanks-tab-btn .tab-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1159,7 +1160,8 @@
   line-height: 1.3;
 }
 
-.forms-tab-btn.active .tab-badge {
+.forms-tab-btn.active .tab-badge,
+.blanks-tab-btn.active .tab-badge {
   background: rgba(255, 255, 255, 0.25);
   color: #ffffff;
   border-color: rgba(255, 255, 255, 0.35);

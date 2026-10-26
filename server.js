@@ -2,7 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const PORT = 51517;
+const PORT = process.env.PORT || 51517;
 
 // Prevent server crash on unexpected errors
 process.on('uncaughtException', err => {
@@ -20,7 +20,8 @@ const MIME_TYPES = {
   '.jpg': 'image/jpeg',
   '.jpeg': 'image/jpeg',
   '.svg': 'image/svg+xml',
-  '.json': 'application/json'
+  '.json': 'application/json',
+  '.pdf': 'application/pdf'
 };
 
 const server = http.createServer((req, res) => {
@@ -232,6 +233,26 @@ ${report.comment || '(без коментаря)'}
   fs.stat(filePath, (err, stats) => {
     if (err) {
       if (err.code === 'ENOENT') {
+        // SPA Fallback: for clean routes without file extension, serve index.html
+        const hasExt = path.extname(cleanUrl) !== '';
+        if (!hasExt) {
+          const indexPath = path.join(__dirname, 'index.html');
+          fs.readFile(indexPath, (indexErr, indexContent) => {
+            if (indexErr) {
+              res.writeHead(500, { 'Content-Type': 'text/plain' });
+              res.end('Server Error: ' + indexErr.code);
+            } else {
+              res.writeHead(200, {
+                'Content-Type': 'text/html; charset=utf-8',
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+              });
+              res.end(indexContent);
+            }
+          });
+          return;
+        }
         res.writeHead(404, { 'Content-Type': 'text/plain' });
         res.end('Not Found');
       } else {
