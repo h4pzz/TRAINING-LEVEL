@@ -8765,6 +8765,7 @@ function renderPersonalPortal() {
       <div style="word-break: break-all;"><strong>Email:</strong> ${member.Email}</div>
       <div><strong>Phone:</strong> ${member.Phone || '-'}</div>
       ${member.LICENSE ? `<div><strong>License:</strong> <code>${member.LICENSE}</code></div>` : ''}
+      ${role === ROLES.ADMIN ? `
       <div style="margin-top: 8px; padding: 10px; background-color: var(--bg-surface-alt); border-radius: var(--radius-md); border: 1px solid var(--border-color); font-size: 12px; box-sizing: border-box; max-width: 100%;">
         <div style="font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center;">
           <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
@@ -8780,6 +8781,7 @@ function renderPersonalPortal() {
         </div>
         <code style="word-break: break-all; color: var(--text-primary); font-size: 11px; display: block;">${getMemberFolderPath(member)}</code>
       </div>
+      ` : ''}
     `;
     
     // Wire up Edit button click event
@@ -9178,7 +9180,7 @@ function renderPersonalPortal() {
       }
 
       if (driveBtn) {
-        if (scan.driveLink) {
+        if (role === ROLES.ADMIN && scan.driveLink) {
           driveBtn.href = scan.driveLink;
           driveBtn.style.display = 'inline-flex';
         } else {
