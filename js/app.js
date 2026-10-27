@@ -1,3 +1,14 @@
+/**
+ * Debounce helper to prevent UI lag on fast keyboard input
+ */
+function debounce(fn, wait = 150) {
+  let timeout;
+  return function(...args) {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => fn.apply(this, args), wait);
+  };
+}
+
 import { initRouter, navigateTo, getRouteByView, ROUTES, canAccessRoute } from './router.js';
 import { CREW_COMPLIANCE_RULES, isExpiring } from '../execution/compliance_rules.js';
 import { parseCrewXlsx } from '../execution/excel_parser.js';
@@ -1979,6 +1990,7 @@ function renderCrewTable(crewType) {
     return;
   }
   
+  const fragment = document.createDocumentFragment();
   filtered.forEach(member => {
     const tr = document.createElement('tr');
     if (member.active === 'NO') {
@@ -2059,8 +2071,9 @@ function renderCrewTable(crewType) {
       tr.appendChild(actionTd);
     }
     
-    tableBody.appendChild(tr);
+    fragment.appendChild(tr);
   });
+  tableBody.appendChild(fragment);
 
   // Calculate and apply precise sticky left offsets for all pinned columns
   updateTableStickyOffsets(crewType, lastStickyIdx);
@@ -8976,7 +8989,7 @@ function renderPersonalPortal() {
         </div>
         <div class="form-group">
           <label style="font-weight: 600; font-size: 13px;">Email:</label>
-          <input type="email" id="edit-portal-email" class="form-input" value="${member.Email || ''}" required />
+          <input type="email" id="edit-portal-email" class="form-input" value="${member.Email || ''}" placeholder="example@ukr-helicopters.ua" />
         </div>
         <div class="form-group">
           <label style="font-weight: 600; font-size: 13px;">Phone:</label>
@@ -9057,7 +9070,7 @@ function renderPersonalPortal() {
       <div><strong>Name:</strong> ${member.Full_Name_EN}</div>
       <div><strong>Посада / Rank:</strong> <span class="status-badge status-neutral">${member.Rank}</span></div>
       <div><strong>Відділ / Dept:</strong> ${member.Department}</div>
-      <div style="word-break: break-all;"><strong>Email:</strong> ${member.Email}</div>
+      <div style="word-break: break-all;"><strong>Email:</strong> ${member.Email || '-'}</div>
       <div><strong>Phone:</strong> ${member.Phone || '-'}</div>
       ${member.LICENSE ? `<div><strong>License:</strong> <code>${member.LICENSE}</code></div>` : ''}
       ${role === ROLES.ADMIN ? `
@@ -11141,12 +11154,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   
-  // Search Inputs change triggers
-  document.getElementById('flight-search').addEventListener('input', () => renderCrewTable('Flight'));
+  // Search Inputs change triggers (debounced for optimal performance)
+  document.getElementById('flight-search').addEventListener('input', debounce(() => renderCrewTable('Flight'), 150));
   document.getElementById('flight-filter-rank').addEventListener('change', () => renderCrewTable('Flight'));
   document.getElementById('flight-filter-dept').addEventListener('change', () => renderCrewTable('Flight'));
   
-  document.getElementById('cabin-search').addEventListener('input', () => renderCrewTable('Cabin'));
+  document.getElementById('cabin-search').addEventListener('input', debounce(() => renderCrewTable('Cabin'), 150));
   document.getElementById('cabin-filter-rank').addEventListener('change', () => renderCrewTable('Cabin'));
   document.getElementById('cabin-filter-dept').addEventListener('change', () => renderCrewTable('Cabin'));
   
@@ -11329,11 +11342,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Archive search input listener
   const archiveSearchInput = document.getElementById('flight-archive-search');
   if (archiveSearchInput) {
+    const debouncedArchiveRender = debounce((q) => renderMonthlyArchive(q), 150);
     archiveSearchInput.addEventListener('input', (e) => {
       const q = e.target.value;
       const clearBtn = document.getElementById('btn-clear-archive-search');
       if (clearBtn) clearBtn.style.display = q.trim() ? 'block' : 'none';
-      renderMonthlyArchive(q);
+      debouncedArchiveRender(q);
     });
   }
 

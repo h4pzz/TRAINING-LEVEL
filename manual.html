@@ -1,0 +1,2690 @@
+<!DOCTYPE html>
+<html lang="uk" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AeroCheck v0.7 — Інтерактивний Мануал Користувача</title>
+  <link rel="icon" type="image/svg+xml" href="PICS/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* ==========================================================================
+       CSS VARIABLES & THEME SETUP (Synchronized with AeroCheck Design System)
+       ========================================================================== */
+    :root {
+      --font-display: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
+
+      --spacing-1: 4px;
+      --spacing-2: 8px;
+      --spacing-3: 12px;
+      --spacing-4: 16px;
+      --spacing-6: 24px;
+      --spacing-8: 32px;
+      --spacing-12: 48px;
+
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --radius-xl: 24px;
+      --radius-full: 9999px;
+
+      --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    [data-theme="dark"] {
+      --bg-app: #090d16;
+      --bg-surface: #0f172a;
+      --bg-surface-alt: #1e293b;
+      --bg-card: rgba(15, 23, 42, 0.75);
+      --bg-card-hover: rgba(30, 41, 59, 0.85);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-color-highlight: rgba(99, 102, 241, 0.35);
+
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --text-tertiary: #64748b;
+      
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --accent-light: rgba(99, 102, 241, 0.15);
+      --accent-glow: rgba(99, 102, 241, 0.3);
+
+      --badge-valid-bg: rgba(16, 185, 129, 0.12);
+      --badge-valid-color: #34d399;
+      --badge-valid-border: rgba(16, 185, 129, 0.3);
+
+      --badge-warning-bg: rgba(245, 158, 11, 0.12);
+      --badge-warning-color: #fbbf24;
+      --badge-warning-border: rgba(245, 158, 11, 0.3);
+
+      --badge-expired-bg: rgba(239, 68, 68, 0.12);
+      --badge-expired-color: #f87171;
+      --badge-expired-border: rgba(239, 68, 68, 0.3);
+
+      --badge-info-bg: rgba(14, 165, 233, 0.12);
+      --badge-info-color: #38bdf8;
+      --badge-info-border: rgba(14, 165, 233, 0.3);
+
+      --card-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+      --glass-filter: blur(16px);
+    }
+
+    [data-theme="light"] {
+      --bg-app: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-surface-alt: #f1f5f9;
+      --bg-card: rgba(255, 255, 255, 0.85);
+      --bg-card-hover: #ffffff;
+      --border-color: #e2e8f0;
+      --border-color-highlight: rgba(79, 70, 229, 0.35);
+
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-tertiary: #94a3b8;
+
+      --accent: #4f46e5;
+      --accent-hover: #4338ca;
+      --accent-light: #e0e7ff;
+      --accent-glow: rgba(79, 70, 229, 0.2);
+
+      --badge-valid-bg: #ecfdf5;
+      --badge-valid-color: #059669;
+      --badge-valid-border: #a7f3d0;
+
+      --badge-warning-bg: #fffbeb;
+      --badge-warning-color: #d97706;
+      --badge-warning-border: #fde68a;
+
+      --badge-expired-bg: #fef2f2;
+      --badge-expired-color: #dc2626;
+      --badge-expired-border: #fecaca;
+
+      --badge-info-bg: #f0f9ff;
+      --badge-info-color: #0284c7;
+      --badge-info-border: #bae6fd;
+
+      --card-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05);
+      --glass-filter: blur(12px);
+    }
+
+    /* ==========================================================================
+       BASE STYLES & RESET
+       ========================================================================== */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: var(--font-body);
+      background-color: var(--bg-app);
+      color: var(--text-primary);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+
+    /* Ambient background lighting */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -20%;
+      left: 10%;
+      width: 800px;
+      height: 800px;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -20%;
+      right: 5%;
+      width: 700px;
+      height: 700px;
+      background: radial-gradient(circle, rgba(14, 165, 233, 0.07) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ==========================================================================
+       ANIMATIONS & KEYFRAMES
+       ========================================================================== */
+    @keyframes pulseGlow {
+      0%, 100% {
+        box-shadow: 0 0 15px rgba(99, 102, 241, 0.3), inset 0 0 10px rgba(99, 102, 241, 0.1);
+      }
+      50% {
+        box-shadow: 0 0 25px rgba(99, 102, 241, 0.6), inset 0 0 15px rgba(99, 102, 241, 0.2);
+      }
+    }
+
+    @keyframes scanLaser {
+      0% {
+        top: 0%;
+        opacity: 0.9;
+      }
+      50% {
+        top: 96%;
+        opacity: 1;
+      }
+      100% {
+        top: 0%;
+        opacity: 0.9;
+      }
+    }
+
+    @keyframes floatCard {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+
+    @keyframes rippleEffect {
+      0% { transform: scale(0.95); opacity: 1; }
+      50% { transform: scale(1.05); opacity: 0.8; }
+      100% { transform: scale(0.95); opacity: 1; }
+    }
+
+    @keyframes shakeError {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+
+    @keyframes badgePop {
+      0% { transform: scale(0.85); opacity: 0; }
+      70% { transform: scale(1.08); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    @keyframes highlightRow {
+      0% { background-color: rgba(99, 102, 241, 0.25); }
+      100% { background-color: transparent; }
+    }
+
+    /* ==========================================================================
+       HEADER & NAVIGATION BAR
+       ========================================================================== */
+    .manual-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg-card);
+      backdrop-filter: var(--glass-filter);
+      -webkit-backdrop-filter: var(--glass-filter);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: all var(--transition-normal);
+    }
+
+    .manual-logo-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .manual-logo-img {
+      height: 38px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .manual-title-wrapper {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .manual-sys-title {
+      font-family: var(--font-display);
+      font-size: 19px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .manual-version-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: var(--radius-full);
+      background: var(--accent-light);
+      color: var(--accent);
+      border: 1px solid var(--border-color-highlight);
+    }
+
+    .manual-sys-sub {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .header-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .search-container {
+      position: relative;
+      width: 260px;
+    }
+
+    .search-input {
+      width: 100%;
+      height: 38px;
+      background: var(--bg-surface-alt);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-full);
+      padding: 0 16px 0 38px;
+      font-size: 13px;
+      color: var(--text-primary);
+      transition: all var(--transition-fast);
+      outline: none;
+    }
+
+    .search-input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+      width: 320px;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-tertiary);
+      pointer-events: none;
+      width: 16px;
+      height: 16px;
+    }
+
+    .header-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 38px;
+      padding: 0 14px;
+      border-radius: var(--radius-md);
+      background: var(--bg-surface-alt);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all var(--transition-fast);
+    }
+
+    .header-btn:hover {
+      background: var(--accent);
+      color: #ffffff;
+      border-color: var(--accent);
+      transform: translateY(-1px);
+    }
+
+    .header-btn-primary {
+      background: var(--accent);
+      color: #ffffff;
+      border-color: var(--accent);
+    }
+
+    .header-btn-primary:hover {
+      background: var(--accent-hover);
+      box-shadow: 0 4px 12px var(--accent-glow);
+    }
+
+    /* ==========================================================================
+       PROGRESS BAR (Top of page indicator)
+       ========================================================================== */
+    .reading-progress-bar {
+      position: fixed;
+      top: 62px;
+      left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #6366f1, #38bdf8, #10b981);
+      width: 0%;
+      z-index: 101;
+      transition: width 100ms ease;
+    }
+
+    /* ==========================================================================
+       LAYOUT: MAIN CONTAINER WITH SIDEBAR & CONTENT
+       ========================================================================== */
+    .manual-layout {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 32px 24px 80px 24px;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 36px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Sticky Sidebar Navigation */
+    .manual-nav-sidebar {
+      position: sticky;
+      top: 96px;
+      height: calc(100vh - 120px);
+      overflow-y: auto;
+      padding-right: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .manual-nav-sidebar::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .manual-nav-sidebar::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: var(--radius-full);
+    }
+
+    .nav-category-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-tertiary);
+      margin: 16px 0 6px 12px;
+    }
+
+    .nav-link-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 14px;
+      border-radius: var(--radius-md);
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      text-decoration: none;
+      transition: all var(--transition-fast);
+      position: relative;
+    }
+
+    .nav-link-item:hover {
+      background: var(--bg-surface-alt);
+      color: var(--text-primary);
+      transform: translateX(4px);
+    }
+
+    .nav-link-item.active {
+      background: var(--accent-light);
+      color: var(--accent);
+      font-weight: 700;
+      border-left: 3px solid var(--accent);
+    }
+
+    .nav-link-item .nav-icon {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    .nav-badge-pill {
+      margin-left: auto;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: var(--radius-full);
+      background: var(--border-color);
+      color: var(--text-tertiary);
+    }
+
+    .nav-link-item.active .nav-badge-pill {
+      background: var(--accent);
+      color: #ffffff;
+    }
+
+    /* ==========================================================================
+       HERO BANNER
+       ========================================================================== */
+    .manual-hero {
+      grid-column: 1 / -1;
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(14, 165, 233, 0.08) 50%, rgba(16, 185, 129, 0.06) 100%);
+      border: 1px solid var(--border-color-highlight);
+      border-radius: var(--radius-xl);
+      padding: 40px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--card-shadow);
+      margin-bottom: 8px;
+    }
+
+    .hero-glow-circle {
+      position: absolute;
+      top: -50px;
+      right: -50px;
+      width: 250px;
+      height: 250px;
+      background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+
+    .hero-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--accent);
+      background: var(--accent-light);
+      padding: 4px 12px;
+      border-radius: var(--radius-full);
+      margin-bottom: 16px;
+    }
+
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: 36px;
+      font-weight: 800;
+      line-height: 1.2;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+      letter-spacing: -0.8px;
+    }
+
+    .hero-desc {
+      font-size: 16px;
+      color: var(--text-secondary);
+      max-width: 820px;
+      margin-bottom: 24px;
+    }
+
+    .quick-jump-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .chip-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: var(--radius-full);
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all var(--transition-fast);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    .chip-btn:hover {
+      border-color: var(--accent);
+      background: var(--accent-light);
+      color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    /* ==========================================================================
+       SECTIONS & CARDS
+       ========================================================================== */
+    .manual-content {
+      display: flex;
+      flex-direction: column;
+      gap: 48px;
+    }
+
+    .manual-section {
+      scroll-margin-top: 100px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .section-header-block {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 16px;
+    }
+
+    .section-num-badge {
+      width: 44px;
+      height: 44px;
+      border-radius: var(--radius-md);
+      background: linear-gradient(135deg, var(--accent), #38bdf8);
+      color: #ffffff;
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px var(--accent-glow);
+      flex-shrink: 0;
+    }
+
+    .section-title-wrapper {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
+    }
+
+    .section-subtitle {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: var(--glass-filter);
+      -webkit-backdrop-filter: var(--glass-filter);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--card-shadow);
+      position: relative;
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    }
+
+    .card:hover {
+      border-color: var(--border-color-highlight);
+    }
+
+    .card-title {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Grid Layouts */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+
+    .grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    @media (max-width: 1024px) {
+      .manual-layout {
+        grid-template-columns: 1fr;
+      }
+      .manual-nav-sidebar {
+        display: none;
+      }
+      .grid-2, .grid-3 {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* ==========================================================================
+       STEP-BY-STEP PROCESS WIDGETS
+       ========================================================================== */
+    .step-flow {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin: 16px 0;
+    }
+
+    .step-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      background: var(--bg-surface-alt);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      transition: all var(--transition-fast);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .step-item:hover {
+      border-color: var(--accent);
+      transform: translateX(4px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+
+    .step-circle {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #ffffff;
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+      box-shadow: 0 2px 6px var(--accent-glow);
+    }
+
+    .step-content {
+      flex: 1;
+    }
+
+    .step-heading {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .step-desc {
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    /* ==========================================================================
+       BADGES & STATUS PILLS
+       ========================================================================== */
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+
+    .status-valid {
+      background: var(--badge-valid-bg);
+      color: var(--badge-valid-color);
+      border: 1px solid var(--badge-valid-border);
+    }
+
+    .status-warning {
+      background: var(--badge-warning-bg);
+      color: var(--badge-warning-color);
+      border: 1px solid var(--badge-warning-border);
+    }
+
+    .status-expired {
+      background: var(--badge-expired-bg);
+      color: var(--badge-expired-color);
+      border: 1px solid var(--badge-expired-border);
+    }
+
+    .status-info {
+      background: var(--badge-info-bg);
+      color: var(--badge-info-color);
+      border: 1px solid var(--badge-info-border);
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+      animation: rippleEffect 2s infinite ease-in-out;
+    }
+
+    /* ==========================================================================
+       INTERACTIVE SIMULATORS & DEMO COMPONENT WIDGETS
+       ========================================================================== */
+    .demo-sandbox {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-top: 16px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: inset 0 2px 4px rgba(0,0,0,0.03);
+    }
+
+    .demo-badge-banner {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent-light);
+      color: var(--accent);
+      border: 1px solid var(--border-color-highlight);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: var(--radius-full);
+    }
+
+    /* Form Controls */
+    .sim-form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    .sim-label {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .sim-input, .sim-select, .sim-textarea {
+      width: 100%;
+      height: 40px;
+      background: var(--bg-surface-alt);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 0 12px;
+      font-size: 13.5px;
+      color: var(--text-primary);
+      outline: none;
+      font-family: inherit;
+      transition: all var(--transition-fast);
+    }
+
+    .sim-textarea {
+      height: 70px;
+      padding: 8px 12px;
+      resize: vertical;
+    }
+
+    .sim-input:focus, .sim-select:focus, .sim-textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    .sim-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      height: 40px;
+      padding: 0 18px;
+      border-radius: var(--radius-md);
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all var(--transition-fast);
+      user-select: none;
+    }
+
+    .sim-btn-primary {
+      background: var(--accent);
+      color: #ffffff;
+      box-shadow: 0 4px 10px var(--accent-glow);
+    }
+
+    .sim-btn-primary:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+
+    .sim-btn-secondary {
+      background: var(--bg-surface-alt);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+    }
+
+    .sim-btn-secondary:hover {
+      background: var(--border-color);
+    }
+
+    .sim-btn-warning {
+      background: #f59e0b;
+      color: #ffffff;
+      box-shadow: 0 4px 10px rgba(245, 158, 11, 0.3);
+    }
+
+    .sim-btn-warning:hover {
+      background: #d97706;
+    }
+
+    .sim-btn-danger {
+      background: #ef4444;
+      color: #ffffff;
+      box-shadow: 0 4px 10px rgba(239, 68, 68, 0.3);
+    }
+
+    .sim-btn-success {
+      background: #10b981;
+      color: #ffffff;
+      box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+    }
+
+    /* ==========================================================================
+       DEMO 1: DATE COMPLIANCE SIMULATOR
+       ========================================================================== */
+    .compliance-result-box {
+      background: var(--bg-surface-alt);
+      border: 1px dashed var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 14px;
+    }
+
+    .calc-formula-display {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text-tertiary);
+    }
+
+    /* ==========================================================================
+       DEMO 2: FLIGHT LOG & LIVE GRAPH SIMULATOR
+       ========================================================================== */
+    .flight-time-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+
+    .svg-trend-chart {
+      width: 100%;
+      height: 140px;
+      background: var(--bg-surface-alt);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border-color);
+      margin-top: 16px;
+      overflow: hidden;
+    }
+
+    .trend-line {
+      fill: none;
+      stroke: var(--accent);
+      stroke-width: 3;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      filter: drop-shadow(0 2px 6px var(--accent-glow));
+      transition: all 0.5s ease;
+    }
+
+    .trend-area {
+      fill: url(#chartGradient);
+      opacity: 0.25;
+      transition: all 0.5s ease;
+    }
+
+    /* ==========================================================================
+       DEMO 3: DISCREPANCY & DUAL APPROVAL SIMULATOR
+       ========================================================================== */
+    .dual-approval-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      position: relative;
+    }
+
+    .dual-column-card {
+      background: var(--bg-surface-alt);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .diff-display-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+    }
+
+    .diff-old {
+      color: #ef4444;
+      text-decoration: line-through;
+      background: rgba(239, 68, 68, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .diff-arrow {
+      color: var(--text-tertiary);
+    }
+
+    .diff-new {
+      color: #10b981;
+      font-weight: 700;
+      background: rgba(16, 185, 129, 0.1);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .notification-bell-icon {
+      position: relative;
+      display: inline-flex;
+      cursor: pointer;
+    }
+
+    .bell-count-badge {
+      position: absolute;
+      top: -4px;
+      right: -6px;
+      background: #ef4444;
+      color: #ffffff;
+      font-size: 10px;
+      font-weight: 800;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid var(--bg-surface);
+      animation: rippleEffect 2s infinite ease;
+    }
+
+    /* ==========================================================================
+       DEMO 4: DOCUMENT & SCAN VIEWER SIMULATOR
+       ========================================================================== */
+    .doc-viewer-frame {
+      background: #1e293b;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 380px;
+      position: relative;
+    }
+
+    .doc-viewer-toolbar {
+      background: #0f172a;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #f8fafc;
+      font-size: 13px;
+    }
+
+    .doc-toolbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .tool-icon-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #f8fafc;
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+
+    .tool-icon-btn:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .doc-canvas-area {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      background: radial-gradient(circle, #334155 0%, #1e293b 100%);
+      position: relative;
+    }
+
+    .mock-cert-sheet {
+      width: 280px;
+      height: 240px;
+      background: #ffffff;
+      color: #0f172a;
+      border-radius: 4px;
+      padding: 20px;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transform-origin: center center;
+      transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+      user-select: none;
+      position: relative;
+    }
+
+    .cert-stamp {
+      position: absolute;
+      bottom: 25px;
+      right: 25px;
+      width: 65px;
+      height: 65px;
+      border: 2px dashed #0284c7;
+      border-radius: 50%;
+      color: #0284c7;
+      font-size: 8px;
+      font-weight: 800;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      transform: rotate(-15deg);
+      pointer-events: none;
+    }
+
+    /* ==========================================================================
+       DEMO 5: AI OCR SCANNER (GEMINI MULTIMODAL)
+       ========================================================================== */
+    .ocr-scanner-wrapper {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      gap: 20px;
+      background: var(--bg-surface-alt);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 20px;
+    }
+
+    .ocr-scan-canvas {
+      position: relative;
+      background: #0f172a;
+      border-radius: var(--radius-md);
+      height: 320px;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .ocr-flight-sheet {
+      width: 90%;
+      height: 90%;
+      background: #ffffff;
+      color: #1e293b;
+      border-radius: 4px;
+      padding: 16px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .ocr-laser-beam {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #38bdf8, #818cf8, transparent);
+      box-shadow: 0 0 15px #38bdf8, 0 0 8px #818cf8;
+      z-index: 10;
+      display: none;
+    }
+
+    .ocr-laser-beam.active {
+      display: block;
+      animation: scanLaser 2.2s infinite ease-in-out;
+    }
+
+    .ocr-box-highlight {
+      position: absolute;
+      border: 2px solid #38bdf8;
+      background: rgba(56, 189, 248, 0.15);
+      border-radius: 3px;
+      pointer-events: none;
+      transition: all 0.3s ease;
+      opacity: 0;
+    }
+
+    .ocr-box-highlight.visible {
+      opacity: 1;
+    }
+
+    .ocr-result-table {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .ocr-field-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+
+    /* ==========================================================================
+       ROLES COMPARISON TABLE
+       ========================================================================== */
+    .role-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .role-card {
+      background: var(--bg-surface-alt);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: all var(--transition-fast);
+      position: relative;
+    }
+
+    .role-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-4px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+    }
+
+    .role-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .role-icon-box {
+      width: 36px;
+      height: 36px;
+      border-radius: var(--radius-sm);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+
+    .role-name {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .role-perm-list {
+      list-style: none;
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .role-perm-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .check-yes { color: #10b981; }
+    .check-no { color: #ef4444; opacity: 0.6; }
+
+    /* ==========================================================================
+       FOOTER
+       ========================================================================== */
+    .manual-footer {
+      border-top: 1px solid var(--border-color);
+      padding: 32px 24px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-tertiary);
+      margin-top: 48px;
+    }
+
+    /* Print styles */
+    @media print {
+      .manual-nav-sidebar, .header-controls, .search-container, .reading-progress-bar, .demo-badge-banner {
+        display: none !important;
+      }
+      .manual-layout {
+        display: block;
+        padding: 0;
+      }
+      .card, .demo-sandbox {
+        box-shadow: none;
+        border: 1px solid #ccc;
+        page-break-inside: avoid;
+      }
+      body {
+        background: #fff;
+        color: #000;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ================= TOP READING PROGRESS BAR ================= -->
+  <div class="reading-progress-bar" id="reading-progress"></div>
+
+  <!-- ================= FIXED HEADER ================= -->
+  <header class="manual-header">
+    <div class="manual-logo-group">
+      <img src="PICS/LOGO_UH.png" alt="AeroCheck Ukrainian Helicopters" class="manual-logo-img">
+      <div class="manual-title-wrapper">
+        <div class="manual-sys-title">
+          AeroCheck Manual
+          <span class="manual-version-badge">v0.7 PRO</span>
+        </div>
+        <div class="manual-sys-sub">Інтерактивна інструкція користувача та SOP-навігатор</div>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <!-- Search Input -->
+      <div class="search-container">
+        <i data-lucide="search" class="search-icon"></i>
+        <input type="text" id="manual-search-input" class="search-input" placeholder="Швидкий пошук функцій...">
+      </div>
+
+      <!-- Theme Switcher -->
+      <button class="header-btn" id="theme-btn" title="Перемкнути тему">
+        <i data-lucide="sun" id="theme-icon-sun" style="display: none; width: 16px; height: 16px;"></i>
+        <i data-lucide="moon" id="theme-icon-moon" style="width: 16px; height: 16px;"></i>
+        <span id="theme-text">Тема</span>
+      </button>
+
+      <!-- Return to Main App -->
+      <a href="index.html" class="header-btn header-btn-primary" title="Повернутися до системи AeroCheck">
+        <i data-lucide="arrow-left" style="width: 16px; height: 16px;"></i>
+        <span>В систему</span>
+      </a>
+    </div>
+  </header>
+
+  <!-- ================= MAIN LAYOUT ================= -->
+  <div class="manual-layout">
+
+    <!-- HERO SECTION -->
+    <section class="manual-hero">
+      <div class="hero-glow-circle"></div>
+      <div class="hero-tag">
+        <i data-lucide="sparkles" style="width: 14px; height: 14px;"></i>
+        AeroCheck / UH Crew Training Level — Official Guide
+      </div>
+      <h1 class="hero-title">Посібник користувача та інтерактивні демонстрації</h1>
+      <p class="hero-desc">
+        Повний інтерактивний мануал по ключовим функціям авіаційної системи контролю підготовки екіпажів: внесення даних інструктором, облік тренувальних польотів, верифікація неточностей екіпажу, робота зі скан-копіями та AI OCR розпізнавання польотних завдань.
+      </p>
+
+      <div class="quick-jump-chips">
+        <a href="#section-instructor" class="chip-btn">
+          <i data-lucide="user-check" style="width: 16px; height: 16px; color: var(--accent);"></i>
+          1. Підготовки інструктора
+        </a>
+        <a href="#section-flights" class="chip-btn">
+          <i data-lucide="plane" style="width: 16px; height: 16px; color: #0ea5e9;"></i>
+          2. Тренувальні польоти
+        </a>
+        <a href="#section-discrepancy" class="chip-btn">
+          <i data-lucide="alert-triangle" style="width: 16px; height: 16px; color: #f59e0b;"></i>
+          3. Повідомлення про неточність
+        </a>
+        <a href="#section-scans" class="chip-btn">
+          <i data-lucide="file-search" style="width: 16px; height: 16px; color: #10b981;"></i>
+          4. Перегляд сканів
+        </a>
+        <a href="#section-ocr" class="chip-btn">
+          <i data-lucide="scan-line" style="width: 16px; height: 16px; color: #8b5cf6;"></i>
+          5. AI OCR сканування PDF
+        </a>
+        <a href="#section-extra" class="chip-btn">
+          <i data-lucide="shield-check" style="width: 16px; height: 16px; color: #ec4899;"></i>
+          6. Ролі та Експорт
+        </a>
+      </div>
+    </section>
+
+    <!-- STICKY SIDEBAR NAVIGATION -->
+    <aside class="manual-nav-sidebar" id="manual-sidebar">
+      <div class="nav-category-title">Головне меню</div>
+      
+      <a href="#section-roles" class="nav-link-item active">
+        <i data-lucide="shield" class="nav-icon"></i>
+        <span>Ролі та рівні доступу</span>
+        <span class="nav-badge-pill">4</span>
+      </a>
+
+      <div class="nav-category-title">Основні модулі (SOP)</div>
+
+      <a href="#section-instructor" class="nav-link-item">
+        <i data-lucide="calendar" class="nav-icon"></i>
+        <span>Підготовки інструктором</span>
+        <span class="nav-badge-pill">SOP-1</span>
+      </a>
+
+      <a href="#section-flights" class="nav-link-item">
+        <i data-lucide="clipboard-list" class="nav-icon"></i>
+        <span>Внесення польотів</span>
+        <span class="nav-badge-pill">SOP-2</span>
+      </a>
+
+      <a href="#section-discrepancy" class="nav-link-item">
+        <i data-lucide="alert-circle" class="nav-icon"></i>
+        <span>Неточності на сайті</span>
+        <span class="nav-badge-pill">SOP-3</span>
+      </a>
+
+      <a href="#section-scans" class="nav-link-item">
+        <i data-lucide="eye" class="nav-icon"></i>
+        <span>Перегляд скан-файлів</span>
+        <span class="nav-badge-pill">SOP-4</span>
+      </a>
+
+      <a href="#section-ocr" class="nav-link-item">
+        <i data-lucide="cpu" class="nav-icon"></i>
+        <span>Сканування PDF (AI OCR)</span>
+        <span class="nav-badge-pill">SOP-5</span>
+      </a>
+
+      <div class="nav-category-title">Додаткові можливості</div>
+
+      <a href="#section-extra" class="nav-link-item">
+        <i data-lucide="database" class="nav-icon"></i>
+        <span>Smart Merge та Експорт</span>
+        <span class="nav-badge-pill">v0.7</span>
+      </a>
+
+      <a href="#section-faq" class="nav-link-item">
+        <i data-lucide="help-circle" class="nav-icon"></i>
+        <span>Питання та відповіді</span>
+        <span class="nav-badge-pill">FAQ</span>
+      </a>
+    </aside>
+
+    <!-- CONTENT WRAPPER -->
+    <main class="manual-content">
+
+      <!-- ================= 0. ROLES & PERMISSIONS ================= -->
+      <section id="section-roles" class="manual-section">
+        <div class="section-header-block">
+          <div class="section-num-badge">0</div>
+          <div class="section-title-wrapper">
+            <h2 class="section-title">Рольова модель доступу (RBAC)</h2>
+            <div class="section-subtitle">Диференційовані права пілотів, інструкторів, менеджерів та адміністраторів</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <p style="font-size: 14.5px; color: var(--text-secondary); margin-bottom: 16px;">
+            Система <strong>AeroCheck</strong> працює за суворими авіаційними стандартами безпеки. Права доступу чітко розмежовані на чотири рівні:
+          </p>
+
+          <div class="role-grid">
+            <!-- ADMIN -->
+            <div class="role-card">
+              <div class="role-header">
+                <div class="role-icon-box" style="background: rgba(239, 68, 68, 0.15); color: #ef4444;">👑</div>
+                <div>
+                  <div class="role-name">ADMIN</div>
+                  <div style="font-size: 11px; color: var(--text-tertiary);">Адміністратор</div>
+                </div>
+              </div>
+              <ul class="role-perm-list">
+                <li class="role-perm-item"><span class="check-yes">✓</span> Повне редагування бази</li>
+                <li class="role-perm-item"><span class="check-yes">✓</span> Smart Merge імпорт Excel</li>
+                <li class="role-perm-item"><span class="check-yes">✓</span> Затвердження неточностей</li>
+                <li class="role-perm-item"><span class="check-yes">✓</span> Управління користувачами</li>
+              </ul>
+            </div>
+
+            <!-- INSTRUCTOR -->
+            <div class="role-card">
+              <div class="role-header">
+                <div class="role-icon-box" style="background: rgba(99, 102, 241, 0.15); color: #6366f1;">👨‍✈️</div>
+                <div>
+                  <div class="role-name">INSTRUCTOR</div>
+                  <div style="font-size: 11px; color: var(--text-tertiary);">Пілот-інструктор</div>
+                </div>
+              </div>
+              <ul class="role-perm-list">
+                <li class="role-perm-item"><span class="check-yes">✓</span> Внесення підготовок</li>
+                <li class="role-perm-item"><span class="check-yes">✓</span> Внесення та OCR польотів</li>
+                <li class="role-perm-item"><span class="check-yes">✓</span> Генерація PDF звітів</li>
+                <li class="role-perm-item"><span class="check-no">✕</span> Імпорт глобальних баз</li>
+              </ul>
+            </div>
+
+            <!-- OFFICE -->
+            <div class="role-card">
+              <div class="role-header">
+                <div class="role-icon-box" style="background: rgba(14, 165, 233, 0.15); color: #0ea5e9;">🏢</div>
+                <div>
+                  <div class="role-name">OFFICE</div>
+                  <div style="font-size: 11px; color: var(--text-tertiary);">Навчальний відділ</div>
+                </div>
+              </div>
+              <ul class="role-perm-list">
+                <li class="role-perm-item"><span class="check-yes">✓</span> Перегляд статусів та таблиць</li>
+                <li class="role-perm-item"><span class="check-yes">✓</span> Друк офіційних бланків</li>
+                <li class="role-perm-item"><span class="check-yes">✓</span> Верифікація неточностей</li>
+                <li class="role-perm-item"><span class="check-no">✕</span> Зміна паролів адміна</li>
+              </ul>
+            </div>
+
+            <!-- CREW -->
+            <div class="role-card">
+              <div class="role-header">
+                <div class="role-icon-box" style="background: rgba(16, 185, 129, 0.15); color: #10b981;">👤</div>
+                <div>
+                  <div class="role-name">CREW</div>
+                  <div style="font-size: 11px; color: var(--text-tertiary);">Пілот / Бортпровідник</div>
+                </div>
+              </div>
+              <ul class="role-perm-list">
+                <li class="role-perm-item"><span class="check-yes">✓</span> Персональний кабінет</li>
+                <li class="role-perm-item"><span class="check-yes">✓</span> Перегляд своїх скан-файлів</li>
+                <li class="role-perm-item"><span class="check-yes">✓</span> Повідомлення про неточність</li>
+                <li class="role-perm-item"><span class="check-no">✕</span> Прямий запис без перевірки</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 1. INSTRUCTOR GROUND TRAINING ================= -->
+      <section id="section-instructor" class="manual-section">
+        <div class="section-header-block">
+          <div class="section-num-badge">1</div>
+          <div class="section-title-wrapper">
+            <h2 class="section-title">Внесення інформації інструктором про пройдені підготовки</h2>
+            <div class="section-subtitle">Кваліфікаційні перевірки (OPC, LPC, DG, CRM, MED) та розрахунок термінів дій</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">
+            <i data-lucide="check-circle-2" style="color: var(--accent);"></i>
+            Покроковий регламент для інструктора
+          </h3>
+          
+          <div class="step-flow">
+            <div class="step-item">
+              <div class="step-circle">1</div>
+              <div class="step-content">
+                <div class="step-heading">Знаходження члена екіпажу в реєстрі</div>
+                <div class="step-desc">
+                  Відкрийте вкладку <strong>«Льотний склад»</strong> або <strong>«Кабінний склад»</strong>. Використовуйте поле швидкого пошуку (за прізвищем українською чи англійською мовою) або фільтри посади (PIC, SIC, INST).
+                </div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-circle">2</div>
+              <div class="step-content">
+                <div class="step-heading">Клік на відповідну комірку кваліфікації</div>
+                <div class="step-desc">
+                  Натисніть на комірку потрібного допуску (наприклад, <code>OPC</code>, <code>LPC</code>, <code>MED</code>, <code>CRM</code>). Відкриється модальне вікно редагування дати.
+                </div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-circle">3</div>
+              <div class="step-content">
+                <div class="step-heading">Вибір режиму введення: «Дата проходження» vs «Дата закінчення»</div>
+                <div class="step-desc">
+                  • <strong>Дата проходження (Completion Date):</strong> введіть фактичну дату виконання тренування. Система автоматично додасть нормативний термін (наприклад, +6 міс для OPC) та перенесе на останній день місяця.<br>
+                  • <strong>Дата закінчення (Expiration Date):</strong> введіть точну граничну дату, якщо сертифікат має особливий індивідуальний термін.
+                </div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-circle">4</div>
+              <div class="step-content">
+                <div class="step-heading">Збереження та автоматичний аудит</div>
+                <div class="step-desc">
+                  Натисніть <strong>«Зберегти»</strong>. Статус-бейдж миттєво оновиться кольором (🟢 Дійсний / 🟡 Завершується / 🔴 Прострочено), а факт внесення фіксується в журналі аудиту (Audit Changelog).
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Interactive Simulator: Compliance Calculator -->
+          <div class="demo-sandbox">
+            <div class="demo-badge-banner">
+              <i data-lucide="play" style="width: 12px; height: 12px;"></i>
+              Інтерактивний симулятор розрахунку
+            </div>
+
+            <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="calculator" style="color: var(--accent);"></i>
+              Спробуйте розрахувати термін допуску пілота
+            </h4>
+
+            <div class="grid-3">
+              <div class="sim-form-group">
+                <label class="sim-label">Склад екіпажу:</label>
+                <select id="sim-crew-type" class="sim-select">
+                  <option value="flight">Льотний склад (Flight Crew)</option>
+                  <option value="cabin">Кабінний склад (Cabin Crew)</option>
+                </select>
+              </div>
+
+              <div class="sim-form-group">
+                <label class="sim-label">Тип підготовки:</label>
+                <select id="sim-training-type" class="sim-select">
+                  <option value="OPC">OPC (6 місяців)</option>
+                  <option value="LPC">LPC (12 місяців)</option>
+                  <option value="MED">MED (12 місяців)</option>
+                  <option value="CRM">CRM (24 місяці)</option>
+                  <option value="EMER_3">EMER (3 роки / 36 міс)</option>
+                </select>
+              </div>
+
+              <div class="sim-form-group">
+                <label class="sim-label">Дата проходження тренування:</label>
+                <input type="date" id="sim-input-date" class="sim-input" value="2026-10-15">
+              </div>
+            </div>
+
+            <div class="compliance-result-box" id="sim-calc-result">
+              <div>
+                <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Розрахована дата закінчення терміну дії:</div>
+                <div id="sim-calc-expiry-date" style="font-size: 18px; font-weight: 800; font-family: var(--font-mono); color: var(--accent);">
+                  30.04.2027
+                </div>
+                <div class="calc-formula-display" id="sim-calc-formula">
+                  Формула: 15.10.2026 + 6 міс ➔ 15.04.2027 ➔ правило кінця місяця ➔ 30.04.2027
+                </div>
+              </div>
+              <div id="sim-calc-badge" class="status-badge status-valid">
+                <span class="pulse-dot"></span>
+                <span>🟢 Дійсний (186 днів)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 2. TRAINING FLIGHTS LOGGING ================= -->
+      <section id="section-flights" class="manual-section">
+        <div class="section-header-block">
+          <div class="section-num-badge">2</div>
+          <div class="section-title-wrapper">
+            <h2 class="section-title">Внесення інформації про польоти</h2>
+            <div class="section-subtitle">Журнал тренувальних польотів, валідація часу, експорт та надсилання на Email</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">
+            <i data-lucide="plane-takeoff" style="color: #0ea5e9;"></i>
+            Порядок внесення тренувального польоту
+          </h3>
+
+          <div class="step-flow">
+            <div class="step-item">
+              <div class="step-circle">1</div>
+              <div class="step-content">
+                <div class="step-heading">Перехід до форми обліку польотів</div>
+                <div class="step-desc">
+                  У лівому бічному меню виберіть розділ <strong>«Тренувальні польоти»</strong> (Training Flights). Перед вами відкриється офіційна форма введення польотного листа.
+                </div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-circle">2</div>
+              <div class="step-content">
+                <div class="step-heading">Заповнення параметрів місії та екіпажу</div>
+                <div class="step-desc">
+                  • <strong>Дата та борт ПС:</strong> вкажіть дату та виберіть бортовий номер гелікоптера (наприклад, <code>UR-HXZ</code>, <code>UR-CHA</code>).<br>
+                  • <strong>Склад екіпажу:</strong> виберіть командира (PIC), другого пілота (SIC) та пілота-інструктора (INST).
+                </div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-circle">3</div>
+              <div class="step-content">
+                <div class="step-heading">Введення блокового та польотного часу (День / Ніч)</div>
+                <div class="step-desc">
+                  Вкажіть тривалість польоту у форматі <code>ГГ:ХХ</code>. Система виконує сувору авіаційну валідацію: <strong>Блоковий час завжди має бути більшим або дорівнювати польотному часу!</strong>
+                </div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-circle">4</div>
+              <div class="step-content">
+                <div class="step-heading">Збереження, PDF звіт та відправка на пошту (SMTP)</div>
+                <div class="step-desc">
+                  Після натискання «Зберегти політ» години автоматично додаються в річний SVG-графік тренду. Ви можете в 1 клік згенерувати фірмовий PDF-бланк або надіслати звіт навчальному відділу на пошту.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Interactive Simulator: Flight Logger with Validation -->
+          <div class="demo-sandbox">
+            <div class="demo-badge-banner">
+              <i data-lucide="play" style="width: 12px; height: 12px;"></i>
+              Інтерактивний тренажер форми польоту
+            </div>
+
+            <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="sliders" style="color: #0ea5e9;"></i>
+              Симулятор валідації блокового/польотного часу
+            </h4>
+
+            <div class="grid-2">
+              <div class="sim-form-group">
+                <label class="sim-label">Бортовий номер гелікоптера:</label>
+                <select id="sim-flight-tail" class="sim-select">
+                  <option value="UR-HXZ">Мі-8МТВ-1 (UR-HXZ)</option>
+                  <option value="UR-CHA">Мі-8МТВ-1 (UR-CHA)</option>
+                  <option value="UR-HLB">Мі-8МТВ-1 (UR-HLB)</option>
+                </select>
+              </div>
+
+              <div class="sim-form-group">
+                <label class="sim-label">Виконані вправи курсу:</label>
+                <input type="text" id="sim-flight-exercises" class="sim-input" value="Впр. 4, Впр. 12 NVG, заходи за приладами">
+              </div>
+            </div>
+
+            <div class="flight-time-grid">
+              <div class="sim-form-group">
+                <label class="sim-label">Блоковий день:</label>
+                <input type="text" id="sim-block-day" class="sim-input" value="01:30" placeholder="00:00">
+              </div>
+              <div class="sim-form-group">
+                <label class="sim-label">Блокова ніч:</label>
+                <input type="text" id="sim-block-night" class="sim-input" value="00:45" placeholder="00:00">
+              </div>
+              <div class="sim-form-group">
+                <label class="sim-label">Польотний день:</label>
+                <input type="text" id="sim-flight-day" class="sim-input" value="01:20" placeholder="00:00">
+              </div>
+              <div class="sim-form-group">
+                <label class="sim-label">Польотна ніч:</label>
+                <input type="text" id="sim-flight-night" class="sim-input" value="00:40" placeholder="00:00">
+              </div>
+            </div>
+
+            <!-- Validation Error Alert Banner (Hidden by default) -->
+            <div id="sim-flight-error-banner" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: var(--radius-md); padding: 10px 14px; color: #f87171; font-size: 13px; align-items: center; gap: 8px; margin-top: 10px;">
+              <i data-lucide="alert-octagon" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
+              <span id="sim-flight-error-text">Помилка валідації!</span>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-top: 14px;">
+              <button class="sim-btn sim-btn-primary" id="btn-sim-log-flight">
+                <i data-lucide="plus-circle" style="width: 16px; height: 16px;"></i>
+                Записати політ у базу
+              </button>
+              <button class="sim-btn sim-btn-secondary" id="btn-sim-test-error">
+                Спровокувати помилку (Польотний > Блокового)
+              </button>
+            </div>
+
+            <!-- SVG Trend Dynamics Chart -->
+            <div class="svg-trend-chart">
+              <svg width="100%" height="100%" viewBox="0 0 600 140" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#6366f1" stop-opacity="0.5" />
+                    <stop offset="100%" stop-color="#6366f1" stop-opacity="0" />
+                  </linearGradient>
+                </defs>
+                <path id="sim-chart-area" class="trend-area" d="M 0,120 L 50,110 L 100,90 L 150,95 L 200,70 L 250,80 L 300,50 L 350,60 L 400,45 L 450,40 L 500,55 L 550,30 L 600,20 L 600,140 L 0,140 Z"></path>
+                <path id="sim-chart-line" class="trend-line" d="M 0,120 L 50,110 L 100,90 L 150,95 L 200,70 L 250,80 L 300,50 L 350,60 L 400,45 L 450,40 L 500,55 L 550,30 L 600,20"></path>
+              </svg>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">
+              <span>12 місяців тому</span>
+              <span style="font-weight: 700; color: var(--accent);">Динаміка інтенсивності польотів (Години)</span>
+              <span>Поточний місяць</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 3. DISCREPANCY & TWO-FACTOR APPROVAL ================= -->
+      <section id="section-discrepancy" class="manual-section">
+        <div class="section-header-block">
+          <div class="section-num-badge">3</div>
+          <div class="section-title-wrapper">
+            <h2 class="section-title">Внесення користувачем інформації про неточність на сайті</h2>
+            <div class="section-subtitle">Двофакторне затвердження (Pending Approval Workflow) та захист цілісності бази даних</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">
+            <i data-lucide="git-pull-request" style="color: #f59e0b;"></i>
+            Як працює система двофакторної верифікації
+          </h3>
+
+          <p style="font-size: 14.5px; color: var(--text-secondary); margin-bottom: 16px;">
+            Для запобігання випадковому спотворенню авіаційної бази, рядові пілоти та бортпровідники (роль <code>CREW</code>) не можуть самостійно змінювати офіційні дати. Замість цього вони формують <strong>Запит на верифікацію неточності</strong>, який проходить перевірку навчальним відділом.
+          </p>
+
+          <div class="grid-2">
+            <!-- CREW PERSPECTIVE -->
+            <div style="background: var(--bg-surface-alt); padding: 18px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                <span style="background: #10b981; color: #fff; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px;">A</span>
+                Дії члена екіпажу (Пілота):
+              </h4>
+              <ol style="padding-left: 20px; font-size: 13.5px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 8px;">
+                <li>Увійдіть в <strong>«Особистий кабінет»</strong>.</li>
+                <li>Натисніть кнопку <strong>«⚠️ Повідомити про неточність»</strong> або клікніть прямо на картку застарілого допуску.</li>
+                <li>Виберіть поле (наприклад, <code>OPC</code>, <code>MED</code> або контактний телефон).</li>
+                <li>Введіть правильну дату та коментар (наприклад: <em>«Пройшов тренажер 15.10.2026, протокол №482/Т»</em>).</li>
+                <li>Натисніть <strong>«Надіслати на розгляд»</strong>. Картка отримає статус <code>🟡 Запит на розгляді</code>.</li>
+              </ol>
+            </div>
+
+            <!-- ADMIN PERSPECTIVE -->
+            <div style="background: var(--bg-surface-alt); padding: 18px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+              <h4 style="font-size: 15px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                <span style="background: #ef4444; color: #fff; border-radius: 50%; width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px;">B</span>
+                Дії Адміністратора / Офісу:
+              </h4>
+              <ol style="padding-left: 20px; font-size: 13.5px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 8px;">
+                <li>У верхній панелі системи на дзвіночку <code>🔔</code> з'являється червоний індикатор нових заявок.</li>
+                <li>Клікніть на дзвіночок, щоб відкрити панель заявок на верифікацію.</li>
+                <li>Оцініть наочний <strong>Diff (Було ➔ Стало)</strong> та коментар пілота.</li>
+                <li>Натисніть <strong>«✅ Затвердити в 1 клік»</strong> — база автоматично оновлюється, формується запис аудиту в Changelog, або <strong>«✕ Відхилити»</strong>.</li>
+              </ol>
+            </div>
+          </div>
+
+          <!-- Interactive Simulator: Discrepancy Dual Simulation -->
+          <div class="demo-sandbox">
+            <div class="demo-badge-banner">
+              <i data-lucide="play" style="width: 12px; height: 12px;"></i>
+              Інтерактивний симулятор узгодження
+            </div>
+
+            <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="arrow-left-right" style="color: #f59e0b;"></i>
+              Спробуйте відправити неточність та затвердити її
+            </h4>
+
+            <div class="dual-approval-grid">
+              <!-- Left: Pilot Submission -->
+              <div class="dual-column-card">
+                <div style="font-weight: 700; font-size: 14px; color: var(--text-primary); display: flex; justify-content: space-between;">
+                  <span>Кабінет пілота (CREW)</span>
+                  <span class="status-badge status-warning" id="sim-pilot-badge">Старе значення в базі</span>
+                </div>
+
+                <div class="sim-form-group">
+                  <label class="sim-label">Поле з неточністю:</label>
+                  <select id="sim-discrepancy-field" class="sim-select">
+                    <option value="OPC">OPC (Перевірка навичок)</option>
+                    <option value="MED">MED (Медичний сертифікат)</option>
+                    <option value="CRM">CRM (Людський фактор)</option>
+                  </select>
+                </div>
+
+                <div class="sim-form-group">
+                  <label class="sim-label">Пропонована нова дата:</label>
+                  <input type="date" id="sim-discrepancy-new-date" class="sim-input" value="2026-10-31">
+                </div>
+
+                <div class="sim-form-group">
+                  <label class="sim-label">Коментар / Підтвердження:</label>
+                  <input type="text" id="sim-discrepancy-comment" class="sim-input" value="Пройшов перевірку у Києві, протокол №482">
+                </div>
+
+                <button class="sim-btn sim-btn-warning" id="btn-sim-submit-discrepancy">
+                  <i data-lucide="send" style="width: 15px; height: 15px;"></i>
+                  Надіслати запит навчальному відділу
+                </button>
+              </div>
+
+              <!-- Right: Admin Approval Panel -->
+              <div class="dual-column-card">
+                <div style="font-weight: 700; font-size: 14px; color: var(--text-primary); display: flex; justify-content: space-between; align-items: center;">
+                  <span>Панель адміна (ADMIN)</span>
+                  <div class="notification-bell-icon">
+                    <i data-lucide="bell" style="width: 20px; height: 20px; color: var(--text-primary);"></i>
+                    <span class="bell-count-badge" id="sim-bell-badge">0</span>
+                  </div>
+                </div>
+
+                <div id="sim-admin-pending-box" style="background: var(--bg-surface); border: 1px dashed var(--border-color); border-radius: var(--radius-md); padding: 14px; min-height: 140px; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: var(--text-tertiary); font-size: 13px;">
+                  Немає активних запитів. Натисніть «Надіслати запит» зліва, щоб перевірити дію.
+                </div>
+
+                <div id="sim-admin-actions" style="display: none; flex-direction: column; gap: 8px;">
+                  <div class="diff-display-box">
+                    <span class="diff-old" id="sim-diff-old">31.08.2025</span>
+                    <span class="diff-arrow">➔</span>
+                    <span class="diff-new" id="sim-diff-new">31.10.2026</span>
+                  </div>
+                  <div style="font-size: 12px; color: var(--text-secondary);" id="sim-diff-comment">
+                    Коментар: Пройшов перевірку у Києві...
+                  </div>
+                  <div style="display: flex; gap: 8px; margin-top: 6px;">
+                    <button class="sim-btn sim-btn-success" style="flex: 1;" id="btn-sim-approve">
+                      <i data-lucide="check" style="width: 16px; height: 16px;"></i>
+                      Затвердити в 1 клік
+                    </button>
+                    <button class="sim-btn sim-btn-danger" style="flex: 1;" id="btn-sim-reject">
+                      <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+                      Відхилити
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 4. DOCUMENT SCAN VIEWER ================= -->
+      <section id="section-scans" class="manual-section">
+        <div class="section-header-block">
+          <div class="section-num-badge">4</div>
+          <div class="section-title-wrapper">
+            <h2 class="section-title">Перегляд користувачем просканованих файлів</h2>
+            <div class="section-subtitle">Вбудований переглядач скан-копій, сертифікатів та навігація папками документів</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">
+            <i data-lucide="file-check" style="color: #10b981;"></i>
+            Можливості переглядача документів (Doc Preview Modal)
+          </h3>
+
+          <p style="font-size: 14.5px; color: var(--text-secondary); margin-bottom: 16px;">
+            Усі підтверджуючі документи, сертифікати тренажерних центрів та ліцензії зберігаються у захищеному сховищі. Користувачі можуть переглядати їх безпосередньо у веб-інтерфейсі без завантаження зайвих сторонніх програм.
+          </p>
+
+          <div class="grid-3" style="margin-bottom: 20px;">
+            <div style="background: var(--bg-surface-alt); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+              <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="zoom-in" style="width: 16px; height: 16px; color: var(--accent);"></i>
+                Масштабування (Zoom)
+              </div>
+              <div style="font-size: 12.5px; color: var(--text-secondary);">
+                Плавний зум від 50% до 300% для вивчення дрібних рукописних підписів, номерів протоколів та печаток.
+              </div>
+            </div>
+
+            <div style="background: var(--bg-surface-alt); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+              <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="rotate-cw" style="width: 16px; height: 16px; color: #0ea5e9;"></i>
+                Обертання на 90° (Rotate)
+              </div>
+              <div style="font-size: 12.5px; color: var(--text-secondary);">
+                Миттєвий поворот альбомних чи сканованих догори ногами документів в один клік без перезбереження файлу.
+              </div>
+            </div>
+
+            <div style="background: var(--bg-surface-alt); padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--border-color);">
+              <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="download" style="width: 16px; height: 16px; color: #10b981;"></i>
+                Експорт оригіналу (Download)
+              </div>
+              <div style="font-size: 12.5px; color: var(--text-secondary);">
+                Завантаження оригінального PDF/PNG файлу у високій якості для пред'явлення інспекторам Державіаслужби.
+              </div>
+            </div>
+          </div>
+
+          <!-- Interactive Simulator: Document Viewer Toolbar -->
+          <div class="demo-sandbox">
+            <div class="demo-badge-banner">
+              <i data-lucide="play" style="width: 12px; height: 12px;"></i>
+              Інтерактивний симулятор переглядача
+            </div>
+
+            <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="eye" style="color: #10b981;"></i>
+              Протестуйте керування сканом сертифіката
+            </h4>
+
+            <div class="doc-viewer-frame">
+              <!-- Toolbar -->
+              <div class="doc-viewer-toolbar">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <i data-lucide="file-text" style="width: 16px; height: 16px; color: #38bdf8;"></i>
+                  <span>OPC_Certificate_Captain_2026.pdf</span>
+                  <span style="font-size: 11px; background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px;">1.4 MB</span>
+                </div>
+
+                <div class="doc-toolbar-actions">
+                  <button class="tool-icon-btn" id="btn-doc-zoom-out" title="Зменшити">
+                    <i data-lucide="minus" style="width: 16px; height: 16px;"></i>
+                  </button>
+                  <span id="doc-zoom-level" style="font-size: 12px; font-weight: 600; min-width: 45px; text-align: center;">100%</span>
+                  <button class="tool-icon-btn" id="btn-doc-zoom-in" title="Збільшити">
+                    <i data-lucide="plus" style="width: 16px; height: 16px;"></i>
+                  </button>
+                  <button class="tool-icon-btn" id="btn-doc-rotate" title="Повернути на 90°">
+                    <i data-lucide="rotate-cw" style="width: 16px; height: 16px;"></i>
+                  </button>
+                  <button class="tool-icon-btn" id="btn-doc-reset" title="Скинути">
+                    <i data-lucide="maximize-2" style="width: 16px; height: 16px;"></i>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Canvas with Certificate Mockup -->
+              <div class="doc-canvas-area">
+                <div class="mock-cert-sheet" id="mock-cert">
+                  <div>
+                    <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; font-weight: 700;">Ukrainian Helicopters ATO</div>
+                    <div style="font-size: 13px; font-weight: 800; margin-top: 4px; color: #0f172a;">СЕРТИФІКАТ ПРОХОДЖЕННЯ OPC</div>
+                    <div style="font-size: 10px; color: #475569; margin-top: 6px;">ПІБ: Богданов Олександр Володимирович</div>
+                    <div style="font-size: 10px; color: #475569;">Тип ПС: Мі-8МТВ-1 (NVG Level D Sim)</div>
+                    <div style="font-size: 10px; color: #475569;">Дата: 15.10.2026 | Результат: PASSED</div>
+                  </div>
+
+                  <div class="cert-stamp">
+                    APPROVED<br>TRE / SFE<br>UA-ATO-014
+                  </div>
+
+                  <div style="font-size: 8px; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 4px;">
+                    Електронний цифровий підпис верифіковано в базі даних AeroCheck
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 5. AI OCR SCANNING OF FLIGHT PDF ================= -->
+      <section id="section-ocr" class="manual-section">
+        <div class="section-header-block">
+          <div class="section-num-badge">5</div>
+          <div class="section-title-wrapper">
+            <h2 class="section-title">Сканування PDF файла про польоти (AI OCR Gemini Vision)</h2>
+            <div class="section-subtitle">Автоматичне розпізнавання рукописних польотних завдань, співставлення екіпажу та імпорт</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3 class="card-title">
+            <i data-lucide="cpu" style="color: #8b5cf6;"></i>
+            Як працює нейромережевий модуль розпізнавання
+          </h3>
+
+          <p style="font-size: 14.5px; color: var(--text-secondary); margin-bottom: 16px;">
+            У версії <strong>v0.7</strong> інтегровано мультимодальне комп'ютерне бачення на базі Google Gemini Vision (<code>gemini-3.1-pro-preview</code> та <code>gemini-3.8-flash</code>). Інструктор більше не повинен вручну перенабирати десятки цифр і прізвищ з паперового завдання.
+          </p>
+
+          <div class="step-flow">
+            <div class="step-item">
+              <div class="step-circle">1</div>
+              <div class="step-content">
+                <div class="step-heading">Завантаження файлу PDF або фотографії</div>
+                <div class="step-desc">
+                  У розділі польотів натисніть <strong>«🤖 Скан / OCR польотного завдання»</strong> або просто перетягніть PDF-файл у вікно.
+                </div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-circle">2</div>
+              <div class="step-content">
+                <div class="step-heading">Мультимодальне сканування нейромережею</div>
+                <div class="step-desc">
+                  AI аналізує рукописний текст, визначає бортовий номер гелікоптера, дату, час вильоту/посадки, блокові та польотні години, а також перелік вправ.
+                </div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-circle">3</div>
+              <div class="step-content">
+                <div class="step-heading">Smart Crew Matching (Розумне співставлення прізвищ)</div>
+                <div class="step-desc">
+                  Алгоритм співставляє навіть нерозбірливо написані рукописні ініціали членів екіпажу (PIC, SIC, INST) із діючою базою льотного складу компанії.
+                </div>
+              </div>
+            </div>
+
+            <div class="step-item">
+              <div class="step-circle">4</div>
+              <div class="step-content">
+                <div class="step-heading">Спліт-екран верифікації та імпорт в 1 клік</div>
+                <div class="step-desc">
+                  Ви бачите оригінал завдання ліворуч та розпізнані поля праворуч. Після візуальної звірки натисніть <strong>«Імпортувати у форму польоту»</strong>.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Interactive Simulator: AI OCR Scanner -->
+          <div class="demo-sandbox">
+            <div class="demo-badge-banner">
+              <i data-lucide="play" style="width: 12px; height: 12px;"></i>
+              Інтерактивний AI OCR симулятор
+            </div>
+
+            <h4 style="font-size: 15px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+              <i data-lucide="sparkles" style="color: #8b5cf6;"></i>
+              Анімований процес сканування польотного листа
+            </h4>
+
+            <div class="ocr-scanner-wrapper">
+              <!-- Left: Animated Scan Canvas -->
+              <div class="ocr-scan-canvas">
+                <div class="ocr-laser-beam" id="sim-laser-beam"></div>
+
+                <div class="ocr-flight-sheet">
+                  <div style="font-weight: 800; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; display: flex; justify-content: space-between;">
+                    <span>ПОЛЬОТНЕ ЗАВДАННЯ № 104-Т</span>
+                    <span>24.10.2026</span>
+                  </div>
+                  <div>Борт ПС: <strong>UR-HXZ (Мі-8МТВ)</strong></div>
+                  <div>КВС (PIC): <strong>Богданов О.В.</strong></div>
+                  <div>2-й пілот (SIC): <strong>Мельник І.С.</strong></div>
+                  <div>Інструктор (INST): <strong>Ковальчук П.Г.</strong></div>
+                  <div style="margin-top: 4px; background: #f1f5f9; padding: 4px; border-radius: 3px;">
+                    Час: Блок 02:15 (Ніч 00:45) | Політ 02:00 (Ніч 00:40)
+                  </div>
+                  <div>Вправи: <strong>Впр. 4, 12-NVG, Заходи ОСП</strong></div>
+
+                  <!-- Highlights for OCR boxes -->
+                  <div class="ocr-box-highlight" id="box-tail" style="top: 30px; left: 10px; width: 140px; height: 20px;"></div>
+                  <div class="ocr-box-highlight" id="box-crew" style="top: 55px; left: 10px; width: 180px; height: 50px;"></div>
+                  <div class="ocr-box-highlight" id="box-time" style="top: 110px; left: 10px; width: 220px; height: 35px;"></div>
+                </div>
+              </div>
+
+              <!-- Right: Extracted Data Feed -->
+              <div class="ocr-result-table">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <span style="font-weight: 700; font-size: 13.5px; color: var(--text-primary);">Результат нейромережі:</span>
+                  <span class="status-badge status-info" id="sim-ocr-status">Очікує сканування</span>
+                </div>
+
+                <div class="ocr-field-row">
+                  <span style="color: var(--text-secondary);">Гелікоптер:</span>
+                  <strong id="ocr-val-tail" style="font-family: var(--font-mono); color: var(--accent);">—</strong>
+                </div>
+
+                <div class="ocr-field-row">
+                  <span style="color: var(--text-secondary);">Командир (PIC):</span>
+                  <strong id="ocr-val-pic" style="color: var(--text-primary);">—</strong>
+                </div>
+
+                <div class="ocr-field-row">
+                  <span style="color: var(--text-secondary);">Блоковий час (День/Ніч):</span>
+                  <strong id="ocr-val-block" style="font-family: var(--font-mono); color: #10b981;">—</strong>
+                </div>
+
+                <div class="ocr-field-row">
+                  <span style="color: var(--text-secondary);">Польотний час (День/Ніч):</span>
+                  <strong id="ocr-val-flight" style="font-family: var(--font-mono); color: #0ea5e9;">—</strong>
+                </div>
+
+                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                  <button class="sim-btn sim-btn-primary" style="flex: 1;" id="btn-run-ocr-sim">
+                    <i data-lucide="play" style="width: 15px; height: 15px;"></i>
+                    Запустити AI сканування
+                  </button>
+                  <button class="sim-btn sim-btn-secondary" id="btn-reset-ocr-sim">
+                    Скинути
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 6. ADVANCED FEATURES: SMART MERGE, AUDIT & EXPORT ================= -->
+      <section id="section-extra" class="manual-section">
+        <div class="section-header-block">
+          <div class="section-num-badge">6</div>
+          <div class="section-title-wrapper">
+            <h2 class="section-title">Додаткові ключові функції системи</h2>
+            <div class="section-subtitle">Розумний Smart Merge імпорт, аудит безпеки, експорт XLSX/CSV та двомовність</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <!-- SMART MERGE -->
+          <div class="card">
+            <h3 class="card-title">
+              <i data-lucide="merge" style="color: var(--accent);"></i>
+              Smart Merge Diff (Імпорт Excel без втрат)
+            </h3>
+            <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 12px;">
+              При завантаженні оновленої Excel-таблиці з Google Drive система застосовує алгоритм неруйнівного злиття:
+            </p>
+            <ul style="padding-left: 20px; font-size: 13px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px;">
+              <li>Співставлення співробітників за унікальним табельним номером (Employee ID).</li>
+              <li><strong>Хронологічний фільтр:</strong> дата в базі перезаписується <em>виключно тоді</em>, коли імпортована дата є новішою за існуючу.</li>
+              <li>Захист від випадкового затирання свіжих підготовок застарілим файлом.</li>
+            </ul>
+          </div>
+
+          <!-- AUDIT TRAIL -->
+          <div class="card">
+            <h3 class="card-title">
+              <i data-lucide="history" style="color: #0ea5e9;"></i>
+              Журнал аудиту змін (Changelog Audit)
+            </h3>
+            <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 12px;">
+              Кожна зміна в системі протоколюється відповідно до вимог авіаційного аудиту:
+            </p>
+            <ul style="padding-left: 20px; font-size: 13px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px;">
+              <li>Фіксація точного часу за стандартом ISO (UTC).</li>
+              <li>Email та роль користувача, що здійснив редагування.</li>
+              <li>Збереження старого та нового значення комірки (Old Value ➔ New Value).</li>
+              <li>Автоматична синхронізація журналу із резервною хмарою Google Drive.</li>
+            </ul>
+          </div>
+
+          <!-- EXPORT & DISPATCH -->
+          <div class="card">
+            <h3 class="card-title">
+              <i data-lucide="download-cloud" style="color: #10b981;"></i>
+              Експорт та Email-диспетчер
+            </h3>
+            <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 12px;">
+              Гнучке вивантаження даних для керівництва та інспекцій:
+            </p>
+            <ul style="padding-left: 20px; font-size: 13px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px;">
+              <li>Експорт всієї бази в <strong>XLSX</strong> або <strong>CSV</strong> з кодуванням UTF-8 BOM.</li>
+              <li>Генерація фірмових PDF-бланків тренувальних завдань за допомогою <code>html2pdf.js</code>.</li>
+              <li>Автоматична розсилка тижневих звітів польотів через SMTP-сервер.</li>
+            </ul>
+          </div>
+
+          <!-- BILINGUAL & THEMES -->
+          <div class="card">
+            <h3 class="card-title">
+              <i data-lucide="languages" style="color: #ec4899;"></i>
+              Двомовність (UA / EN) та ергономіка
+            </h3>
+            <p style="font-size: 13.5px; color: var(--text-secondary); margin-bottom: 12px;">
+              Міжнародні польоти вимагають повної двомовності:
+            </p>
+            <ul style="padding-left: 20px; font-size: 13px; color: var(--text-secondary); display: flex; flex-direction: column; gap: 6px;">
+              <li>Миттєве перемикання між <strong>Українською</strong> та <strong>English</strong> у шапці сайту.</li>
+              <li>Пошук співробітників за кириличною (<code>Name_Shrt_UA</code>) або латинською (<code>Full_Name_EN</code>) транскрипцією.</li>
+              <li>Темна та світла теми з підтримкою нічного польотного режиму.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================= 7. FAQ & TROUBLESHOOTING ================= -->
+      <section id="section-faq" class="manual-section">
+        <div class="section-header-block">
+          <div class="section-num-badge">?</div>
+          <div class="section-title-wrapper">
+            <h2 class="section-title">Часті запитання та швидке вирішення проблем (FAQ)</h2>
+            <div class="section-subtitle">Відповіді на типові питання користувачів та інструкторів</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+              <div style="font-weight: 700; font-size: 15px; color: var(--text-primary); margin-bottom: 4px;">
+                ❓ Чому після введення проходження 12.05.2026 термін OPC встановився на 30.11.2026, а не на 12.11.2026?
+              </div>
+              <div style="font-size: 13.5px; color: var(--text-secondary);">
+                💡 Для льотного складу діє авіаційне <strong>Правило останнього дня місяця (End of Month Rule)</strong>. Термін дії кваліфікаційної перевірки продовжується до останнього календарного дня місяця закінчення терміну.
+              </div>
+            </div>
+
+            <div style="border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+              <div style="font-weight: 700; font-size: 15px; color: var(--text-primary); margin-bottom: 4px;">
+                ❓ Що робити, якщо AI OCR розпізнав рукописне прізвище другого пілота з помилкою?
+              </div>
+              <div style="font-size: 13.5px; color: var(--text-secondary);">
+                💡 На спліт-екрані перевірки всі розпізнані поля доступні для швидкого редагування. Просто виправте прізвище або виберіть потрібного пілота зі списку перед натисканням кнопки «Імпортувати у форму».
+              </div>
+            </div>
+
+            <div>
+              <div style="font-weight: 700; font-size: 15px; color: var(--text-primary); margin-bottom: 4px;">
+                ❓ Як дізнатися, що мій запит про неточність було затверджено навчальним відділом?
+              </div>
+              <div style="font-size: 13.5px; color: var(--text-secondary);">
+                💡 У вашому персональному кабінеті статус допуску зміниться з жовтого бейджа <code>🟡 На розгляді</code> на дійсний зелений бейдж <code>🟢 Дійсний</code> із новою узгодженою датою.
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="manual-footer">
+    <div>AeroCheck (UH Crew Training Level) v0.7 — Система операційного моніторингу авіаційного персоналу</div>
+    <div style="margin-top: 4px; font-size: 12px;">Розроблено відповідно до вимог авіаційних стандартів Державіаслужби України • Всі права захищено</div>
+  </footer>
+
+  <!-- ================= LOGIC & INTERACTIVE SCRIPTS ================= -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // Initialize Lucide icons
+      if (window.lucide) {
+        lucide.createIcons();
+      }
+
+      // 1. Reading Progress Bar & Scroll Spy
+      const progressBar = document.getElementById('reading-progress');
+      const sections = document.querySelectorAll('.manual-section');
+      const navLinks = document.querySelectorAll('.nav-link-item');
+
+      window.addEventListener('scroll', () => {
+        const scrollTop = window.scrollY;
+        const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        const progress = (scrollTop / docHeight) * 100;
+        progressBar.style.width = progress + '%';
+
+        // Scroll spy
+        let currentSectionId = '';
+        sections.forEach(section => {
+          const sectionTop = section.offsetTop - 140;
+          if (scrollTop >= sectionTop) {
+            currentSectionId = section.getAttribute('id');
+          }
+        });
+
+        if (currentSectionId) {
+          navLinks.forEach(link => {
+            link.classList.remove('active');
+            if (link.getAttribute('href') === '#' + currentSectionId) {
+              link.classList.add('active');
+            }
+          });
+        }
+      });
+
+      // 2. Theme Switcher (Dark / Light)
+      const themeBtn = document.getElementById('theme-btn');
+      const themeIconSun = document.getElementById('theme-icon-sun');
+      const themeIconMoon = document.getElementById('theme-icon-moon');
+      const htmlEl = document.documentElement;
+
+      const savedTheme = localStorage.getItem('aerocheck_theme') || 'dark';
+      setTheme(savedTheme);
+
+      themeBtn.addEventListener('click', () => {
+        const currentTheme = htmlEl.getAttribute('data-theme');
+        const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        setTheme(nextTheme);
+      });
+
+      function setTheme(theme) {
+        htmlEl.setAttribute('data-theme', theme);
+        localStorage.setItem('aerocheck_theme', theme);
+        if (theme === 'dark') {
+          themeIconSun.style.display = 'none';
+          themeIconMoon.style.display = 'inline-block';
+        } else {
+          themeIconSun.style.display = 'inline-block';
+          themeIconMoon.style.display = 'none';
+        }
+      }
+
+      // 3. Search Filter across Manual
+      const searchInput = document.getElementById('manual-search-input');
+      searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        sections.forEach(section => {
+          const text = section.innerText.toLowerCase();
+          if (!query || text.includes(query)) {
+            section.style.display = 'flex';
+          } else {
+            section.style.display = 'none';
+          }
+        });
+      });
+
+      // ========================================================================
+      // SIMULATOR 1: COMPLIANCE DATE CALCULATOR
+      // ========================================================================
+      const crewTypeSelect = document.getElementById('sim-crew-type');
+      const trainingSelect = document.getElementById('sim-training-type');
+      const dateInput = document.getElementById('sim-input-date');
+      const calcResultEl = document.getElementById('sim-calc-expiry-date');
+      const calcFormulaEl = document.getElementById('sim-calc-formula');
+      const calcBadgeEl = document.getElementById('sim-calc-badge');
+
+      function updateComplianceDemo() {
+        const crewType = crewTypeSelect.value;
+        const training = trainingSelect.value;
+        const rawDateStr = dateInput.value;
+
+        if (!rawDateStr) return;
+
+        const date = new Date(rawDateStr);
+        let monthsToAdd = 12;
+        if (training === 'OPC') monthsToAdd = 6;
+        if (training === 'CRM') monthsToAdd = 24;
+        if (training === 'EMER_3') monthsToAdd = 36;
+
+        const isEndOfMonth = (crewType === 'flight') || (crewType === 'cabin' && training === 'OPC');
+
+        // Add months
+        const targetDate = new Date(date.getFullYear(), date.getMonth() + monthsToAdd, date.getDate());
+        
+        let finalDate = targetDate;
+        if (isEndOfMonth) {
+          // Last day of month
+          finalDate = new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0);
+        }
+
+        const formatD = (d) => String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + d.getFullYear();
+        const finalFormatted = formatD(finalDate);
+
+        calcResultEl.innerText = finalFormatted;
+        calcFormulaEl.innerText = `Формула: ${formatD(date)} + ${monthsToAdd} міс ${isEndOfMonth ? '➔ правило останнього дня місяця ➔ ' : '➔ '} ${finalFormatted}`;
+
+        // Difference in days from today
+        const now = new Date(2026, 9, 26); // Reference date 26 Oct 2026
+        const diffDays = Math.ceil((finalDate - now) / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) {
+          calcBadgeEl.className = 'status-badge status-expired';
+          calcBadgeEl.innerHTML = `<span class="pulse-dot"></span><span>🔴 Прострочено (${Math.abs(diffDays)} дн тому)</span>`;
+        } else if (diffDays <= 30) {
+          calcBadgeEl.className = 'status-badge status-warning';
+          calcBadgeEl.innerHTML = `<span class="pulse-dot"></span><span>🟡 Завершується (${diffDays} дн)</span>`;
+        } else {
+          calcBadgeEl.className = 'status-badge status-valid';
+          calcBadgeEl.innerHTML = `<span class="pulse-dot"></span><span>🟢 Дійсний (${diffDays} дн)</span>`;
+        }
+      }
+
+      crewTypeSelect.addEventListener('change', updateComplianceDemo);
+      trainingSelect.addEventListener('change', updateComplianceDemo);
+      dateInput.addEventListener('input', updateComplianceDemo);
+      updateComplianceDemo();
+
+      // ========================================================================
+      // SIMULATOR 2: FLIGHT TIME VALIDATION & CHART
+      // ========================================================================
+      const blockDayIn = document.getElementById('sim-block-day');
+      const flightDayIn = document.getElementById('sim-flight-day');
+      const errorBanner = document.getElementById('sim-flight-error-banner');
+      const errorText = document.getElementById('sim-flight-error-text');
+      const btnLogFlight = document.getElementById('btn-sim-log-flight');
+      const btnTestError = document.getElementById('btn-sim-test-error');
+      const chartLine = document.getElementById('sim-chart-line');
+      const chartArea = document.getElementById('sim-chart-area');
+
+      function parseMinutes(timeStr) {
+        if (!timeStr || !timeStr.includes(':')) return 0;
+        const [h, m] = timeStr.split(':').map(Number);
+        return (h || 0) * 60 + (m || 0);
+      }
+
+      function validateFlightTimes() {
+        const bMin = parseMinutes(blockDayIn.value);
+        const fMin = parseMinutes(flightDayIn.value);
+
+        if (fMin > bMin) {
+          errorBanner.style.display = 'flex';
+          errorText.innerText = `УВАГА: Польотний час (${flightDayIn.value}) не може перевищувати блоковий час (${blockDayIn.value})!`;
+          errorBanner.style.animation = 'shakeError 0.4s ease';
+          return false;
+        } else {
+          errorBanner.style.display = 'none';
+          return true;
+        }
+      }
+
+      btnLogFlight.addEventListener('click', () => {
+        if (!validateFlightTimes()) return;
+
+        btnLogFlight.innerHTML = '<i data-lucide="check" style="width:16px;height:16px;"></i> Записано успішно!';
+        btnLogFlight.className = 'sim-btn sim-btn-success';
+        if (window.lucide) lucide.createIcons();
+
+        // Animate chart line update
+        chartLine.setAttribute('d', 'M 0,120 L 50,110 L 100,90 L 150,95 L 200,70 L 250,80 L 300,50 L 350,60 L 400,45 L 450,40 L 500,55 L 550,25 L 600,10');
+        chartArea.setAttribute('d', 'M 0,120 L 50,110 L 100,90 L 150,95 L 200,70 L 250,80 L 300,50 L 350,60 L 400,45 L 450,40 L 500,55 L 550,25 L 600,10 L 600,140 L 0,140 Z');
+
+        setTimeout(() => {
+          btnLogFlight.innerHTML = '<i data-lucide="plus-circle" style="width:16px;height:16px;"></i> Записати політ у базу';
+          btnLogFlight.className = 'sim-btn sim-btn-primary';
+          if (window.lucide) lucide.createIcons();
+        }, 2000);
+      });
+
+      btnTestError.addEventListener('click', () => {
+        blockDayIn.value = '01:00';
+        flightDayIn.value = '01:30';
+        validateFlightTimes();
+      });
+
+      blockDayIn.addEventListener('input', validateFlightTimes);
+      flightDayIn.addEventListener('input', validateFlightTimes);
+
+      // ========================================================================
+      // SIMULATOR 3: DISCREPANCY & TWO-FACTOR APPROVAL
+      // ========================================================================
+      const btnSubmitDiscrepancy = document.getElementById('btn-sim-submit-discrepancy');
+      const pilotBadge = document.getElementById('sim-pilot-badge');
+      const bellBadge = document.getElementById('sim-bell-badge');
+      const adminPendingBox = document.getElementById('sim-admin-pending-box');
+      const adminActions = document.getElementById('sim-admin-actions');
+      const diffOld = document.getElementById('sim-diff-old');
+      const diffNew = document.getElementById('sim-diff-new');
+      const diffComment = document.getElementById('sim-diff-comment');
+      const btnApprove = document.getElementById('btn-sim-approve');
+      const btnReject = document.getElementById('btn-sim-reject');
+
+      btnSubmitDiscrepancy.addEventListener('click', () => {
+        pilotBadge.className = 'status-badge status-warning';
+        pilotBadge.innerHTML = '<span class="pulse-dot"></span><span>🟡 Запит: 31.10.2026 (на розгляді)</span>';
+
+        bellBadge.innerText = '1';
+        bellBadge.style.display = 'flex';
+
+        adminPendingBox.style.display = 'none';
+        adminActions.style.display = 'flex';
+
+        diffOld.innerText = '31.08.2025';
+        diffNew.innerText = document.getElementById('sim-discrepancy-new-date').value || '31.10.2026';
+        diffComment.innerText = 'Коментар: ' + (document.getElementById('sim-discrepancy-comment').value || 'Пройшов перевірку');
+      });
+
+      btnApprove.addEventListener('click', () => {
+        bellBadge.innerText = '0';
+        bellBadge.style.display = 'none';
+
+        adminActions.style.display = 'none';
+        adminPendingBox.style.display = 'flex';
+        adminPendingBox.innerHTML = '<div style="color: #10b981; font-weight: 700;">✅ Запит затверджено! Базу оновлено та внесено в Changelog.</div>';
+
+        pilotBadge.className = 'status-badge status-valid';
+        pilotBadge.innerHTML = '<span class="pulse-dot"></span><span>🟢 Дійсний (31.10.2026)</span>';
+      });
+
+      btnReject.addEventListener('click', () => {
+        bellBadge.innerText = '0';
+        bellBadge.style.display = 'none';
+
+        adminActions.style.display = 'none';
+        adminPendingBox.style.display = 'flex';
+        adminPendingBox.innerHTML = '<div style="color: #ef4444; font-weight: 700;">✕ Запит відхилено адміністратором. База без змін.</div>';
+
+        pilotBadge.className = 'status-badge status-expired';
+        pilotBadge.innerHTML = '<span>🔴 Відхилено (31.08.2025)</span>';
+      });
+
+      // ========================================================================
+      // SIMULATOR 4: DOCUMENT SCAN VIEWER
+      // ========================================================================
+      const mockCert = document.getElementById('mock-cert');
+      const zoomLevelEl = document.getElementById('doc-zoom-level');
+      let currentZoom = 1;
+      let currentRotation = 0;
+
+      document.getElementById('btn-doc-zoom-in').addEventListener('click', () => {
+        if (currentZoom < 2.5) currentZoom += 0.25;
+        applyDocTransform();
+      });
+
+      document.getElementById('btn-doc-zoom-out').addEventListener('click', () => {
+        if (currentZoom > 0.5) currentZoom -= 0.25;
+        applyDocTransform();
+      });
+
+      document.getElementById('btn-doc-rotate').addEventListener('click', () => {
+        currentRotation = (currentRotation + 90) % 360;
+        applyDocTransform();
+      });
+
+      document.getElementById('btn-doc-reset').addEventListener('click', () => {
+        currentZoom = 1;
+        currentRotation = 0;
+        applyDocTransform();
+      });
+
+      function applyDocTransform() {
+        mockCert.style.transform = `scale(${currentZoom}) rotate(${currentRotation}deg)`;
+        zoomLevelEl.innerText = Math.round(currentZoom * 100) + '%';
+      }
+
+      // ========================================================================
+      // SIMULATOR 5: AI OCR SCANNING (GEMINI VISION)
+      // ========================================================================
+      const btnRunOcr = document.getElementById('btn-run-ocr-sim');
+      const btnResetOcr = document.getElementById('btn-reset-ocr-sim');
+      const laserBeam = document.getElementById('sim-laser-beam');
+      const ocrStatus = document.getElementById('sim-ocr-status');
+
+      const boxTail = document.getElementById('box-tail');
+      const boxCrew = document.getElementById('box-crew');
+      const boxTime = document.getElementById('box-time');
+
+      const valTail = document.getElementById('ocr-val-tail');
+      const valPic = document.getElementById('ocr-val-pic');
+      const valBlock = document.getElementById('ocr-val-block');
+      const valFlight = document.getElementById('ocr-val-flight');
+
+      btnRunOcr.addEventListener('click', () => {
+        btnRunOcr.disabled = true;
+        laserBeam.classList.add('active');
+        ocrStatus.className = 'status-badge status-warning';
+        ocrStatus.innerText = '🤖 AI Gemini розпізнає...';
+
+        setTimeout(() => {
+          boxTail.classList.add('visible');
+          valTail.innerText = 'UR-HXZ (Мі-8МТВ)';
+        }, 600);
+
+        setTimeout(() => {
+          boxCrew.classList.add('visible');
+          valPic.innerText = 'Богданов О.В. (PIC, #104)';
+        }, 1200);
+
+        setTimeout(() => {
+          boxTime.classList.add('visible');
+          valBlock.innerText = '02:15 (Ніч 00:45)';
+          valFlight.innerText = '02:00 (Ніч 00:40)';
+        }, 1800);
+
+        setTimeout(() => {
+          laserBeam.classList.remove('active');
+          ocrStatus.className = 'status-badge status-valid';
+          ocrStatus.innerText = '✓ Успішно (Впевненість 99.4%)';
+          btnRunOcr.disabled = false;
+        }, 2300);
+      });
+
+      btnResetOcr.addEventListener('click', () => {
+        laserBeam.classList.remove('active');
+        boxTail.classList.remove('visible');
+        boxCrew.classList.remove('visible');
+        boxTime.classList.remove('visible');
+
+        valTail.innerText = '—';
+        valPic.innerText = '—';
+        valBlock.innerText = '—';
+        valFlight.innerText = '—';
+
+        ocrStatus.className = 'status-badge status-info';
+        ocrStatus.innerText = 'Очікує сканування';
+        btnRunOcr.disabled = false;
+      });
+    });
+  </script>
+</body>
+</html>
