@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>UH Training Level Dashboard v0.7</title>
+  <title>UH Training Level Dashboard v0.8</title>
   
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="PICS/favicon.svg">
@@ -101,7 +101,7 @@
     <aside class="sidebar">
       <div class="logo-container">
         <img src="PICS/LOGO_UH.png" alt="Ukrainian Helicopters">
-        <span class="status-badge status-neutral" style="font-size: 10px; font-weight: 700; padding: 2px 6px; margin-top: 4px; letter-spacing: 0.5px;">v0.7</span>
+        <span class="status-badge status-neutral" style="font-size: 10px; font-weight: 700; padding: 2px 6px; margin-top: 4px; letter-spacing: 0.5px;">v0.8</span>
       </div>
       
       <nav class="nav-links">
@@ -145,10 +145,9 @@
           <i data-lucide="user"></i>
           <span data-i18n="nav_portal">Мій кабінет</span>
         </button>
-        <a href="manual.html" target="_blank" class="nav-item" id="nav-btn-manual" style="text-decoration: none;" title="Інтерактивний мануал користувача">
-          <i data-lucide="book-open"></i>
-          <span data-i18n="nav_manual">Мануал користувача</span>
-          <span class="status-badge status-info" style="margin-left: auto; font-size: 10px; padding: 1px 6px; font-weight: 700;">PRO</span>
+        <a href="https://github.com/h4pzz/TRAINING-LEVEL" target="_blank" rel="noopener noreferrer" class="nav-item" id="nav-btn-manual" style="text-decoration: none;" title="Репозиторій на GitHub">
+          <i data-lucide="github"></i>
+          <span data-i18n="nav_manual">GIT</span>
         </a>
       </nav>
       
@@ -1183,8 +1182,14 @@
                         <input type="text" id="settings-google-sheet-flights-id" class="form-input" placeholder="Google Sheet ID польотів (напр. 1gHkl924Ksd...)" style="font-family: monospace; font-size: 12px;" data-i18n-placeholder="placeholder_sheet_flights">
                       </div>
                       <div class="form-group" style="margin-top: 8px;">
-                        <label for="settings-google-drive-flights-folder-id" style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary);" data-i18n="label_flights_drive_folder">Окрема папка на Google Drive для бази польотів (Folder ID або назва):</label>
-                        <input type="text" id="settings-google-drive-flights-folder-id" class="form-input" placeholder="Training_Flights_Backups" style="font-family: monospace; font-size: 12px;">
+                        <label for="settings-google-drive-flights-folder-id" style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary);" data-i18n="label_flights_drive_folder">Корінна папка на Google Drive для бази та сканів (Folder ID або назва):</label>
+                        <input type="text" id="settings-google-drive-flights-folder-id" class="form-input" placeholder="Training_Flights" value="Training_Flights" style="font-family: monospace; font-size: 12px;">
+                        <span style="font-size: 10.5px; color: var(--text-secondary); margin-top: 3px; display: block;">Скани польотів автоматично зберігаються в підпапки виду <code>Month_YEAR</code> (напр. <code>Jan_2026</code>) всередині цієї папки.</span>
+                      </div>
+                      <div class="form-group" style="margin-top: 8px;">
+                        <label for="settings-google-apps-script-url" style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary);" data-i18n="label_apps_script_url">Google Apps Script Web App URL (для синхронізації та сканів без OAuth):</label>
+                        <input type="url" id="settings-google-apps-script-url" class="form-input" placeholder="https://script.google.com/macros/s/.../exec" style="font-family: monospace; font-size: 12px;">
+                        <span style="font-size: 10.5px; color: var(--text-secondary); margin-top: 3px; display: block;">Забезпечує автоматичне створення папок <code>Month_YEAR</code> та завантаження сканів на Google Drive для акаунту uh.nairobi@gmail.com.</span>
                       </div>
                       <div style="display: flex; gap: var(--spacing-2); flex-wrap: wrap; margin-top: 8px;">
                         <button class="btn btn-secondary" id="btn-sync-flights-drive" style="flex: 1 1 160px; height: 32px; font-size: 12px; border-color: var(--accent); color: var(--accent);">
@@ -3041,6 +3046,6 @@
   </div>
 
   <!-- Main SPA Application logic script -->
-  <script type="module" src="js/app.js?v=0.8.1"></script>
+  <script type="module" src="js/app.js?v=0.8.2"></script>
 </body>
 </html>

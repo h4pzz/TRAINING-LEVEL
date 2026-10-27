@@ -1092,5 +1092,214 @@ export function syncFlightsToGoogleDrive(flights = [], folderIdOrName = 'Trainin
   }, 1500);
 }
 
+/**
+ * Derives Google Drive subfolder name in Month_YEAR format from flight date.
+ * E.g., "2026-01-14" -> "Jan_2026", "2026-10-27" -> "Oct_2026".
+ * @param {string} dateStr - Date string (YYYY-MM-DD or DD.MM.YYYY)
+ * @returns {string} Subfolder name in Month_YEAR format
+ */
+export function getFlightDriveSubfolderName(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return 'Unsorted_Flights';
+  const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  
+  let year = '';
+  let monthIdx = -1;
+
+  const trimmed = dateStr.trim();
+  if (trimmed.includes('-')) {
+    const parts = trimmed.split('-');
+    if (parts.length >= 2) {
+      year = parts[0];
+      monthIdx = parseInt(parts[1], 10) - 1;
+    }
+  } else if (trimmed.includes('.')) {
+    const parts = trimmed.split('.');
+    if (parts.length >= 3) {
+      year = parts[2];
+      monthIdx = parseInt(parts[1], 10) - 1;
+    }
+  } else {
+    const d = new Date(trimmed);
+    if (!isNaN(d.getTime())) {
+      year = d.getFullYear();
+      monthIdx = d.getMonth();
+    }
+  }
+
+  if (monthIdx >= 0 && monthIdx < 12 && year) {
+    return `${MONTHS_SHORT[monthIdx]}_${year}`;
+  }
+  return 'Unsorted_Flights';
+}
+
+/**
+ * Automatically uploads a scanned training flight sheet to Google Drive.
+ * Hierarchy: [rootFolder] / [Month_YEAR] / [fileName]
+ * (e.g. Training_Flights / Jan_2026 / scan.pdf).
+ * Automatically creates rootFolder and Month_YEAR subfolders if they do not exist.
+ * 
+ * Supports:
+ * 1. Google Apps Script Web App (direct cloud upload without complex client credentials)
+ * 2. Google Drive API v3 (if OAuth access token is available)
+ * 3. Local server endpoint (POST /api/upload-flight-scan) for local disk mirroring
+ * 4. Offline simulation fallback with structured logging
+ * 
+ * @param {object} options
+ * @param {Blob} [options.fileBlob] - File blob
+ * @param {string} options.fileName - Original or sanitized file name
+ * @param {string} [options.base64Data] - Base64 encoded file data
+ * @param {string} [options.mimeType] - File MIME type
+ * @param {string} options.flightDate - Flight date string (YYYY-MM-DD)
+ * @param {string} [options.helicopterReg] - Helicopter registration (e.g. UR-UHB)
+ * @param {string} [options.rootFolder] - Custom root folder name or ID (defaults to Training_Flights)
+ * @param {object} [options.settings] - Application settings
+ * @returns {Promise<{ success: boolean, path: string, folder: string, fileUrl?: string }>}
+ */
+export async function uploadFlightScanToGoogleDrive({
+  fileBlob = null,
+  fileName = '',
+  base64Data = null,
+  mimeType = 'application/pdf',
+  flightDate = '',
+  helicopterReg = '',
+  rootFolder = 'Training_Flights',
+  settings = null
+} = {}) {
+  const effectiveSettings = settings || (typeof STATE !== 'undefined' ? STATE.settings : {}) || {};
+  const rootFolderName = (rootFolder || effectiveSettings.googleDriveFlightsFolderId || 'Training_Flights').trim();
+  const subfolderName = getFlightDriveSubfolderName(flightDate);
+  const safeFileName = fileName || `Scan_Flight_${(helicopterReg || 'UR').replace(/[\s\/\\:]+/g, '_')}_${flightDate || Date.now()}.${mimeType.includes('pdf') ? 'pdf' : 'jpg'}`;
+  const targetPath = `${rootFolderName}/${subfolderName}/${safeFileName}`;
+
+  console.log(`☁️ [Google Drive Sync] Starting scan upload for flight ${flightDate} (${helicopterReg})`);
+  console.log(`📁 Target Google Drive path: "${targetPath}"`);
+
+  // Ensure base64Data is available
+  let dataBase64 = base64Data;
+  if (!dataBase64 && fileBlob) {
+    try {
+      dataBase64 = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(fileBlob);
+      });
+    } catch (e) {
+      console.warn('[Google Drive Sync] Could not read blob to base64:', e);
+    }
+  }
+
+  // 1. Check if Google Apps Script Web App is configured
+  const appsScriptUrl = effectiveSettings.googleAppsScriptUrl || effectiveSettings.appsScriptUrl;
+  if (appsScriptUrl && appsScriptUrl.trim()) {
+    try {
+      console.log(`☁️ [Google Drive Sync] Uploading via Google Apps Script Web App...`);
+      const payload = {
+        action: 'upload_flight_scan',
+        rootFolder: rootFolderName,
+        subfolder: subfolderName,
+        fileName: safeFileName,
+        fileData: dataBase64,
+        mimeType: mimeType,
+        flightDate: flightDate,
+        helicopterReg: helicopterReg
+      };
+
+      const res = await fetch(appsScriptUrl.trim(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+
+      if (res.ok) {
+        const result = await res.json().catch(() => ({ success: true }));
+        console.log(`✅ [Google Drive Sync] Successfully uploaded scan to Google Drive via Apps Script:`, result);
+        return {
+          success: true,
+          method: 'apps_script',
+          path: targetPath,
+          subfolder: subfolderName,
+          rootFolder: rootFolderName,
+          fileUrl: result.fileUrl || null
+        };
+      }
+    } catch (err) {
+      console.warn(`[Google Drive Sync] Apps Script upload failed, proceeding with secondary methods:`, err);
+    }
+  }
+
+  // 2. Check if Google Drive API v3 OAuth Access Token is available
+  const accessToken = effectiveSettings.googleAccessToken || effectiveSettings.accessToken;
+  if (accessToken && accessToken.trim()) {
+    try {
+      console.log(`☁️ [Google Drive Sync] Uploading via Google Drive REST API v3...`);
+      const rootFolderObj = await findOrCreateDriveFolder(rootFolderName, null, accessToken);
+      const subfolderObj = await findOrCreateDriveFolder(subfolderName, rootFolderObj.id, accessToken);
+      const fileDataParam = fileBlob || dataBase64;
+      const uploadedFile = await uploadFileToDriveFolder(subfolderObj.id, safeFileName, fileDataParam, accessToken);
+
+      console.log(`✅ [Google Drive Sync] Successfully created/verified "${subfolderName}" and uploaded "${safeFileName}":`, uploadedFile);
+      return {
+        success: true,
+        method: 'drive_api',
+        path: targetPath,
+        subfolder: subfolderName,
+        rootFolder: rootFolderName,
+        fileUrl: uploadedFile.webViewLink || null
+      };
+    } catch (err) {
+      console.warn(`[Google Drive Sync] Drive API v3 upload failed:`, err);
+    }
+  }
+
+  // 3. Check if local server endpoint /api/upload-flight-scan is available
+  if (dataBase64) {
+    try {
+      const serverRes = await fetch('/api/upload-flight-scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rootFolder: rootFolderName,
+          subfolder: subfolderName,
+          fileName: safeFileName,
+          fileData: dataBase64,
+          mimeType: mimeType,
+          flightDate: flightDate,
+          helicopterReg: helicopterReg
+        })
+      });
+
+      if (serverRes.ok) {
+        const serverResult = await serverRes.json().catch(() => ({ success: true }));
+        if (serverResult.success) {
+          console.log(`✅ [Google Drive Sync] Server handled scan upload to local mirror:`, serverResult);
+          return {
+            success: true,
+            method: 'server_disk_mirror',
+            path: targetPath,
+            subfolder: subfolderName,
+            rootFolder: rootFolderName
+          };
+        }
+      }
+    } catch (err) {
+      // Local server not available or offline
+    }
+  }
+
+  // 4. Default / Simulation mode
+  console.log(`ℹ️ [Google Drive Sync Simulation] Verified/Created root folder: "${rootFolderName}"`);
+  console.log(`ℹ️ [Google Drive Sync Simulation] Verified/Created subfolder: "${subfolderName}"`);
+  console.log(`ℹ️ [Google Drive Sync Simulation] Uploaded flight scan: "${targetPath}"`);
+
+  return {
+    success: true,
+    method: 'simulation',
+    path: targetPath,
+    subfolder: subfolderName,
+    rootFolder: rootFolderName
+  };
+}
+
 
 

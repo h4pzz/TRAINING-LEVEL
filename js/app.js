@@ -32,7 +32,9 @@ import {
   testGoogleConnection,
   createRealDriveCrewFolders,
   uploadCrewDocumentToDrive,
-  uploadCrewPhotoToDrive
+  uploadCrewPhotoToDrive,
+  uploadFlightScanToGoogleDrive,
+  getFlightDriveSubfolderName
 } from '../execution/drive_sync.js';
 import { dispatchFlightLogEmail, dispatchFlightsWeeklyEmail, formatFlightReportText, generateFlightPdfBase64 } from '../execution/email_dispatcher.js';
 import { 
@@ -83,7 +85,7 @@ const TRANSLATIONS = {
     nav_forms: "Форми",
     nav_settings: "Налаштування",
     nav_portal: "Мій кабінет",
-    nav_manual: "Мануал користувача",
+    nav_manual: "GIT",
     sys_date_label: "Розрахункова дата:",
     
     // Header
@@ -505,7 +507,7 @@ const TRANSLATIONS = {
     nav_forms: "Smart Forms",
     nav_settings: "Settings",
     nav_portal: "Personal Portal",
-    nav_manual: "User Manual",
+    nav_manual: "GIT",
     sys_date_label: "Reference Date:",
     
     // Header
@@ -1125,7 +1127,7 @@ function getFormColumnShortTitle(colKey, lang = 'uk') {
 }
 
 // ================= DEFAULT APP STATE =================
-export const APP_VERSION = '0.7';
+export const APP_VERSION = '0.8';
 
 let googleAccessToken = (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('google_access_token') : null);
 
@@ -5020,7 +5022,10 @@ function renderSettingsSyncTab() {
   if (googleDriveFolderInput) googleDriveFolderInput.value = STATE.settings.googleDriveFolderId || '';
   
   const googleDriveFlightsFolderInput = document.getElementById('settings-google-drive-flights-folder-id');
-  if (googleDriveFlightsFolderInput) googleDriveFlightsFolderInput.value = STATE.settings.googleDriveFlightsFolderId || '';
+  if (googleDriveFlightsFolderInput) googleDriveFlightsFolderInput.value = STATE.settings.googleDriveFlightsFolderId || 'Training_Flights';
+
+  const googleAppsScriptUrlInput = document.getElementById('settings-google-apps-script-url');
+  if (googleAppsScriptUrlInput) googleAppsScriptUrlInput.value = STATE.settings.googleAppsScriptUrl || '';
 
   if (googleSheetPersonnelInput) googleSheetPersonnelInput.value = STATE.settings.googleSpreadsheetIdPersonnel || STATE.settings.googleSpreadsheetId || '';
   if (googleSheetFlightsInput) googleSheetFlightsInput.value = STATE.settings.googleSpreadsheetIdFlights || '';
@@ -6505,6 +6510,27 @@ function saveCurrentOcrFlight() {
   item.status = 'saved';
   showToast(STATE.lang === 'uk' ? `Політ від ${record.date} (${record.helicopterReg}) збережено в базу!` : `Flight ${record.date} saved!`, "success");
 
+  // Auto-upload scan to Google Drive Month_YEAR subfolder
+  if (item && (item.fileBlob || item.base64Data)) {
+    const rootFolder = (STATE.settings && STATE.settings.googleDriveFlightsFolderId) || 'Training_Flights';
+    uploadFlightScanToGoogleDrive({
+      fileBlob: item.fileBlob,
+      fileName: item.fileName,
+      base64Data: item.base64Data,
+      mimeType: item.mimeType || (item.fileName && item.fileName.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'),
+      flightDate: record.date,
+      helicopterReg: record.helicopterReg,
+      rootFolder: rootFolder,
+      settings: STATE.settings
+    }).then(uploadRes => {
+      if (uploadRes && uploadRes.success) {
+        console.log(`✅ [Google Drive Auto-Save] Scan uploaded to ${uploadRes.path} (${uploadRes.method})`);
+      }
+    }).catch(err => {
+      console.warn('⚠️ [Google Drive Auto-Save] Scan upload notice:', err);
+    });
+  }
+
   // Re-render views
   renderRecentFlightsList();
   renderMonthlyArchive();
@@ -6592,6 +6618,23 @@ function saveAllReadyOcrFlights() {
       item.isSaved = true;
       item.status = 'saved';
       savedCount++;
+
+      // Auto-upload scan to Google Drive Month_YEAR subfolder
+      if (item && (item.fileBlob || item.base64Data)) {
+        const rootFolder = (STATE.settings && STATE.settings.googleDriveFlightsFolderId) || 'Training_Flights';
+        uploadFlightScanToGoogleDrive({
+          fileBlob: item.fileBlob,
+          fileName: item.fileName,
+          base64Data: item.base64Data,
+          mimeType: item.mimeType || (item.fileName && item.fileName.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'),
+          flightDate: record.date,
+          helicopterReg: record.helicopterReg,
+          rootFolder: rootFolder,
+          settings: STATE.settings
+        }).catch(err => {
+          console.warn('⚠️ [Google Drive Auto-Save] Batch item upload notice:', err);
+        });
+      }
     }
   });
 
@@ -11417,7 +11460,11 @@ document.addEventListener('DOMContentLoaded', () => {
       STATE.settings.googleDriveFolderId = document.getElementById('settings-google-drive-folder-id').value.trim();
       const flightsFolderInput = document.getElementById('settings-google-drive-flights-folder-id');
       if (flightsFolderInput) {
-        STATE.settings.googleDriveFlightsFolderId = flightsFolderInput.value.trim();
+        STATE.settings.googleDriveFlightsFolderId = flightsFolderInput.value.trim() || 'Training_Flights';
+      }
+      const appsScriptUrlInput = document.getElementById('settings-google-apps-script-url');
+      if (appsScriptUrlInput) {
+        STATE.settings.googleAppsScriptUrl = appsScriptUrlInput.value.trim();
       }
       STATE.settings.syncInterval = document.getElementById('settings-sync-interval').value;
       saveStateToStorage();

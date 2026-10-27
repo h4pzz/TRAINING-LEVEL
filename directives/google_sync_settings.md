@@ -66,3 +66,73 @@ Google Drive Root
 - **Personnel Preservation**: Crew members present on the website are **NEVER deleted** during synchronization (whether manual or automated). If a crew member is deleted in Google Drive or Google Sheets, the website's persistent local database retains their profile. Personnel can only be deleted on the website through explicit administrator action in the management console.
 - **Dates Protection**: Existing qualification and training dates on the website are immutable against deletion or blanking. If incoming data contains empty cells, nulls, dashes, or older dates, the website's dates remain untouched. Only valid and chronologically newer dates can overwrite existing dates.
 - **Drive Deletion Scope**: Deletions on Google Drive remain on Google Drive and do not propagate destructively to the website's operational records.
+
+## 7. Training Flights Scans Auto-Upload & Hierarchy (`Month_YEAR`)
+
+### 1. Structure
+All training flight log scans (PDF or image) imported via AI OCR are automatically categorized and stored according to flight date:
+
+```
+Google Drive Root
+└── Training_Flights/               <-- Default root (or configured in Settings)
+    ├── Jan_2026/                   <-- Subfolder format: [Month_YEAR]
+    │   ├── Scan_Flight_UR-UHB_2026-01-14.pdf
+    │   └── Scan_Flight_UR-UHA_2026-01-28.pdf
+    ├── Feb_2026/
+    ├── Oct_2026/
+    │   └── Scan_Flight_UR-UHC_2026-10-27.pdf
+    └── ...
+```
+
+### 2. Month Naming Rule
+- Subfolder format is strictly `[3-Letter-Month]_[4-Digit-Year]`:
+  `Jan_2026`, `Feb_2026`, `Mar_2026`, `Apr_2026`, `May_2026`, `Jun_2026`, `Jul_2026`, `Aug_2026`, `Sep_2026`, `Oct_2026`, `Nov_2026`, `Dec_2026`.
+- If the folder does not exist, it is created automatically.
+- Root folder `Training_Flights` is also created automatically if missing.
+
+### 3. Google Apps Script Web App Code (uh.nairobi@gmail.com)
+Deploy this script as a Web App (Execute as: **Me**, Who has access: **Anyone**):
+
+```javascript
+function doPost(e) {
+  try {
+    var data = JSON.parse(e.postData.contents);
+    if (data.action === 'upload_flight_scan') {
+      var rootFolderName = data.rootFolder || 'Training_Flights';
+      var subfolderName = data.subfolder || 'Unsorted';
+      var fileName = data.fileName || ('Flight_Scan_' + Date.now() + '.pdf');
+      
+      // 1. Get or create root folder
+      var rootFolders = DriveApp.getFoldersByName(rootFolderName);
+      var rootFolder = rootFolders.hasNext() ? rootFolders.next() : DriveApp.createFolder(rootFolderName);
+      
+      // 2. Get or create Month_YEAR subfolder
+      var subFolders = rootFolder.getFoldersByName(subfolderName);
+      var subFolder = subFolders.hasNext() ? subFolders.next() : rootFolder.createFolder(subfolderName);
+      
+      // 3. Decode base64 data and create file
+      var rawBase64 = data.fileData;
+      var commaIdx = rawBase64.indexOf(',');
+      if (commaIdx !== -1) rawBase64 = rawBase64.substring(commaIdx + 1);
+      
+      var decodedBytes = Utilities.base64Decode(rawBase64);
+      var blob = Utilities.newBlob(decodedBytes, data.mimeType || 'application/pdf', fileName);
+      var file = subFolder.createFile(blob);
+      
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        fileId: file.getId(),
+        fileUrl: file.getUrl(),
+        path: rootFolderName + '/' + subfolderName + '/' + fileName
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: 'Unknown action' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ success: false, error: err.toString() }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+```
+

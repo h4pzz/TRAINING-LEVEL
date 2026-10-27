@@ -215,6 +215,84 @@ ${report.comment || '(без коментаря)'}
     return;
   }
 
+  // API Endpoint: Upload / Mirror flight scan into local DATABASE/[rootFolder]/[Month_YEAR]/ directory
+  if (req.method === 'POST' && cleanUrl === '/api/upload-flight-scan') {
+    let body = '';
+    let isTooLarge = false;
+
+    req.on('data', chunk => {
+      if (isTooLarge) return;
+      body += chunk;
+      // 30MB payload limit for scans / PDFs
+      if (body.length > 30 * 1024 * 1024) {
+        isTooLarge = true;
+        if (!res.headersSent) {
+          res.writeHead(413, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ success: false, error: 'Payload too large' }));
+        }
+        req.destroy();
+      }
+    });
+
+    req.on('end', () => {
+      if (isTooLarge) return;
+
+      try {
+        const payload = JSON.parse(body || '{}');
+        const rootFolder = (payload.rootFolder || 'Training_Flights').replace(/[^\w\d\-_ ]+/gi, '_');
+        const subfolder = (payload.subfolder || 'Unsorted').replace(/[^\w\d\-_ ]+/gi, '_');
+        let fileName = (payload.fileName || `Scan_${Date.now()}.pdf`).replace(/[^\w\d\-_\. ]+/gi, '_');
+
+        if (!payload.fileData) {
+          res.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+          res.end(JSON.stringify({ success: false, error: 'fileData is required' }));
+          return;
+        }
+
+        const targetDir = path.join(__dirname, 'DATABASE', rootFolder, subfolder);
+        if (!fs.existsSync(targetDir)) {
+          fs.mkdirSync(targetDir, { recursive: true });
+        }
+
+        // Clean base64 header if present
+        let base64Clean = payload.fileData;
+        const commaIdx = base64Clean.indexOf(',');
+        if (commaIdx !== -1 && base64Clean.substring(0, commaIdx).includes('base64')) {
+          base64Clean = base64Clean.substring(commaIdx + 1);
+        }
+
+        const buffer = Buffer.from(base64Clean, 'base64');
+        const destPath = path.join(targetDir, fileName);
+
+        fs.writeFileSync(destPath, buffer);
+        console.log(`💾 [Local Mirror] Saved scan file: ${destPath} (${buffer.length} bytes)`);
+
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify({
+          success: true,
+          savedPath: `DATABASE/${rootFolder}/${subfolder}/${fileName}`,
+          rootFolder: rootFolder,
+          subfolder: subfolder,
+          fileName: fileName,
+          sizeBytes: buffer.length
+        }));
+      } catch (err) {
+        console.error('[Upload Scan API] Error writing scan:', err);
+        if (!res.headersSent) {
+          res.writeHead(500, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          });
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        }
+      }
+    });
+    return;
+  }
+
   let decodedUrl;
   try {
     decodedUrl = decodeURIComponent(cleanUrl);

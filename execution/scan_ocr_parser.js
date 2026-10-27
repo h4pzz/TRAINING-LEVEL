@@ -979,6 +979,7 @@ export async function processScanBatch(files, apiKey, flightCrew, cabinCrew, exi
 
     try {
       const base64Data = await fileToBase64(file);
+      itemResult.base64Data = base64Data;
       const parsedData = await callGeminiVisionAPI(
         base64Data, 
         itemResult.mimeType, 
