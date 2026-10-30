@@ -447,8 +447,8 @@ const TRANSLATIONS = {
     portal_expiries_title: "Терміни дії підготовок",
     portal_scans_title: "Завантажені скан-копії документів",
     portal_additional_title: "Додаткові підготовки",
-    btn_scan: "Сканувати",
-    modal_scan_title: "Сканувати документ",
+    btn_scan: "Додати файл",
+    modal_scan_title: "Додати документ",
     label_scan_doc_type: "Тип підготовки",
     label_scan_doc_date: "Дата проходження",
     label_scan_file: "Файл документа (PDF / Image)",
@@ -865,8 +865,8 @@ const TRANSLATIONS = {
     portal_expiries_title: "Training Expirations",
     portal_scans_title: "Attached Document Scans",
     portal_additional_title: "Additional Trainings",
-    btn_scan: "Scan",
-    modal_scan_title: "Scan Document",
+    btn_scan: "Add File",
+    modal_scan_title: "Add Document",
     label_scan_doc_type: "Training Type",
     label_scan_doc_date: "Completion Date",
     label_scan_file: "Document File (PDF / Image)",
@@ -9617,7 +9617,7 @@ function renderPersonalPortal() {
     scanBtn.style.display = role === ROLES.ADMIN ? 'inline-flex' : 'none';
     const scanBtnSpan = scanBtn.querySelector('span');
     if (scanBtnSpan) {
-      scanBtnSpan.textContent = STATE.lang === 'uk' ? 'Сканувати' : 'Scan';
+      scanBtnSpan.textContent = STATE.lang === 'uk' ? 'Додати файл' : 'Add File';
     }
     
     const newScanBtn = scanBtn.cloneNode(true);
@@ -9626,7 +9626,7 @@ function renderPersonalPortal() {
     newScanBtn.addEventListener('click', () => {
       // Update modal titles & labels to match current language
       const modalTitle = document.querySelector('#scan-modal-backdrop h2');
-      if (modalTitle) modalTitle.textContent = STATE.lang === 'uk' ? 'Сканувати документ' : 'Scan Document';
+      if (modalTitle) modalTitle.textContent = STATE.lang === 'uk' ? 'Додати документ' : 'Add Document';
       
       const labelDocType = document.querySelector('label[for="scan-doc-type"]');
       if (labelDocType) labelDocType.textContent = STATE.lang === 'uk' ? 'Тип підготовки' : 'Training Type';
@@ -9669,7 +9669,7 @@ function renderPersonalPortal() {
       
       const submitBtn = document.getElementById('btn-submit-scan');
       submitBtn.disabled = false;
-      submitBtn.innerHTML = STATE.lang === 'uk' ? 'Сканувати' : 'Scan';
+      submitBtn.innerHTML = STATE.lang === 'uk' ? 'Додати файл' : 'Add File';
       
       document.getElementById('scan-modal-backdrop').classList.add('active');
     });
@@ -9799,13 +9799,13 @@ function renderPersonalPortal() {
           showToast(`Помилка збереження документа: ${err.message}`, 'error');
         } finally {
           submitBtn.disabled = false;
-          submitBtn.innerHTML = STATE.lang === 'uk' ? 'Сканувати' : 'Scan';
+          submitBtn.innerHTML = STATE.lang === 'uk' ? 'Додати файл' : 'Add File';
         }
       };
       reader.onerror = () => {
         showToast('Помилка читання вибраного файлу', 'error');
         submitBtn.disabled = false;
-        submitBtn.innerHTML = STATE.lang === 'uk' ? 'Сканувати' : 'Scan';
+        submitBtn.innerHTML = STATE.lang === 'uk' ? 'Додати файл' : 'Add File';
       };
       reader.readAsDataURL(file);
     };
