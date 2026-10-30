@@ -1279,10 +1279,16 @@ function updateTranslations() {
  */
 function saveStateToStorage() {
   try {
+    // Dedicated persistent storage for critical API key to guarantee survival across quota limits or bootstrap resets
+    if (STATE.settings && STATE.settings.geminiApiKey) {
+      try {
+        localStorage.setItem('aerocheck_gemini_api_key', STATE.settings.geminiApiKey.trim());
+      } catch (e) {}
+    }
+    localStorage.setItem('aerocheck_settings', JSON.stringify(STATE.settings));
     localStorage.setItem('aerocheck_flight_crew', JSON.stringify(STATE.flightCrew));
     localStorage.setItem('aerocheck_cabin_crew', JSON.stringify(STATE.cabinCrew));
     localStorage.setItem('aerocheck_changelog', JSON.stringify(STATE.changelog));
-    localStorage.setItem('aerocheck_settings', JSON.stringify(STATE.settings));
     localStorage.setItem('aerocheck_flights', JSON.stringify(STATE.flights));
     localStorage.setItem('aerocheck_forms', JSON.stringify(STATE.forms));
     localStorage.setItem('aerocheck_pdf_blanks', JSON.stringify(STATE.pdfBlanks || []));
@@ -5865,6 +5871,9 @@ function openOcrImportModal() {
     );
     if (enteredKey && enteredKey.trim()) {
       STATE.settings.geminiApiKey = enteredKey.trim();
+      try {
+        localStorage.setItem('aerocheck_gemini_api_key', STATE.settings.geminiApiKey);
+      } catch (e) {}
       saveStateToStorage();
       const keyInput = document.getElementById('settings-gemini-api-key');
       if (keyInput) keyInput.value = STATE.settings.geminiApiKey;
@@ -10845,6 +10854,22 @@ async function bootstrapDatabase() {
   const localCabin = localStorage.getItem('aerocheck_cabin_crew');
   const localChangelog = localStorage.getItem('aerocheck_changelog');
   const localSettings = localStorage.getItem('aerocheck_settings');
+  const standaloneGeminiKey = localStorage.getItem('aerocheck_gemini_api_key');
+
+  // Pre-load persistent settings and standalone Gemini API key so cold-start or bootstrap resets never lose them
+  if (localSettings) {
+    try {
+      const parsed = JSON.parse(localSettings);
+      if (parsed && typeof parsed === 'object') {
+        STATE.settings = Object.assign(STATE.settings || {}, parsed);
+      }
+    } catch (e) {
+      console.warn("Could not parse localSettings:", e);
+    }
+  }
+  if (standaloneGeminiKey && (!STATE.settings.geminiApiKey || !STATE.settings.geminiApiKey.trim())) {
+    STATE.settings.geminiApiKey = standaloneGeminiKey.trim();
+  }
   
   if (localFlight && localCabin) {
     // Load cached state
@@ -11491,6 +11516,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const keyInput = document.getElementById('settings-gemini-api-key');
       if (keyInput) {
         STATE.settings.geminiApiKey = keyInput.value.trim();
+        try {
+          localStorage.setItem('aerocheck_gemini_api_key', STATE.settings.geminiApiKey);
+        } catch (e) {}
         saveStateToStorage();
         const badge = document.getElementById('gemini-conn-status-badge');
         if (badge) {
