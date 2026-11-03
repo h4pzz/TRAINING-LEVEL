@@ -13,7 +13,7 @@
   <!-- CSS Stylesheets -->
   <link rel="stylesheet" href="css/variables.css?v=0.4">
   <link rel="stylesheet" href="css/layout.css?v=0.4">
-  <link rel="stylesheet" href="css/components.css?v=0.4">
+  <link rel="stylesheet" href="css/components.css?v=0.5">
   
   <!-- SheetJS Library (CDN) -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -2152,8 +2152,8 @@
                 <div class="portal-card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: var(--spacing-2); margin-bottom: var(--spacing-3);">
                   <h3 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 0; min-width: 0;" data-i18n="portal_scans_title">Завантажені скан-копії документів</h3>
                   <button id="btn-scan-document" class="btn btn-secondary" style="height: 32px; padding: 0 var(--spacing-3); display: none; align-items: center; gap: 6px; white-space: nowrap; flex-shrink: 0;">
-                    <i data-lucide="plus" style="width: 14px; height: 14px;"></i>
-                    <span style="font-size: 12px; font-weight: 600;" data-i18n="btn_scan">Додати файл</span>
+                    <i data-lucide="file-plus" style="width: 14px; height: 14px;"></i>
+                    <span style="font-size: 12px; font-weight: 600;" data-i18n="btn_add_document">Додати документ</span>
                   </button>
                 </div>
                 <div style="display: flex; flex-direction: column; gap: var(--spacing-3);" id="portal-documents-list">
@@ -2264,11 +2264,17 @@
     </div>
   </div>
 
-  <!-- ================= SCAN DOCUMENT MODAL ================= -->
+  <!-- ================= SCAN / ADD DOCUMENT MODAL ================= -->
   <div id="scan-modal-backdrop" class="modal-backdrop">
-    <div class="modal-content" style="width: 450px;">
-      <div class="modal-header">
-        <h2 style="font-family: var(--font-display); font-size: 18px; font-weight: 600;" data-i18n="modal_scan_title">Додати документ</h2>
+    <div class="modal-content" style="width: 480px; max-width: 95vw;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: var(--spacing-3);">
+        <div>
+          <h2 style="font-family: var(--font-display); font-size: 18px; font-weight: 600; margin: 0;" data-i18n="modal_add_doc_title">Додати документ до папки співробітника</h2>
+          <div id="scan-modal-crew-badge" class="scan-crew-badge" style="display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12px; font-weight: 600; color: var(--accent); background: rgba(37, 99, 235, 0.08); padding: 2px 8px; border-radius: var(--radius-sm); border: 1px solid rgba(37, 99, 235, 0.2);">
+            <i data-lucide="user" style="width: 13px; height: 13px;"></i>
+            <span id="scan-modal-crew-name">Завантаження...</span>
+          </div>
+        </div>
         <button class="modal-close-btn" id="btn-close-scan-modal">
           <i data-lucide="x"></i>
         </button>
@@ -2288,13 +2294,47 @@
         </div>
         
         <div class="form-group">
-          <label for="scan-file-input" style="font-weight:600; font-size:13px;" data-i18n="label_scan_file">Файл документа (PDF / Image)</label>
-          <input type="file" id="scan-file-input" class="form-input" accept="application/pdf,image/*" required>
+          <label style="font-weight:600; font-size:13px;" data-i18n="label_doc_source">Джерело документа</label>
+          
+          <!-- Hidden inputs for file selection -->
+          <input type="file" id="scan-camera-input" accept="image/*,application/pdf" capture="environment" style="display: none;">
+          <input type="file" id="scan-file-input" accept="application/pdf,image/*" style="display: none;">
+
+          <!-- Source selection cards (Option A) -->
+          <div class="scan-source-grid" id="scan-source-cards">
+            <button type="button" class="scan-source-card" id="btn-source-camera">
+              <div class="scan-source-icon"><i data-lucide="camera" style="width: 24px; height: 24px;"></i></div>
+              <span class="scan-source-title" data-i18n="scan_source_camera_title">Сканувати камерою</span>
+              <span class="scan-source-desc" data-i18n="scan_source_camera_desc">Apple / Android скан</span>
+            </button>
+            <button type="button" class="scan-source-card" id="btn-source-file">
+              <div class="scan-source-icon"><i data-lucide="folder-open" style="width: 24px; height: 24px;"></i></div>
+              <span class="scan-source-title" data-i18n="scan_source_file_title">Вибрати файл</span>
+              <span class="scan-source-desc" data-i18n="scan_source_file_desc">PDF / фото з пристрою</span>
+            </button>
+          </div>
+
+          <!-- Document ready preview box (shown when file is chosen/scanned) -->
+          <div id="scan-file-preview" class="scan-file-preview-box" style="display: none;">
+            <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+              <div class="scan-preview-check"><i data-lucide="check" style="width: 14px; height: 14px;"></i></div>
+              <div style="min-width: 0; flex: 1;">
+                <div id="scan-preview-filename" style="font-size: 12.5px; font-weight: 600; color: #15803d; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">document.pdf</div>
+                <div id="scan-preview-filesize" style="font-size: 11px; color: #166534; opacity: 0.85;">0 KB</div>
+              </div>
+            </div>
+            <button type="button" id="btn-clear-scan-file" class="btn-clear-scan" title="Видалити та обрати інший файл">
+              <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i>
+            </button>
+          </div>
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: var(--spacing-3); border-top: 1px solid var(--border-color); padding-top: var(--spacing-4); margin-top: var(--spacing-2);">
           <button type="button" class="btn btn-secondary" id="btn-cancel-scan-modal" data-i18n="btn_cancel">Скасувати</button>
-          <button type="submit" class="btn btn-primary" id="btn-submit-scan" data-i18n="btn_scan">Додати файл</button>
+          <button type="submit" class="btn btn-primary" id="btn-submit-scan" disabled style="display: inline-flex; align-items: center; gap: 6px;">
+            <i data-lucide="cloud-upload" style="width: 15px; height: 15px;"></i>
+            <span data-i18n="btn_save_to_drive">Зберегти на Google Диск</span>
+          </button>
         </div>
       </form>
     </div>
@@ -3046,6 +3086,6 @@
   </div>
 
   <!-- Main SPA Application logic script -->
-  <script type="module" src="js/app.js?v=0.9"></script>
+  <script type="module" src="js/app.js?v=1.0"></script>
 </body>
 </html>

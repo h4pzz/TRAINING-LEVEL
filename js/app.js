@@ -483,6 +483,14 @@ const TRANSLATIONS = {
     status_rejected: "Відхилено",
     no_pending_requests: "Немає відкритих запитів на верифікацію",
     no_history_requests: "Архів опрацьованих запитів порожній",
+    btn_add_document: "Додати документ",
+    modal_add_doc_title: "Додати документ до папки співробітника",
+    label_doc_source: "Джерело документа",
+    scan_source_camera_title: "Сканувати камерою",
+    scan_source_camera_desc: "Apple / Android скан",
+    scan_source_file_title: "Вибрати файл",
+    scan_source_file_desc: "PDF / фото з пристрою",
+    btn_save_to_drive: "Зберегти на Google Диск",
 
   },
   en: {
@@ -918,6 +926,14 @@ const TRANSLATIONS = {
     diff_empty: "(empty)",
     diff_not_set: "(not specified)",
     portal_pending_req_label: "Req:",
+    btn_add_document: "Add Document",
+    modal_add_doc_title: "Add Document to Crew Member Folder",
+    label_doc_source: "Document Source",
+    scan_source_camera_title: "Scan with Camera",
+    scan_source_camera_desc: "Apple / Android scan",
+    scan_source_file_title: "Choose File",
+    scan_source_file_desc: "PDF / Image from storage",
+    btn_save_to_drive: "Save to Google Drive",
   }
 };
 
@@ -9611,13 +9627,108 @@ function renderPersonalPortal() {
     showToast(STATE.lang === 'uk' ? 'Цей запис не містить збереженого файлу (скан відсутній)' : 'No file data available for this scan', 'warning');
   }
 
-  // Show / Hide scan button for admin
+  // Show / Hide scan button for admin & instructor
   const scanBtn = document.getElementById('btn-scan-document');
+  const scanBackdrop = document.getElementById('scan-modal-backdrop');
+  const cameraInput = document.getElementById('scan-camera-input');
+  const fileInput = document.getElementById('scan-file-input');
+  const btnSourceCamera = document.getElementById('btn-source-camera');
+  const btnSourceFile = document.getElementById('btn-source-file');
+  const previewBox = document.getElementById('scan-file-preview');
+  const sourceCards = document.getElementById('scan-source-cards');
+  const previewFileName = document.getElementById('scan-preview-filename');
+  const previewFileSize = document.getElementById('scan-preview-filesize');
+  const btnClearFile = document.getElementById('btn-clear-scan-file');
+  const dateInput = document.getElementById('scan-doc-date');
+  const submitBtn = document.getElementById('btn-submit-scan');
+  const crewBadgeName = document.getElementById('scan-modal-crew-name');
+  
+  let activeScanFile = null;
+
+  const updateScanSubmitState = () => {
+    if (submitBtn) {
+      const hasFile = !!activeScanFile;
+      const hasDate = !!(dateInput && dateInput.value);
+      submitBtn.disabled = !hasFile || !hasDate;
+    }
+  };
+
+  const handleSelectedScanFile = (file) => {
+    if (!file) return;
+    if (file.size > 15 * 1024 * 1024) {
+      showToast(STATE.lang === 'uk' ? 'Розмір файлу перевищує 15 МБ' : 'File size exceeds 15 MB', 'warning');
+      return;
+    }
+    activeScanFile = file;
+    if (previewFileName) previewFileName.textContent = file.name;
+    if (previewFileSize) {
+      const sizeStr = file.size > 1024 * 1024 
+        ? (file.size / (1024 * 1024)).toFixed(1) + ' MB'
+        : Math.round(file.size / 1024) + ' KB';
+      previewFileSize.textContent = sizeStr;
+    }
+    if (previewBox) previewBox.style.display = 'flex';
+    if (sourceCards) sourceCards.style.display = 'none';
+    updateScanSubmitState();
+    if (window.lucide) window.lucide.createIcons();
+  };
+
+  const resetScanModal = () => {
+    activeScanFile = null;
+    if (cameraInput) cameraInput.value = '';
+    if (fileInput) fileInput.value = '';
+    if (previewBox) previewBox.style.display = 'none';
+    if (sourceCards) sourceCards.style.display = 'grid';
+    if (dateInput) dateInput.value = '';
+    updateScanSubmitState();
+  };
+
+  // Wire file pickers and source buttons
+  if (btnSourceCamera && cameraInput) {
+    btnSourceCamera.onclick = (e) => {
+      e.preventDefault();
+      cameraInput.click();
+    };
+  }
+  if (btnSourceFile && fileInput) {
+    btnSourceFile.onclick = (e) => {
+      e.preventDefault();
+      fileInput.click();
+    };
+  }
+  if (cameraInput) {
+    cameraInput.onchange = (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (f) handleSelectedScanFile(f);
+    };
+  }
+  if (fileInput) {
+    fileInput.onchange = (e) => {
+      const f = e.target.files && e.target.files[0];
+      if (f) handleSelectedScanFile(f);
+    };
+  }
+  if (btnClearFile) {
+    btnClearFile.onclick = (e) => {
+      e.preventDefault();
+      activeScanFile = null;
+      if (cameraInput) cameraInput.value = '';
+      if (fileInput) fileInput.value = '';
+      if (previewBox) previewBox.style.display = 'none';
+      if (sourceCards) sourceCards.style.display = 'grid';
+      updateScanSubmitState();
+    };
+  }
+  if (dateInput) {
+    dateInput.onchange = updateScanSubmitState;
+    dateInput.oninput = updateScanSubmitState;
+  }
+
   if (scanBtn) {
-    scanBtn.style.display = role === ROLES.ADMIN ? 'inline-flex' : 'none';
+    scanBtn.style.display = (role === ROLES.ADMIN || role === ROLES.INSTRUCTOR) ? 'inline-flex' : 'none';
     const scanBtnSpan = scanBtn.querySelector('span');
     if (scanBtnSpan) {
-      scanBtnSpan.textContent = STATE.lang === 'uk' ? 'Додати файл' : 'Add File';
+      scanBtnSpan.textContent = STATE.lang === 'uk' ? 'Додати документ' : 'Add Document';
     }
     
     const newScanBtn = scanBtn.cloneNode(true);
@@ -9626,7 +9737,7 @@ function renderPersonalPortal() {
     newScanBtn.addEventListener('click', () => {
       // Update modal titles & labels to match current language
       const modalTitle = document.querySelector('#scan-modal-backdrop h2');
-      if (modalTitle) modalTitle.textContent = STATE.lang === 'uk' ? 'Додати документ' : 'Add Document';
+      if (modalTitle) modalTitle.textContent = STATE.lang === 'uk' ? 'Додати документ до папки співробітника' : 'Add Document to Crew Member Folder';
       
       const labelDocType = document.querySelector('label[for="scan-doc-type"]');
       if (labelDocType) labelDocType.textContent = STATE.lang === 'uk' ? 'Тип підготовки' : 'Training Type';
@@ -9634,11 +9745,21 @@ function renderPersonalPortal() {
       const labelDocDate = document.querySelector('label[for="scan-doc-date"]');
       if (labelDocDate) labelDocDate.textContent = STATE.lang === 'uk' ? 'Дата проходження' : 'Completion Date';
       
-      const labelFileInput = document.querySelector('label[for="scan-file-input"]');
-      if (labelFileInput) labelFileInput.textContent = STATE.lang === 'uk' ? 'Файл документа (PDF / Image)' : 'Document File (PDF / Image)';
-      
+      const labelDocSource = document.querySelector('label[data-i18n="label_doc_source"]');
+      if (labelDocSource) labelDocSource.textContent = STATE.lang === 'uk' ? 'Джерело документа' : 'Document Source';
+
       const cancelBtn = document.getElementById('btn-cancel-scan-modal');
       if (cancelBtn) cancelBtn.textContent = STATE.lang === 'uk' ? 'Скасувати' : 'Cancel';
+
+      // Update crew member badge
+      if (crewBadgeName) {
+        const pName = member.Full_Name_UA || member.Full_Name_EN || '';
+        const pRank = member.Rank ? ` [${member.Rank}]` : '';
+        crewBadgeName.textContent = `${pName}${pRank}`;
+      }
+
+      // Reset modal state
+      resetScanModal();
 
       // Dynamically populate select dropdown based on crew type
       const docTypeSelect = document.getElementById('scan-doc-type');
@@ -9664,14 +9785,16 @@ function renderPersonalPortal() {
         });
       }
       
-      document.getElementById('scan-doc-date').value = '';
-      document.getElementById('scan-file-input').value = '';
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        const submitSpan = submitBtn.querySelector('span');
+        if (submitSpan) submitSpan.textContent = STATE.lang === 'uk' ? 'Зберегти на Google Диск' : 'Save to Google Drive';
+      }
       
-      const submitBtn = document.getElementById('btn-submit-scan');
-      submitBtn.disabled = false;
-      submitBtn.innerHTML = STATE.lang === 'uk' ? 'Додати файл' : 'Add File';
-      
-      document.getElementById('scan-modal-backdrop').classList.add('active');
+      if (scanBackdrop) {
+        scanBackdrop.classList.add('active');
+      }
+      if (window.lucide) window.lucide.createIcons();
     });
   }
 
@@ -9683,14 +9806,14 @@ function renderPersonalPortal() {
       
       const selectedType = document.getElementById('scan-doc-type').value;
       const completionDate = document.getElementById('scan-doc-date').value;
-      const fileInput = document.getElementById('scan-file-input');
-      const file = fileInput.files[0];
+      const file = activeScanFile;
       if (!file || !completionDate) return;
       
-      const submitBtn = document.getElementById('btn-submit-scan');
-      submitBtn.disabled = true;
-      submitBtn.innerHTML = `<i data-lucide="loader-2" class="spin" style="width: 14px; height: 14px; margin-right: 6px;"></i> ${STATE.lang === 'uk' ? 'Сканування...' : 'Scanning...'}`;
-      if (window.lucide) window.lucide.createIcons();
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = `<i data-lucide="loader-2" class="spin" style="width: 14px; height: 14px; margin-right: 6px;"></i> ${STATE.lang === 'uk' ? 'Сканування...' : 'Scanning...'}`;
+        if (window.lucide) window.lucide.createIcons();
+      }
       
       // Determine saving date (recalculate expiry if expiring training)
       let ruleKey = crewConfig.columnMapping[selectedType] || selectedType;
@@ -9724,8 +9847,10 @@ function renderPersonalPortal() {
       reader.onload = async (event) => {
         try {
           const fileData = event.target.result;
-          submitBtn.disabled = true;
-          submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> ${STATE.lang === 'uk' ? 'Збереження...' : 'Saving...'}`;
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> ${STATE.lang === 'uk' ? 'Збереження...' : 'Saving...'}`;
+          }
 
           let driveLink = null;
           let driveFolderDesc = getMemberFolderPath(member);
@@ -9733,7 +9858,9 @@ function renderPersonalPortal() {
           const token = googleAccessToken || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('google_access_token') : null);
           if (token) {
             try {
-              submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> Google Drive...`;
+              if (submitBtn) {
+                submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status"></span> Google Drive...`;
+              }
               const driveRes = await uploadCrewDocumentToDrive(member, selectedType, generatedFileName, fileData, token);
               driveLink = driveRes.webViewLink;
               driveFolderDesc = driveRes.folderPath;
@@ -9783,7 +9910,9 @@ function renderPersonalPortal() {
           });
 
           saveStateToStorage();
-          document.getElementById('scan-modal-backdrop').classList.remove('active');
+          if (scanBackdrop) {
+            scanBackdrop.classList.remove('active');
+          }
 
           if (driveLink) {
             showToast(STATE.lang === 'uk' ? 'Документ збережено та завантажено на Google Диск!' : 'Document saved and uploaded to Google Drive!', 'success');
@@ -9798,14 +9927,20 @@ function renderPersonalPortal() {
           console.error('[Scan Save Error]', err);
           showToast(`Помилка збереження документа: ${err.message}`, 'error');
         } finally {
-          submitBtn.disabled = false;
-          submitBtn.innerHTML = STATE.lang === 'uk' ? 'Додати файл' : 'Add File';
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = `<i data-lucide="cloud-upload" style="width: 15px; height: 15px;"></i> <span>${STATE.lang === 'uk' ? 'Зберегти на Google Диск' : 'Save to Google Drive'}</span>`;
+            if (window.lucide) window.lucide.createIcons();
+          }
         }
       };
       reader.onerror = () => {
         showToast('Помилка читання вибраного файлу', 'error');
-        submitBtn.disabled = false;
-        submitBtn.innerHTML = STATE.lang === 'uk' ? 'Додати файл' : 'Add File';
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = `<i data-lucide="cloud-upload" style="width: 15px; height: 15px;"></i> <span>${STATE.lang === 'uk' ? 'Зберегти на Google Диск' : 'Save to Google Drive'}</span>`;
+          if (window.lucide) window.lucide.createIcons();
+        }
       };
       reader.readAsDataURL(file);
     };
@@ -9815,13 +9950,20 @@ function renderPersonalPortal() {
   const closeScanBtn = document.getElementById('btn-close-scan-modal');
   if (closeScanBtn) {
     closeScanBtn.onclick = () => {
-      document.getElementById('scan-modal-backdrop').classList.remove('active');
+      if (scanBackdrop) scanBackdrop.classList.remove('active');
     };
   }
   const cancelScanBtn = document.getElementById('btn-cancel-scan-modal');
   if (cancelScanBtn) {
     cancelScanBtn.onclick = () => {
-      document.getElementById('scan-modal-backdrop').classList.remove('active');
+      if (scanBackdrop) scanBackdrop.classList.remove('active');
+    };
+  }
+  if (scanBackdrop) {
+    scanBackdrop.onclick = (e) => {
+      if (e.target === scanBackdrop) {
+        scanBackdrop.classList.remove('active');
+      }
     };
   }
 
