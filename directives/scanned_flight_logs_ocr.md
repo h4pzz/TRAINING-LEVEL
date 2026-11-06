@@ -49,8 +49,13 @@ Provide automated, AI-powered recognition and interactive verification of scanne
    - Batch navigation list: Displays all loaded files, status indicators (🟢 Ready, 🟡 Review, ⚠️ Duplicate), and duplicate warnings.
    - Actions: Edit fields, re-link crew member, save single flight, save all verified flights.
 
-5. **Commit & Storage**:
-   - Verified flights are appended to `STATE.flights` with unique IDs (`fl_import_...`).
+5. **Commit, Deduplication & Storage**:
+   - Primary Determinator: Flight Date (`date`).
+   - Secondary Determinator: Flight Task Number (`mainFlightTask`).
+   - Strict Duplicate Prevention:
+     - Identical flight IDs or matching date + task number are strictly deduplicated during local caching, OCR import, and background remote sync (`mergeFlightsData`).
+     - Self-collision safeguard: When editing an existing flight record, duplicate check skips the record itself (`excludeSelfId`).
+   - Verified flights are saved to `STATE.flights` with unique IDs (`fl_import_...`).
    - Automatic crew compliance calculation: updates training columns (`TRI`, `NVG`, `NAIROBI`, `LPC`, `OPC`, `Type`) for each member.
    - Audit trail recorded in `STATE.changelog`.
    - Persisted to `localStorage` and synced to Google Drive / Sheets if enabled.

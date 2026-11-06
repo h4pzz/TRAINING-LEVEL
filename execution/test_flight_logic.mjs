@@ -8,9 +8,11 @@ import {
   matchCrewMember,
   normalizeParsedFlightBlockTimes,
   checkFlightDuplicate,
+  isFlightDuplicate,
   mapRankToPstn,
   mapPstnToRank
 } from './scan_ocr_parser.js';
+import { mergeFlightsData } from './data_merger.js';
 
 describe('Aviation Time Constraints (normalizeParsedFlightBlockTimes)', () => {
   it('CRITICAL: Block Time must NEVER be less than Flight Time', () => {
@@ -153,16 +155,70 @@ describe('Flight Duplicate Detection (checkFlightDuplicate)', () => {
     assert.equal(res.isDuplicate, false);
   });
 
-  it('does NOT mark as duplicate when helicopter registration is different', () => {
+  it('does NOT mark as duplicate when flight task numbers are different on the same date', () => {
     const candidate = {
       date: '2026-10-15',
+      mainFlightTask: 'Task-102',
       helicopterReg: 'UR-HLE',
       dutyTime: '04:30',
       totalFlightTime: '02:15'
     };
+    const existingWithTask = [
+      {
+        id: 'flt-1',
+        date: '2026-10-15',
+        mainFlightTask: 'Task-101',
+        helicopterReg: 'UR-HLB',
+        dutyTime: '04:30',
+        totalFlightTime: '02:15'
+      }
+    ];
 
-    const res = checkFlightDuplicate(candidate, existingFlights);
+    const res = checkFlightDuplicate(candidate, existingWithTask);
     assert.equal(res.isDuplicate, false);
+  });
+
+  it('marks records with identical ID as duplicate in isFlightDuplicate', () => {
+    const flightA = { id: 'flt-100', date: '2026-11-03', mainFlightTask: 'SPO 384/26' };
+    const flightB = { id: 'flt-100', date: '2026-11-03', mainFlightTask: 'SPO 384/26' };
+    assert.equal(isFlightDuplicate(flightA, flightB), true);
+  });
+
+  it('allows editing candidate with same ID in checkFlightDuplicate without false self-collision', () => {
+    const candidateBeingEdited = { id: 'flt-1', date: '2026-10-15', helicopterReg: 'UR-HLB' };
+    const res = checkFlightDuplicate(candidateBeingEdited, existingFlights);
+    assert.equal(res.isDuplicate, false);
+  });
+
+  it('mergeFlightsData strictly prevents duplicate flights when incoming has same ID or date+task', () => {
+    const cached = [
+      { id: 'fl_1', date: '2026-11-03', mainFlightTask: 'SPO 384/26', crew: [{ name: 'A' }] },
+      { id: 'fl_2', date: '2026-11-05', mainFlightTask: 'SPO 356/26/1', crew: [{ name: 'B' }] }
+    ];
+    const incomingFromRemote = [
+      { id: 'fl_1', date: '2026-11-03', mainFlightTask: 'SPO 384/26', crew: [{ name: 'A' }] },
+      { id: 'fl_2', date: '2026-11-05', mainFlightTask: 'SPO 356/26/1', crew: [{ name: 'B' }] }
+    ];
+
+    const result = mergeFlightsData(cached, incomingFromRemote);
+    assert.equal(result.mergedFlights.length, 2);
+    assert.equal(result.addedCount, 0);
+    assert.equal(result.skippedCount, 2);
+  });
+
+  it('mergeFlightsData actively cleans pre-existing duplicates in cache', () => {
+    const dirtyCacheWithDuplicates = [
+      { id: 'fl_1', date: '2026-11-03', mainFlightTask: 'SPO 384/26' },
+      { id: 'fl_1', date: '2026-11-03', mainFlightTask: 'SPO 384/26' },
+      { id: 'fl_2', date: '2026-11-05', mainFlightTask: 'SPO 356/26/1' },
+      { id: 'fl_2', date: '2026-11-05', mainFlightTask: 'SPO 356/26/1' }
+    ];
+    const incoming = [
+      { id: 'fl_2', date: '2026-11-05', mainFlightTask: 'SPO 356/26/1' }
+    ];
+
+    const result = mergeFlightsData(dirtyCacheWithDuplicates, incoming);
+    assert.equal(result.mergedFlights.length, 2);
   });
 });
 

@@ -12,7 +12,7 @@ function debounce(fn, wait = 150) {
 import { initRouter, navigateTo, getRouteByView, ROUTES, canAccessRoute } from './router.js';
 import { CREW_COMPLIANCE_RULES, isExpiring } from '../execution/compliance_rules.js';
 import { parseCrewXlsx } from '../execution/excel_parser.js';
-import { mergeCrewData } from '../execution/data_merger.js';
+import { mergeCrewData, mergeFlightsData } from '../execution/data_merger.js';
 import { calculateExpiryDate, determineStatus } from '../execution/compliance_calculator.js';
 import { 
   downloadBackupJson, 
@@ -34,21 +34,29 @@ import {
   uploadCrewDocumentToDrive,
   uploadCrewPhotoToDrive,
   uploadFlightScanToGoogleDrive,
-  getFlightDriveSubfolderName
+  getFlightDriveSubfolderName,
+  pullFlightsFromRemote,
+  pushFlightsToRemote,
+  deleteFlightFromRemote,
+  syncAllFlightsToRemote
 } from '../execution/drive_sync.js';
 import { dispatchFlightLogEmail, dispatchFlightsWeeklyEmail, formatFlightReportText, generateFlightPdfBase64 } from '../execution/email_dispatcher.js';
 import { 
   testGeminiApiKey, 
   processScanBatch, 
+  processSingleScan,
   callGeminiVisionAPI, 
   fileToBase64, 
   matchCrewMember, 
   checkFlightDuplicate,
+  isFlightDuplicate,
+  normalizeDateForComparison,
+  normalizeFlightTask,
   mapRankToPstn,
   mapPstnToRank,
   normalizeFlightCrewRole,
   PERMANENT_INSTRUCTORS
-} from '../execution/scan_ocr_parser.js';
+} from '../execution/scan_ocr_parser.js?v=2.0';
  
 /**
  * Returns today's date formatted as YYYY-MM-DD in local time
@@ -142,7 +150,9 @@ const TRANSLATIONS = {
     recent_flights_title: "Крайні польоти (3)",
     badge_recent: "Останні",
     btn_view_all_archive: "Переглянути всі польоти в архіві",
-    trend_chart_title: "Динаміка тренувального нальоту за місяцями",
+    trend_chart_title: "Динаміка тренувального нальоту",
+    trend_metric_block: "Час БЛОК",
+    trend_metric_flight: "Польотний час",
     trend_current_month: "У поточному місяці:",
     trend_year_total: "Всього за рік:",
     btn_collapse_chart: "Згорнути графік",
@@ -157,6 +167,9 @@ const TRANSLATIONS = {
     logged_flights_title: "Перелік польотів",
     label_month_filter: "Місяць:",
     opt_all_months: "Всі місяці",
+    opt_all_pilots: "Всі пілоти / екіпаж",
+    opt_all_flight_types: "Всі типи польотів",
+    btn_reset_filters: "Скинути",
     stat_ttl_flight: "Польоти:",
     stat_ttl_block: "Блок:",
     stat_short_flt: "П",
@@ -366,6 +379,13 @@ const TRANSLATIONS = {
     personnel_mgmt_title: "Керування персоналом (Додати / Видалити)",
     personnel_mgmt_subtitle: "Загальний реєстр співробітників льотного та кабінного складу",
     btn_add_personnel_modal: "+ Додати персонал",
+    label_crew_type_select: "Категорія екіпажу / Склад:",
+    select_rank_placeholder: "-- Оберіть посаду --",
+    select_dept_placeholder: "-- Оберіть відділ --",
+    custom_rank_option: "+ Інша посада (ввести нову)...",
+    custom_dept_option: "+ Інший відділ (ввести новий)...",
+    custom_rank_placeholder: "Введіть нову посаду...",
+    custom_dept_placeholder: "Введіть новий відділ...",
     search_personnel_placeholder: "Пошук співробітника (ПІБ, посада, email)...",
     filter_all_categories: "Всі категорії",
     filter_flight_crew: "Льотний склад",
@@ -568,7 +588,9 @@ const TRANSLATIONS = {
     recent_flights_title: "Recent Flights (3)",
     badge_recent: "Latest",
     btn_view_all_archive: "View All Flights in Archive",
-    trend_chart_title: "Training Flight Hours Trend by Month",
+    trend_chart_title: "Training Flight Hours Trend",
+    trend_metric_block: "Block Time",
+    trend_metric_flight: "Flight Time",
     trend_current_month: "Current Month:",
     trend_year_total: "Year-to-Date Total:",
     btn_collapse_chart: "Collapse Chart",
@@ -583,6 +605,9 @@ const TRANSLATIONS = {
     logged_flights_title: "Logged Flights",
     label_month_filter: "Month:",
     opt_all_months: "All Months",
+    opt_all_pilots: "All Pilots / Crew",
+    opt_all_flight_types: "All Flight Types",
+    btn_reset_filters: "Reset",
     stat_ttl_flight: "Flight:",
     stat_ttl_block: "Block:",
     stat_short_flt: "Fl",
@@ -792,6 +817,13 @@ const TRANSLATIONS = {
     personnel_mgmt_title: "Personnel Management (Add / Delete)",
     personnel_mgmt_subtitle: "Master directory of flight and cabin crew members",
     btn_add_personnel_modal: "+ Add Personnel",
+    label_crew_type_select: "Crew Category / Type:",
+    select_rank_placeholder: "-- Select Position / Rank --",
+    select_dept_placeholder: "-- Select Department --",
+    custom_rank_option: "+ Other Position (enter new)...",
+    custom_dept_option: "+ Other Department (enter new)...",
+    custom_rank_placeholder: "Enter new position...",
+    custom_dept_placeholder: "Enter new department...",
     search_personnel_placeholder: "Search crew (Name, rank, email)...",
     filter_all_categories: "All Categories",
     filter_flight_crew: "Flight Crew",
@@ -1288,6 +1320,11 @@ function updateTranslations() {
   if (document.getElementById('logged-flights-list')) {
     renderLoggedFlightsList();
   }
+
+  // Update Archive filter dropdowns if present
+  if (typeof populateArchiveFilterDropdowns === 'function' && document.getElementById('flights-archive-months')) {
+    populateArchiveFilterDropdowns();
+  }
 }
 
 /**
@@ -1305,6 +1342,7 @@ function saveStateToStorage() {
     localStorage.setItem('aerocheck_flight_crew', JSON.stringify(STATE.flightCrew));
     localStorage.setItem('aerocheck_cabin_crew', JSON.stringify(STATE.cabinCrew));
     localStorage.setItem('aerocheck_changelog', JSON.stringify(STATE.changelog));
+    STATE.flights = deduplicateFlightsList(STATE.flights);
     localStorage.setItem('aerocheck_flights', JSON.stringify(STATE.flights));
     localStorage.setItem('aerocheck_forms', JSON.stringify(STATE.forms));
     localStorage.setItem('aerocheck_pdf_blanks', JSON.stringify(STATE.pdfBlanks || []));
@@ -2200,56 +2238,149 @@ function formatDateCustom(dateStr, pattern = 'DD.MM.YYYY') {
 }
 
 /**
- * Populates and opens the edit modal frame
+ * Populates dropdown lists for Rank and Department in the Crew Modal from database records
  */
-function openCrewEditModal(member) {
-  const isNew = !member;
-  const role = STATE.currentUser ? STATE.currentUser.role : 'OFFICE';
-  const isInstructor = role === ROLES.INSTRUCTOR;
-  
-  document.getElementById('crew-modal-title').textContent = isNew 
-    ? (STATE.lang === 'uk' ? 'Додати нового співробітника' : 'Add New Crew Member')
-    : (STATE.lang === 'uk' ? 'Редагувати профіль екіпажу' : 'Edit Crew Profile');
-    
-  // Set metadata fields
-  document.getElementById('crew-modal-id').value = isNew ? '' : member.id;
-  document.getElementById('crew-modal-type').value = isNew ? STATE.currentView.split('-')[0] === 'flight' ? 'Flight' : 'Cabin' : member.crewType;
-  
-  const nameUaInput = document.getElementById('crew-modal-name-ua');
-  const nameEnInput = document.getElementById('crew-modal-name-en');
-  const rankInput = document.getElementById('crew-modal-rank');
-  const deptInput = document.getElementById('crew-modal-dept');
-  const phoneInput = document.getElementById('crew-modal-phone');
-  const emailInput = document.getElementById('crew-modal-email');
-  const licenseInput = document.getElementById('crew-modal-license');
-  
-  nameUaInput.value = isNew ? '' : (member.Full_Name_UA || '');
-  nameEnInput.value = isNew ? '' : (member.Full_Name_EN || '');
-  rankInput.value = isNew ? '' : (member.Rank || '');
-  deptInput.value = isNew ? '' : (member.Department || '');
-  phoneInput.value = isNew ? '' : (member.Phone || '');
-  emailInput.value = isNew ? '' : (member.Email || '');
-  licenseInput.value = isNew ? '' : (member.LICENSE || '');
-  
-  // Instructor cannot edit metadata
-  const disableMeta = isInstructor && !isNew;
-  nameUaInput.disabled = disableMeta;
-  nameEnInput.disabled = disableMeta;
-  rankInput.disabled = disableMeta;
-  deptInput.disabled = disableMeta;
-  phoneInput.disabled = disableMeta;
-  emailInput.disabled = disableMeta;
-  licenseInput.disabled = disableMeta;
-  
-  // Hide license field for Cabin Crew
-  const crewType = isNew ? (STATE.currentView.split('-')[0] === 'flight' ? 'Flight' : 'Cabin') : member.crewType;
-  document.getElementById('crew-modal-license-group').style.display = crewType === 'Flight' ? 'flex' : 'none';
-  
-  // Load dynamic training date input elements
+function populateCrewModalDropdowns(crewType, selectedRank = '', selectedDept = '') {
+  const rankSelect = document.getElementById('crew-modal-rank');
+  const deptSelect = document.getElementById('crew-modal-dept');
+  const customRankInput = document.getElementById('crew-modal-rank-custom');
+  const customDeptInput = document.getElementById('crew-modal-dept-custom');
+  if (!rankSelect || !deptSelect) return;
+
+  const isUk = STATE.lang === 'uk';
+  const t = TRANSLATIONS[STATE.lang] || TRANSLATIONS.uk;
+
+  const typeCrewList = crewType === 'Flight' ? (STATE.flightCrew || []) : (STATE.cabinCrew || []);
+  const allCrewList = (STATE.flightCrew || []).concat(STATE.cabinCrew || []);
+
+  // 1. Collect ranks from current crew type, plus standard defaults
+  const defaultRanks = crewType === 'Flight' ? ['КПС', '2П', 'ІБ'] : ['БП-РА', 'БП'];
+  const rankSet = new Set([
+    ...defaultRanks,
+    ...typeCrewList.map(c => c && c.Rank ? String(c.Rank).trim() : '').filter(Boolean)
+  ]);
+  if (selectedRank && selectedRank !== '__custom__') {
+    rankSet.add(String(selectedRank).trim());
+  }
+
+  const rankOrder = crewType === 'Flight' ? ['КПС', '2П', 'ІБ'] : ['БП-РА', 'БП'];
+  const sortedRanks = Array.from(rankSet).sort((a, b) => {
+    const idxA = rankOrder.indexOf(a);
+    const idxB = rankOrder.indexOf(b);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.localeCompare(b, isUk ? 'uk' : 'en');
+  });
+
+  const selectRankPrompt = t.select_rank_placeholder || (isUk ? '-- Оберіть посаду --' : '-- Select Position / Rank --');
+  rankSelect.innerHTML = `<option value="">${selectRankPrompt}</option>`;
+  sortedRanks.forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r;
+    opt.textContent = r;
+    rankSelect.appendChild(opt);
+  });
+  const customRankOpt = document.createElement('option');
+  customRankOpt.value = '__custom__';
+  customRankOpt.textContent = t.custom_rank_option || (isUk ? '+ Інша посада (ввести нову)...' : '+ Other Position (enter new)...');
+  rankSelect.appendChild(customRankOpt);
+
+  if (selectedRank) {
+    if (sortedRanks.includes(selectedRank)) {
+      rankSelect.value = selectedRank;
+      if (customRankInput) {
+        customRankInput.style.display = 'none';
+        customRankInput.required = false;
+        customRankInput.value = '';
+      }
+    } else {
+      rankSelect.value = '__custom__';
+      if (customRankInput) {
+        customRankInput.style.display = 'block';
+        customRankInput.required = true;
+        customRankInput.value = selectedRank;
+      }
+    }
+  } else {
+    rankSelect.value = '';
+    if (customRankInput) {
+      customRankInput.style.display = 'none';
+      customRankInput.required = false;
+      customRankInput.value = '';
+    }
+  }
+
+  // 2. Collect departments from whole database, plus standard defaults
+  const defaultDepts = ['ПРВ', 'ТВ', 'ВзПЕ', 'ВТЦ'];
+  const deptSet = new Set([
+    ...defaultDepts,
+    ...allCrewList.map(c => c && c.Department ? String(c.Department).trim() : '').filter(Boolean)
+  ]);
+  if (selectedDept && selectedDept !== '__custom__') {
+    deptSet.add(String(selectedDept).trim());
+  }
+
+  const deptOrder = ['ПРВ', 'ТВ', 'ВзПЕ', 'ВТЦ'];
+  const sortedDepts = Array.from(deptSet).sort((a, b) => {
+    const idxA = deptOrder.indexOf(a);
+    const idxB = deptOrder.indexOf(b);
+    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+    if (idxA !== -1) return -1;
+    if (idxB !== -1) return 1;
+    return a.localeCompare(b, isUk ? 'uk' : 'en');
+  });
+
+  const selectDeptPrompt = t.select_dept_placeholder || (isUk ? '-- Оберіть відділ --' : '-- Select Department --');
+  deptSelect.innerHTML = `<option value="">${selectDeptPrompt}</option>`;
+  sortedDepts.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d;
+    opt.textContent = d;
+    deptSelect.appendChild(opt);
+  });
+  const customDeptOpt = document.createElement('option');
+  customDeptOpt.value = '__custom__';
+  customDeptOpt.textContent = t.custom_dept_option || (isUk ? '+ Інший відділ (ввести новий)...' : '+ Other Department (enter new)...');
+  deptSelect.appendChild(customDeptOpt);
+
+  if (selectedDept) {
+    if (sortedDepts.includes(selectedDept)) {
+      deptSelect.value = selectedDept;
+      if (customDeptInput) {
+        customDeptInput.style.display = 'none';
+        customDeptInput.required = false;
+        customDeptInput.value = '';
+      }
+    } else {
+      deptSelect.value = '__custom__';
+      if (customDeptInput) {
+        customDeptInput.style.display = 'block';
+        customDeptInput.required = true;
+        customDeptInput.value = selectedDept;
+      }
+    }
+  } else {
+    deptSelect.value = '';
+    if (customDeptInput) {
+      customDeptInput.style.display = 'none';
+      customDeptInput.required = false;
+      customDeptInput.value = '';
+    }
+  }
+}
+
+/**
+ * Loads dynamic training date input elements for the Crew Modal
+ */
+function renderCrewModalDateFields(crewType, member, isNew) {
   const datesFields = document.getElementById('crew-modal-dates-fields');
+  if (!datesFields) return;
   datesFields.innerHTML = '';
   
   const crewConfig = CREW_COMPLIANCE_RULES.CREW_TYPES[crewType];
+  if (!crewConfig) return;
+
   const additionalCols = crewType === 'Flight' 
     ? ['GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'FFO', 'HHO_T', 'HHO_PRCT', 'NAIROBI']
     : ['Resc', 'Rappel', 'Hoist', 'EOIR', 'NAIROBI'];
@@ -2271,7 +2402,7 @@ function openCrewEditModal(member) {
     if (renderedFields.has(actualColName)) return;
     renderedFields.add(actualColName);
     
-    const val = isNew ? '' : (member[actualColName] || '');
+    const val = (isNew || !member) ? '' : (member[actualColName] || '');
     const isColExpiring = isExpiring(ruleKey);
     
     const fieldHtml = `
@@ -2284,10 +2415,10 @@ function openCrewEditModal(member) {
     
     // Add date change override listener
     const dateInput = document.getElementById(`input-date-${actualColName}`);
-    if (isColExpiring) {
+    if (dateInput && isColExpiring) {
       dateInput.addEventListener('change', async (e) => {
         const newVal = e.target.value;
-        const oldVal = isNew ? '' : (member[actualColName] || '');
+        const oldVal = (isNew || !member) ? '' : (member[actualColName] || '');
         
         // Only trigger prompt if value is filled and changed, and prompting is enabled
         if (newVal && newVal !== oldVal && STATE.settings.datePrompt) {
@@ -2302,6 +2433,86 @@ function openCrewEditModal(member) {
       });
     }
   });
+}
+
+/**
+ * Populates and opens the edit modal frame
+ */
+function openCrewEditModal(member) {
+  const isNew = !member;
+  const role = STATE.currentUser ? STATE.currentUser.role : 'OFFICE';
+  const isInstructor = role === ROLES.INSTRUCTOR;
+  
+  document.getElementById('crew-modal-title').textContent = isNew 
+    ? (STATE.lang === 'uk' ? 'Додати нового співробітника' : 'Add New Crew Member')
+    : (STATE.lang === 'uk' ? 'Редагувати профіль екіпажу' : 'Edit Crew Profile');
+    
+  // Resolve initial crew type
+  let initialCrewType = 'Flight';
+  if (isNew) {
+    if (STATE.currentView.split('-')[0] === 'flight') {
+      initialCrewType = 'Flight';
+    } else if (STATE.currentView.split('-')[0] === 'cabin') {
+      initialCrewType = 'Cabin';
+    } else if (STATE.currentView === 'settings') {
+      const persFilter = document.getElementById('personnel-filter-select');
+      initialCrewType = (persFilter && persFilter.value === 'Cabin') ? 'Cabin' : 'Flight';
+    }
+  } else {
+    initialCrewType = member.crewType || 'Flight';
+  }
+
+  // Set metadata fields
+  document.getElementById('crew-modal-id').value = isNew ? '' : member.id;
+  document.getElementById('crew-modal-type').value = initialCrewType;
+  
+  const typeSelect = document.getElementById('crew-modal-type-select');
+  if (typeSelect) {
+    typeSelect.value = initialCrewType;
+    // Enable type selector when adding from settings, lock when editing existing or adding from specific table
+    if (isNew && STATE.currentView === 'settings') {
+      typeSelect.disabled = false;
+    } else {
+      typeSelect.disabled = true;
+    }
+  }
+
+  const nameUaInput = document.getElementById('crew-modal-name-ua');
+  const nameEnInput = document.getElementById('crew-modal-name-en');
+  const rankSelect = document.getElementById('crew-modal-rank');
+  const deptSelect = document.getElementById('crew-modal-dept');
+  const customRankInput = document.getElementById('crew-modal-rank-custom');
+  const customDeptInput = document.getElementById('crew-modal-dept-custom');
+  const phoneInput = document.getElementById('crew-modal-phone');
+  const emailInput = document.getElementById('crew-modal-email');
+  const licenseInput = document.getElementById('crew-modal-license');
+  
+  nameUaInput.value = isNew ? '' : (member.Full_Name_UA || '');
+  nameEnInput.value = isNew ? '' : (member.Full_Name_EN || '');
+  phoneInput.value = isNew ? '' : (member.Phone || '');
+  emailInput.value = isNew ? '' : (member.Email || '');
+  licenseInput.value = isNew ? '' : (member.LICENSE || '');
+  
+  // Populate rank and dept dropdowns from DB
+  populateCrewModalDropdowns(initialCrewType, isNew ? '' : member.Rank, isNew ? '' : member.Department);
+
+  // Instructor cannot edit metadata
+  const disableMeta = isInstructor && !isNew;
+  nameUaInput.disabled = disableMeta;
+  nameEnInput.disabled = disableMeta;
+  if (rankSelect) rankSelect.disabled = disableMeta;
+  if (deptSelect) deptSelect.disabled = disableMeta;
+  if (customRankInput) customRankInput.disabled = disableMeta;
+  if (customDeptInput) customDeptInput.disabled = disableMeta;
+  phoneInput.disabled = disableMeta;
+  emailInput.disabled = disableMeta;
+  licenseInput.disabled = disableMeta;
+  
+  // Hide license field for Cabin Crew
+  document.getElementById('crew-modal-license-group').style.display = initialCrewType === 'Flight' ? 'flex' : 'none';
+  
+  // Load dynamic training date input elements
+  renderCrewModalDateFields(initialCrewType, member, isNew);
   
   // Open dialog
   document.getElementById('crew-modal-backdrop').classList.add('active');
@@ -2350,8 +2561,44 @@ function handleCrewModalSubmit(e) {
     member.Full_Name_UA = newNameUa;
     member.Name_Shrt_UA = newNameUa.split(' ')[0] + ' ' + (newNameUa.split(' ')[1] ? newNameUa.split(' ')[1][0] + '.' : '') + (newNameUa.split(' ')[2] ? newNameUa.split(' ')[2][0] + '.' : '');
     member.Full_Name_EN = document.getElementById('crew-modal-name-en').value.trim();
-    member.Rank = document.getElementById('crew-modal-rank').value.trim();
-    member.Department = document.getElementById('crew-modal-dept').value.trim();
+    
+    // Extract and validate Rank from dropdown or custom input
+    const rankSelect = document.getElementById('crew-modal-rank');
+    const customRankInput = document.getElementById('crew-modal-rank-custom');
+    const selRank = rankSelect ? rankSelect.value : '';
+    const finalRank = selRank === '__custom__' 
+      ? (customRankInput ? customRankInput.value.trim() : '') 
+      : selRank.trim();
+
+    // Extract and validate Department from dropdown or custom input
+    const deptSelect = document.getElementById('crew-modal-dept');
+    const customDeptInput = document.getElementById('crew-modal-dept-custom');
+    const selDept = deptSelect ? deptSelect.value : '';
+    const finalDept = selDept === '__custom__' 
+      ? (customDeptInput ? customDeptInput.value.trim() : '') 
+      : selDept.trim();
+
+    if (!finalRank) {
+      showToast(STATE.lang === 'uk' ? "Будь ласка, оберіть або введіть посаду" : "Please select or enter position", "warning");
+      if (selRank === '__custom__' && customRankInput) {
+        customRankInput.focus();
+      } else if (rankSelect) {
+        rankSelect.focus();
+      }
+      return;
+    }
+    if (!finalDept) {
+      showToast(STATE.lang === 'uk' ? "Будь ласка, оберіть або введіть відділ" : "Please select or enter department", "warning");
+      if (selDept === '__custom__' && customDeptInput) {
+        customDeptInput.focus();
+      } else if (deptSelect) {
+        deptSelect.focus();
+      }
+      return;
+    }
+
+    member.Rank = finalRank;
+    member.Department = finalDept;
     member.Phone = document.getElementById('crew-modal-phone').value.trim();
     member.Email = document.getElementById('crew-modal-email').value.trim();
     if (crewType === 'Flight') {
@@ -2534,14 +2781,33 @@ function removeCrewMemberCard(cardNode) {
 }
 
 /**
- * Dynamically updates the training types checkboxes grid based on crewType
+ * Dynamically updates the training types checkboxes grid based on crewType or PSTN role
  */
-function updateTrainingTypesLayout(cardNode, crewType) {
+function updateTrainingTypesLayout(cardNode, crewType, pstn = '') {
   const grid = cardNode.querySelector('.training-types-grid');
   if (!grid) return;
+  
+  // Determine effective crew type from PSTN first!
+  const pstnInput = cardNode.querySelector('.crew-pstn-input');
+  const pVal = String(pstn || (pstnInput ? pstnInput.value : '')).trim().toUpperCase();
+
+  // Any pilot or flight engineer position (SIC/2П, PIC/КПС, PI, FE/ІБ) is strictly FLIGHT CREW!
+  const isFlightPstn = pVal.includes('SIC') || pVal.includes('PIC') || pVal.includes('PI') || pVal.includes('FE') || pVal.includes('2П') || pVal.includes('КПС') || pVal.includes('ІБ') || pVal.includes('PILOT');
+  // Any cabin attendant position (FA/БП, FA-AR/БПАР) is strictly CABIN CREW!
+  const isCabinPstn = pVal.includes('FA') || pVal.includes('БП') || pVal.includes('AR') || pVal.includes('CABIN');
+
+  let effectiveType = crewType;
+  if (isFlightPstn) {
+    effectiveType = 'Flight';
+  } else if (isCabinPstn) {
+    effectiveType = 'Cabin';
+  }
+
+  // Preserve already checked checkboxes across re-renders
+  const checkedValues = Array.from(grid.querySelectorAll('.crew-training-type:checked')).map(cb => cb.value);
   grid.innerHTML = '';
   
-  if (crewType === 'Cabin') {
+  if (effectiveType === 'Cabin') {
     const types = [
       { value: 'LPC', label: 'LPC' },
       { value: 'Resc', label: 'Line Check' },
@@ -2553,13 +2819,15 @@ function updateTrainingTypesLayout(cardNode, crewType) {
       { value: 'Type Rating', label: 'Type Rating' }
     ];
     types.forEach(t => {
+      const isChecked = checkedValues.includes(t.value);
       grid.insertAdjacentHTML('beforeend', `
         <label style="display: flex; align-items: center; gap: 5px; font-size: 11px; cursor: pointer; color: var(--text-primary); margin: 0; padding: 1px 0; user-select: none;">
-          <input type="checkbox" value="${t.value}" class="crew-training-type" style="width: 13px; height: 13px; cursor: pointer;"> <span>${t.label}</span>
+          <input type="checkbox" value="${t.value}" class="crew-training-type" ${isChecked ? 'checked' : ''} style="width: 13px; height: 13px; cursor: pointer;"> <span>${t.label}</span>
         </label>
       `);
     });
   } else {
+    // Flight Crew: GI 275, NVG, VFR night, HESLO, HHO, FFO, LPC, OPC, PALL, MSB, Before Rotation, Type Rating
     const types = [
       { value: 'GI_275_PRCT', label: 'GI_275_PRCT' },
       { value: 'NVG', label: 'NVG' },
@@ -2575,9 +2843,10 @@ function updateTrainingTypesLayout(cardNode, crewType) {
       { value: 'Type Rating', label: 'Type Rating' }
     ];
     types.forEach(t => {
+      const isChecked = checkedValues.includes(t.value);
       grid.insertAdjacentHTML('beforeend', `
         <label style="display: flex; align-items: center; gap: 5px; font-size: 11px; cursor: pointer; color: var(--text-primary); margin: 0; padding: 1px 0; user-select: none;">
-          <input type="checkbox" value="${t.value}" class="crew-training-type" style="width: 13px; height: 13px; cursor: pointer;"> <span>${t.label}</span>
+          <input type="checkbox" value="${t.value}" class="crew-training-type" ${isChecked ? 'checked' : ''} style="width: 13px; height: 13px; cursor: pointer;"> <span>${t.label}</span>
         </label>
       `);
     });
@@ -2767,8 +3036,8 @@ function addCrewMemberCard() {
           headerNameText.textContent = member.Full_Name_EN;
         }
         
-        // Update training types options dynamically
-        updateTrainingTypesLayout(cardNode, member.crewType);
+        // Update training types options dynamically based on member crewType and PSTN
+        updateTrainingTypesLayout(cardNode, member.crewType, norm.pstn);
       });
       dropdown.appendChild(item);
     });
@@ -2785,6 +3054,7 @@ function addCrewMemberCard() {
       const rank = member ? member.Rank : pstnInput.value;
       const norm = normalizeFlightCrewRole(name, rank, instChk.checked, member);
       pstnInput.value = norm.pstn;
+      updateTrainingTypesLayout(cardNode, member ? member.crewType : 'Flight', norm.pstn);
     });
   }
   
@@ -2993,6 +3263,19 @@ function repairFlightCrewTimes() {
         c.isInstructor = norm.isInstructor;
         modified = true;
       }
+
+      // Ensure crewType matches the actual position (PSTN):
+      // SIC (2П), PIC (КПС), PI, FE (ІБ) are strictly Flight Crew!
+      const pUpper = (c.pstn || '').toUpperCase();
+      const isFlightRole = ['PIC', 'SIC', 'PI', 'FE', '2П', 'КПС', 'ІБ'].some(p => pUpper.includes(p));
+      const isCabinRole = ['FA', 'FA-AR', 'БП', 'БПАР'].some(p => pUpper.includes(p));
+      if (isFlightRole && c.crewType !== 'Flight') {
+        c.crewType = 'Flight';
+        modified = true;
+      } else if (isCabinRole && c.crewType !== 'Cabin') {
+        c.crewType = 'Cabin';
+        modified = true;
+      }
     });
   });
 
@@ -3016,13 +3299,34 @@ function formatDateDisplay(dateStr) {
 }
 
 /**
+ * Deduplicates any flight list by unique flight ID or (1 - date, 2 - flight task).
+ * @param {Array<object>} flightList 
+ * @returns {Array<object>}
+ */
+export function deduplicateFlightsList(flightList = []) {
+  if (!Array.isArray(flightList)) return [];
+  const unique = [];
+  flightList.forEach(f => {
+    if (!f || !f.date) return;
+    const exists = unique.some(u => (
+      (f.id && u.id && f.id === u.id) ||
+      isFlightDuplicate(f, u)
+    ));
+    if (!exists) {
+      unique.push(f);
+    }
+  });
+  return unique;
+}
+
+/**
  * Returns latest N flights sorted newest first
  */
 function getRecentFlights(limit = 3) {
   if (!STATE.flights || !Array.isArray(STATE.flights)) return [];
-  return [...STATE.flights]
-    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
-    .slice(0, limit);
+  const clean = deduplicateFlightsList(STATE.flights);
+  const sorted = [...clean].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  return sorted.slice(0, limit);
 }
 
 /**
@@ -3048,6 +3352,7 @@ function calculateMonthTotals(flightList) {
  * Groups flight list by YYYY-MM, sorted descending (latest month first)
  */
 function groupFlightsByMonth(flights) {
+  const cleanFlights = deduplicateFlightsList(flights);
   const groups = {};
   const monthsUk = {
     '01': 'Січень', '02': 'Лютий', '03': 'Березень', '04': 'Квітень',
@@ -3060,7 +3365,7 @@ function groupFlightsByMonth(flights) {
     '09': 'September', '10': 'October', '11': 'November', '12': 'December'
   };
 
-  (flights || []).forEach(f => {
+  cleanFlights.forEach(f => {
     if (!f.date || f.date.length < 7) return;
     const key = f.date.substring(0, 7);
     if (!groups[key]) {
@@ -3121,8 +3426,10 @@ function getMonthlyTrendData(monthsCount = 12) {
 
   const currentYearStr = String(now.getFullYear());
   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-  let currentMonthMinutes = 0;
-  let currentYearMinutes = 0;
+  let currentMonthFlightMinutes = 0;
+  let currentYearFlightMinutes = 0;
+  let currentMonthBlockMinutes = 0;
+  let currentYearBlockMinutes = 0;
 
   if (STATE.flights && Array.isArray(STATE.flights)) {
     STATE.flights.forEach(f => {
@@ -3132,10 +3439,12 @@ function getMonthlyTrendData(monthsCount = 12) {
       const blkMins = parseDurationToMinutes(f.totalBlockTime || '00:00');
 
       if (f.date.startsWith(currentYearStr)) {
-        currentYearMinutes += fltMins;
+        currentYearFlightMinutes += fltMins;
+        currentYearBlockMinutes += blkMins;
       }
       if (fMKey === currentMonthKey) {
-        currentMonthMinutes += fltMins;
+        currentMonthFlightMinutes += fltMins;
+        currentMonthBlockMinutes += blkMins;
       }
 
       const found = months.find(m => m.key === fMKey);
@@ -3149,10 +3458,16 @@ function getMonthlyTrendData(monthsCount = 12) {
 
   return {
     months,
-    currentMonthMinutes,
-    currentYearMinutes,
-    currentMonthStr: formatMinutesToDuration(currentMonthMinutes),
-    currentYearStr: formatMinutesToDuration(currentYearMinutes)
+    currentMonthMinutes: currentMonthFlightMinutes,
+    currentYearMinutes: currentYearFlightMinutes,
+    currentMonthFlightMinutes,
+    currentYearFlightMinutes,
+    currentMonthBlockMinutes,
+    currentYearBlockMinutes,
+    currentMonthStr: formatMinutesToDuration(currentMonthFlightMinutes),
+    currentYearStr: formatMinutesToDuration(currentYearFlightMinutes),
+    currentMonthBlockStr: formatMinutesToDuration(currentMonthBlockMinutes),
+    currentYearBlockStr: formatMinutesToDuration(currentYearBlockMinutes)
   };
 }
 
@@ -3173,8 +3488,10 @@ window.switchTrainingFlightsTab = function(tabName) {
     if (tabArchive) tabArchive.style.display = 'flex';
 
     renderFlightTrendChart();
-    const searchInput = document.getElementById('flight-archive-search');
-    renderMonthlyArchive(searchInput ? searchInput.value : '');
+    if (typeof populateArchiveFilterDropdowns === 'function') {
+      populateArchiveFilterDropdowns();
+    }
+    renderMonthlyArchive();
   } else {
     if (btnArchive) btnArchive.classList.remove('active');
     if (btnEntry) btnEntry.classList.add('active');
@@ -3225,7 +3542,50 @@ window.clearArchiveSearch = function() {
   const clearBtn = document.getElementById('btn-clear-archive-search');
   if (searchInput) searchInput.value = '';
   if (clearBtn) clearBtn.style.display = 'none';
-  renderMonthlyArchive('');
+  renderMonthlyArchive();
+};
+
+/**
+ * Toggles visibility of extra crew rows in filtered flight card
+ */
+window.toggleArchiveFlightCrewRows = function(btn, totalCount) {
+  const card = btn.closest('.archive-flight-card');
+  if (!card) return;
+  const isShowingAll = card.classList.toggle('show-all-crew');
+  const labelSpan = btn.querySelector('.crew-toggle-btn-label');
+
+  const hiddenRows = card.querySelectorAll('tr.archive-extra-crew');
+  hiddenRows.forEach(row => {
+    row.style.display = isShowingAll ? 'table-row' : 'none';
+  });
+
+  if (labelSpan) {
+    const isUk = STATE.lang === 'uk';
+    labelSpan.textContent = isShowingAll 
+      ? (isUk ? 'Сховати інших учасників' : 'Hide other crew')
+      : (isUk ? `Показати весь екіпаж (${totalCount || ''})` : `Show full crew (${totalCount || ''})`);
+  }
+};
+
+/**
+ * Resets all archive filters (pilot, month, flight type) and search input
+ */
+window.resetArchiveFilters = function() {
+  const searchInput = document.getElementById('flight-archive-search');
+  const pilotSelect = document.getElementById('flight-archive-filter-pilot');
+  const monthSelect = document.getElementById('flight-archive-filter-month');
+  const typeSelect = document.getElementById('flight-archive-filter-type');
+  const clearBtn = document.getElementById('btn-clear-archive-search');
+  const resetBtn = document.getElementById('btn-reset-archive-filters');
+
+  if (searchInput) searchInput.value = '';
+  if (pilotSelect) pilotSelect.value = '';
+  if (monthSelect) monthSelect.value = '';
+  if (typeSelect) typeSelect.value = '';
+  if (clearBtn) clearBtn.style.display = 'none';
+  if (resetBtn) resetBtn.style.display = 'none';
+
+  renderMonthlyArchive();
 };
 
 /**
@@ -3347,7 +3707,24 @@ window.deleteFlightLog = function(flightId) {
     const idx = STATE.flights.findIndex(f => f.id === flightId);
     if (idx !== -1) {
       STATE.flights.splice(idx, 1);
+      
+      // Record tombstone in deletedFlightIds to prevent resurrection on Ctrl+F5
+      if (!Array.isArray(STATE.deletedFlightIds)) {
+        STATE.deletedFlightIds = JSON.parse(localStorage.getItem('aerocheck_deleted_flight_ids') || '[]');
+      }
+      if (!STATE.deletedFlightIds.includes(flightId)) {
+        STATE.deletedFlightIds.push(flightId);
+        try {
+          localStorage.setItem('aerocheck_deleted_flight_ids', JSON.stringify(STATE.deletedFlightIds));
+        } catch(e) {}
+      }
+
       saveStateToStorage();
+
+      // Sync deletion to Server & Google Apps Script
+      deleteFlightFromRemote(flightId, { settings: STATE.settings }).catch(e => console.warn(e));
+      syncAllFlightsToRemote(STATE.flights, { settings: STATE.settings }).catch(e => console.warn(e));
+
       renderLoggedFlightsList();
       renderDashboard();
       showToast(STATE.lang === 'uk' ? "Запис польоту видалено!" : "Flight log deleted!");
@@ -3414,21 +3791,99 @@ function renderRecentFlightsList() {
 }
 
 /**
+ * Toggles trend chart metric: 'block' (default) vs 'flight'
+ */
+window.switchFlightTrendMetric = function(metric) {
+  STATE.flightTrendMetric = metric;
+  try {
+    localStorage.setItem('aerocheck_flight_trend_metric', metric);
+  } catch (e) {}
+  renderFlightTrendChart();
+};
+
+/**
  * Renders SVG straight-line segment trend chart with points and gradient fill
  */
 function renderFlightTrendChart() {
   const container = document.getElementById('flight-trend-chart-body');
   if (!container) return;
 
+  const metric = STATE.flightTrendMetric || localStorage.getItem('aerocheck_flight_trend_metric') || 'block';
+  STATE.flightTrendMetric = metric;
+  const isBlock = metric === 'block';
+
   const trendData = getMonthlyTrendData(12);
-  const { months, currentMonthMinutes, currentYearMinutes, currentMonthStr, currentYearStr } = trendData;
+  const {
+    months,
+    currentMonthFlightMinutes,
+    currentYearFlightMinutes,
+    currentMonthBlockMinutes,
+    currentYearBlockMinutes,
+    currentMonthStr,
+    currentYearStr,
+    currentMonthBlockStr,
+    currentYearBlockStr
+  } = trendData;
+
+  // Update switcher button styles
+  const btnBlock = document.getElementById('btn-trend-metric-block');
+  const btnFlight = document.getElementById('btn-trend-metric-flight');
+  if (btnBlock && btnFlight) {
+    if (isBlock) {
+      btnBlock.style.background = '#10b981';
+      btnBlock.style.color = '#ffffff';
+      btnBlock.style.fontWeight = '700';
+      btnFlight.style.background = 'transparent';
+      btnFlight.style.color = 'var(--text-secondary)';
+      btnFlight.style.fontWeight = '500';
+    } else {
+      btnFlight.style.background = '#2563eb';
+      btnFlight.style.color = '#ffffff';
+      btnFlight.style.fontWeight = '700';
+      btnBlock.style.background = 'transparent';
+      btnBlock.style.color = 'var(--text-secondary)';
+      btnBlock.style.fontWeight = '500';
+    }
+  }
 
   // Update header totals
   const curEl = document.getElementById('trend-current-month-hours');
+  const curSub = document.getElementById('trend-current-month-sub');
   const yrEl = document.getElementById('trend-yearly-hours');
+  const yrSub = document.getElementById('trend-yearly-sub');
   const unit = STATE.lang === 'uk' ? 'год' : 'hrs';
-  if (curEl) curEl.textContent = `${currentMonthStr} ${unit}`;
-  if (yrEl) yrEl.textContent = `${currentYearStr} ${unit}`;
+
+  if (isBlock) {
+    if (curEl) {
+      curEl.textContent = `${currentMonthBlockStr} ${unit}`;
+      curEl.style.color = '#10b981';
+    }
+    if (curSub) {
+      curSub.textContent = `(${STATE.lang === 'uk' ? 'Політ' : 'Flight'}: ${currentMonthStr})`;
+    }
+    if (yrEl) {
+      yrEl.textContent = `${currentYearBlockStr} ${unit}`;
+      yrEl.style.color = '#10b981';
+    }
+    if (yrSub) {
+      yrSub.textContent = `(${STATE.lang === 'uk' ? 'Політ' : 'Flight'}: ${currentYearStr})`;
+    }
+  } else {
+    if (curEl) {
+      curEl.textContent = `${currentMonthStr} ${unit}`;
+      curEl.style.color = '#2563eb';
+    }
+    if (curSub) {
+      curSub.textContent = `(${STATE.lang === 'uk' ? 'Блок' : 'Block'}: ${currentMonthBlockStr})`;
+    }
+    if (yrEl) {
+      yrEl.textContent = `${currentYearStr} ${unit}`;
+      yrEl.style.color = '#2563eb';
+    }
+    if (yrSub) {
+      yrSub.textContent = `(${STATE.lang === 'uk' ? 'Блок' : 'Block'}: ${currentYearBlockStr})`;
+    }
+  }
 
   // SVG Geometry for 12 months
   const svgWidth = 980;
@@ -3440,21 +3895,23 @@ function renderFlightTrendChart() {
   const graphWidth = padRight - padLeft;
   const graphHeight = padBottom - padTop;
 
-  // Convert minutes to hours for scaling
-  const valuesInHours = months.map(m => m.totalFlightMinutes / 60);
+  // Selected values: block or flight minutes
+  const getMinutes = m => isBlock ? m.totalBlockMinutes : m.totalFlightMinutes;
+  const valuesInHours = months.map(m => getMinutes(m) / 60);
   const maxHours = Math.max(...valuesInHours, 1);
   const chartMax = Math.max(Math.ceil(maxHours * 1.25), 4);
 
   const stepX = graphWidth / Math.max(months.length - 1, 1);
   const points = months.map((m, idx) => {
     const x = Math.round(padLeft + idx * stepX);
-    const hrs = m.totalFlightMinutes / 60;
+    const mins = getMinutes(m);
+    const hrs = mins / 60;
     const y = Math.round(padBottom - (hrs / chartMax) * graphHeight);
     return {
       x,
       y,
       month: m,
-      formattedTime: formatMinutesToDuration(m.totalFlightMinutes),
+      formattedTime: formatMinutesToDuration(mins),
       isCurrentMonth: idx === months.length - 1
     };
   });
@@ -3474,11 +3931,14 @@ function renderFlightTrendChart() {
     <line x1="${padLeft}" y1="${padTop}" x2="${padRight}" y2="${padTop}" stroke="var(--border-color)" stroke-width="1" stroke-dasharray="3,3" opacity="0.4" />
   `;
 
+  const primaryColor = isBlock ? '#10b981' : '#2563eb';
+  const gradId = isBlock ? 'trendBlockGrad' : 'trendFlightGrad';
+
   // Vertical guidelines, points, labels
   let pointsHtml = '';
   points.forEach((p, idx) => {
-    const dotColor = p.isCurrentMonth ? '#10b981' : '#2563eb';
-    const textColor = p.isCurrentMonth ? '#10b981' : 'var(--text-primary)';
+    const dotColor = primaryColor;
+    const textColor = p.isCurrentMonth ? primaryColor : 'var(--text-primary)';
     const fontWt = p.isCurrentMonth ? '800' : '700';
     const monthLabelColor = p.isCurrentMonth ? (STATE.theme === 'dark' ? '#34d399' : '#059669') : 'var(--text-secondary)';
     const suffix = p.isCurrentMonth ? '*' : '';
@@ -3502,55 +3962,467 @@ function renderFlightTrendChart() {
   container.innerHTML = `
     <svg viewBox="0 0 ${svgWidth} ${svgHeight}" preserveAspectRatio="xMidYMid meet" style="width: 100%; min-width: 720px; max-height: 145px; display: block;" role="img" aria-label="12-Month Flight Hours Trend">
       <defs>
-        <linearGradient id="flightLineGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-          <stop offset="0%" stop-color="#2563eb" stop-opacity="0.30"/>
-          <stop offset="100%" stop-color="#2563eb" stop-opacity="0.02"/>
+        <linearGradient id="${gradId}" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stop-color="${primaryColor}" stop-opacity="0.28"/>
+          <stop offset="100%" stop-color="${primaryColor}" stop-opacity="0.02"/>
         </linearGradient>
       </defs>
       ${gridLinesHtml}
-      <path d="${areaPathD}" fill="url(#flightLineGrad)" />
-      <path d="${linePathD}" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="${areaPathD}" fill="url(#${gradId})" />
+      <path d="${linePathD}" fill="none" stroke="${primaryColor}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
       ${pointsHtml}
     </svg>
   `;
 }
 
 /**
- * Renders monthly flight accordions with search filter
+ * Helper to escape attributes in HTML strings
  */
-function renderMonthlyArchive(searchQuery = '') {
-  const container = document.getElementById('flights-archive-months');
-  if (!container) return;
+function escapeXmlAttr(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
 
+const ARCHIVE_TYPE_LABELS = {
+  '__instructor__': { uk: '★ Інструкторський наліт', en: '★ Instructor Flight' },
+  'NVG': { uk: 'NVG (ОНБ)', en: 'NVG' },
+  'VFR night': { uk: 'VFR night (Ніч)', en: 'VFR night' },
+  'GI_275_PRCT': { uk: 'GI 275 (Практика)', en: 'GI 275' },
+  'HESLO_PRCT': { uk: 'HESLO (Вантаж)', en: 'HESLO' },
+  'HHO_PRCT': { uk: 'HHO (Лебідка)', en: 'HHO' },
+  'FFO': { uk: 'FFO', en: 'FFO' },
+  'LPC': { uk: 'LPC (Перевірка навичок)', en: 'LPC' },
+  'OPC': { uk: 'OPC (Операційна перевірка)', en: 'OPC' },
+  'PALL': { uk: 'PALL', en: 'PALL' },
+  'MSB': { uk: 'MSB', en: 'MSB' },
+  'Before Rotation': { uk: 'Before Rotation', en: 'Before Rotation' },
+  'Type Rating': { uk: 'Type Rating', en: 'Type Rating' },
+  'Line Check': { uk: 'Line Check (Рейсова перевірка)', en: 'Line Check' },
+  'Rappel': { uk: 'Rappel (Спуск)', en: 'Rappel' },
+  'Hoist': { uk: 'Hoist (Лебідка БП)', en: 'Hoist' },
+  'EOIR': { uk: 'EOIR', en: 'EOIR' }
+};
+
+// ================= PILOT TRANSLITERATION & BILINGUAL MATCHING =================
+const ARCHIVE_UKR_TO_LATIN = {
+  'а': 'a', 'б': 'b', 'в': 'v', 'г': 'h', 'ґ': 'g', 'д': 'd', 'е': 'e', 'є': 'ye',
+  'ж': 'zh', 'з': 'z', 'и': 'y', 'і': 'i', 'ї': 'yi', 'й': 'y', 'к': 'k', 'л': 'l',
+  'м': 'm', 'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+  'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch', 'ь': '', 'ю': 'yu', 'я': 'ya',
+  'э': 'e', 'ы': 'y'
+};
+
+function transliteratePilotToLatin(str) {
+  if (!str) return '';
+  return String(str)
+    .toLowerCase()
+    .split('')
+    .map(c => ARCHIVE_UKR_TO_LATIN[c] !== undefined ? ARCHIVE_UKR_TO_LATIN[c] : c)
+    .join('');
+}
+
+function normalizePilotSearchKey(str) {
+  if (!str) return '';
+  let s = transliteratePilotToLatin(str).toLowerCase();
+  s = s.replace(/[\.,\/#!$%\^&\*;:{}=\-_`~()]/g, ' ').replace(/\s+/g, ' ').trim();
+  s = s.replace(/kh/g, 'h').replace(/g/g, 'h');
+  s = s.replace(/ye|ie/g, 'e');
+  s = s.replace(/yu|iu/g, 'u');
+  s = s.replace(/ya|ia/g, 'a');
+  s = s.replace(/(oi|oy|iy|yy|ii|yi|y|i)+\b/g, 'i');
+  s = s.replace(/[iy]+/g, 'i');
+  s = s.replace(/([a-z])\1+/g, '$1');
+  return s;
+}
+
+function getPilotSurnameAndInitial(str) {
+  const norm = normalizePilotSearchKey(str);
+  const parts = norm.split(' ').filter(Boolean);
+  if (parts.length === 0) return { surname: '', initial: '' };
+  if (parts.length === 1) return { surname: parts[0], initial: '' };
+
+  if (parts[0].length <= 2 && parts[parts.length - 1].length >= 3) {
+    return { surname: parts[parts.length - 1], initial: parts[0][0] };
+  }
+  return { surname: parts[0], initial: parts[1] ? parts[1][0] : '' };
+}
+
+/**
+ * Checks if a flight crew member matches a search term / selected pilot (bilingual: UA <-> EN)
+ */
+function isCrewMemberMatch(crewMember, selectedPilot, personnelList) {
+  const allPersonnel = (Array.isArray(personnelList) && personnelList.length > 0)
+    ? personnelList
+    : [...(STATE.flightCrew || []), ...(STATE.cabinCrew || [])];
+  if (!crewMember) return false;
+  const sel = String(selectedPilot || '').trim();
+  if (!sel) return true;
+
+  const cName = String(crewMember.name || '').trim();
+  const cId = String(crewMember.crewId || '').trim();
+
+  // 1. Direct ID or exact raw name match
+  if (cId && cId.toLowerCase() === sel.toLowerCase()) return true;
+  if (cName.toLowerCase() === sel.toLowerCase()) return true;
+
+  // 2. Direct phonetic transliteration & surname match
+  const selNorm = normalizePilotSearchKey(sel);
+  const cNorm = normalizePilotSearchKey(cName);
+  if (selNorm && cNorm) {
+    if (selNorm === cNorm) return true;
+    if (selNorm.length >= 3 && (cNorm.includes(selNorm) || selNorm.includes(cNorm))) return true;
+  }
+
+  const selInfo = getPilotSurnameAndInitial(sel);
+  const cInfo = getPilotSurnameAndInitial(cName);
+  if (selInfo.surname && cInfo.surname && selInfo.surname.length >= 3) {
+    const isSurnameMatch = (selInfo.surname === cInfo.surname) ||
+      (cInfo.surname.startsWith(selInfo.surname) && selInfo.surname.length >= 4) ||
+      (selInfo.surname.startsWith(cInfo.surname) && cInfo.surname.length >= 4);
+    if (isSurnameMatch) {
+      if (!selInfo.initial || !cInfo.initial || selInfo.initial === cInfo.initial) {
+        return true;
+      }
+    }
+  }
+
+  // 3. Match via personnel registry (STATE.flightCrew + STATE.cabinCrew)
+  // Identify which personnel records match 'sel' (by ID, UA/EN full name, or short name)
+  const personnelMatchingSel = allPersonnel.filter(m => {
+    if (!m) return false;
+    const pId = String(m.id || '').trim().toLowerCase();
+    if (pId && pId === sel.toLowerCase()) return true;
+
+    const names = [m.Full_Name_EN, m.Full_Name_UA, m.Name_Shrt_UA].filter(Boolean);
+    if (names.some(n => n.toLowerCase() === sel.toLowerCase())) return true;
+    if (selNorm && names.some(n => normalizePilotSearchKey(n) === selNorm)) return true;
+
+    if (selInfo.surname && selInfo.surname.length >= 3) {
+      return names.some(n => {
+        const nInfo = getPilotSurnameAndInitial(n);
+        if (nInfo.surname === selInfo.surname) {
+          return !selInfo.initial || !nInfo.initial || selInfo.initial === nInfo.initial;
+        }
+        return false;
+      });
+    }
+    return false;
+  });
+
+  // Verify if crewMember corresponds to ANY matched personnel record
+  for (const m of personnelMatchingSel) {
+    const pId = String(m.id || '').trim().toLowerCase();
+    if (cId && pId && cId.toLowerCase() === pId) return true;
+
+    const aliases = [m.Full_Name_EN, m.Full_Name_UA, m.Name_Shrt_UA].filter(Boolean);
+    for (const a of aliases) {
+      if (cName.toLowerCase() === a.toLowerCase()) return true;
+      const aInfo = getPilotSurnameAndInitial(a);
+      if (aInfo.surname && aInfo.surname.length >= 3 && aInfo.surname === cInfo.surname) {
+        if (!aInfo.initial || !cInfo.initial || aInfo.initial === cInfo.initial) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
+function getUniqueArchivePilots() {
+  const isUk = STATE.lang === 'uk';
+  const allPersonnel = [...(STATE.flightCrew || []), ...(STATE.cabinCrew || [])];
+  const pilotMap = new Map();
+
+  // 1. Add all personnel from database
+  allPersonnel.forEach(m => {
+    if (!m) return;
+    const labelUa = m.Name_Shrt_UA || m.Full_Name_UA || m.Full_Name_EN || '';
+    const labelEn = m.Full_Name_EN || m.Name_Shrt_UA || m.Full_Name_UA || '';
+    const label = (isUk ? labelUa : labelEn).trim();
+    if (!label) return;
+
+    const info = getPilotSurnameAndInitial(m.Full_Name_EN || label);
+    const key = info.surname ? `${info.surname}_${info.initial || ''}` : label.toLowerCase();
+
+    pilotMap.set(key, {
+      value: label,
+      label: label
+    });
+  });
+
+  // 2. Add crew members from logged flights that aren't already represented
+  (STATE.flights || []).forEach(f => {
+    (f.crew || []).forEach(c => {
+      if (!c || !c.name || !c.name.trim()) return;
+      const cName = c.name.trim();
+      const info = getPilotSurnameAndInitial(cName);
+      const key = info.surname ? `${info.surname}_${info.initial || ''}` : cName.toLowerCase();
+
+      let alreadyExists = pilotMap.has(key);
+      if (!alreadyExists && info.surname) {
+        for (const existingKey of pilotMap.keys()) {
+          if (existingKey.startsWith(`${info.surname}_`)) {
+            alreadyExists = true;
+            break;
+          }
+        }
+      }
+
+      if (!alreadyExists) {
+        pilotMap.set(key, {
+          value: cName,
+          label: cName
+        });
+      }
+    });
+  });
+
+  const list = Array.from(pilotMap.values());
+  list.sort((a, b) => a.label.localeCompare(b.label, isUk ? 'uk' : 'en'));
+  return list;
+}
+
+function getUniqueArchiveMonths() {
+  const isUk = STATE.lang === 'uk';
+  const monthsUk = {
+    '01': 'Січень', '02': 'Лютий', '03': 'Березень', '04': 'Квітень',
+    '05': 'Травень', '06': 'Червень', '07': 'Липень', '08': 'Серпень',
+    '09': 'Вересень', '10': 'Жовтень', '11': 'Листопад', '12': 'Грудень'
+  };
+  const monthsEn = {
+    '01': 'January', '02': 'February', '03': 'March', '04': 'April',
+    '05': 'May', '06': 'June', '07': 'July', '08': 'August',
+    '09': 'September', '10': 'October', '11': 'November', '12': 'December'
+  };
+
+  const monthsSet = new Set();
+  (STATE.flights || []).forEach(f => {
+    if (f && f.date && f.date.length >= 7) {
+      monthsSet.add(f.date.substring(0, 7));
+    }
+  });
+
+  const sortedKeys = Array.from(monthsSet).sort().reverse();
+  return sortedKeys.map(key => {
+    const parts = key.split('-');
+    const y = parts[0];
+    const m = parts[1];
+    const mName = isUk ? (monthsUk[m] || m) : (monthsEn[m] || m);
+    return {
+      key,
+      label: `${mName} ${y}`
+    };
+  });
+}
+
+function getUniqueArchiveFlightTypes() {
+  const isUk = STATE.lang === 'uk';
+  const typeMap = new Map();
+
+  typeMap.set('__instructor__', isUk ? '★ Інструкторський наліт' : '★ Instructor Flight');
+
+  const standardTypes = [
+    'NVG', 'VFR night', 'GI_275_PRCT', 'HESLO_PRCT', 'HHO_PRCT', 'FFO',
+    'LPC', 'OPC', 'PALL', 'MSB', 'Before Rotation', 'Type Rating',
+    'Line Check', 'Rappel', 'Hoist', 'EOIR'
+  ];
+
+  standardTypes.forEach(t => {
+    const info = ARCHIVE_TYPE_LABELS[t];
+    const label = info ? (isUk ? info.uk : info.en) : t;
+    typeMap.set(t, label);
+  });
+
+  (STATE.flights || []).forEach(f => {
+    (f.crew || []).forEach(c => {
+      (c.trainingTypes || []).forEach(t => {
+        if (t && t.trim() && !typeMap.has(t.trim())) {
+          typeMap.set(t.trim(), t.trim());
+        }
+      });
+    });
+  });
+
+  return Array.from(typeMap.entries()).map(([key, label]) => ({ key, label }));
+}
+
+function populateArchiveFilterDropdowns() {
+  const pilotSelect = document.getElementById('flight-archive-filter-pilot');
+  const monthSelect = document.getElementById('flight-archive-filter-month');
+  const typeSelect = document.getElementById('flight-archive-filter-type');
   const dict = TRANSLATIONS[STATE.lang] || {};
-  const query = (searchQuery || '').trim().toLowerCase();
+  const isUk = STATE.lang === 'uk';
 
-  // Filter flights
-  let flightsToDisplay = STATE.flights || [];
+  if (pilotSelect) {
+    const curVal = pilotSelect.value;
+    const pilots = getUniqueArchivePilots();
+    let optHtml = `<option value="">${dict.opt_all_pilots || (isUk ? 'Всі пілоти / екіпаж' : 'All pilots / crew')}</option>`;
+    pilots.forEach(p => {
+      const val = typeof p === 'object' && p ? (p.value || p.label) : String(p || '');
+      const label = typeof p === 'object' && p ? (p.label || p.value) : String(p || '');
+      const isSel = curVal && curVal.toLowerCase() === val.toLowerCase();
+      optHtml += `<option value="${escapeXmlAttr(val)}" ${isSel ? 'selected' : ''}>${escapeXmlAttr(label)}</option>`;
+    });
+    pilotSelect.innerHTML = optHtml;
+    if (curVal && pilotSelect.value !== curVal) {
+      pilotSelect.value = curVal;
+    }
+  }
+
+  if (monthSelect) {
+    const curVal = monthSelect.value;
+    const months = getUniqueArchiveMonths();
+    let optHtml = `<option value="">${dict.opt_all_months || (isUk ? 'Всі місяці' : 'All months')}</option>`;
+    months.forEach(m => {
+      const isSel = curVal === m.key;
+      optHtml += `<option value="${m.key}" ${isSel ? 'selected' : ''}>${m.label}</option>`;
+    });
+    monthSelect.innerHTML = optHtml;
+    if (curVal && monthSelect.value !== curVal) {
+      monthSelect.value = curVal;
+    }
+  }
+
+  if (typeSelect) {
+    const curVal = typeSelect.value;
+    const types = getUniqueArchiveFlightTypes();
+    let optHtml = `<option value="">${dict.opt_all_flight_types || (isUk ? 'Всі типи польотів' : 'All flight types')}</option>`;
+    types.forEach(t => {
+      const isSel = curVal === t.key;
+      optHtml += `<option value="${escapeXmlAttr(t.key)}" ${isSel ? 'selected' : ''}>${escapeXmlAttr(t.label)}</option>`;
+    });
+    typeSelect.innerHTML = optHtml;
+    if (curVal && typeSelect.value !== curVal) {
+      typeSelect.value = curVal;
+    }
+  }
+}
+
+function getFilteredArchiveFlights() {
+  const searchInput = document.getElementById('flight-archive-search');
+  const pilotSelect = document.getElementById('flight-archive-filter-pilot');
+  const monthSelect = document.getElementById('flight-archive-filter-month');
+  const typeSelect = document.getElementById('flight-archive-filter-type');
+
+  const query = (searchInput ? searchInput.value : '').trim().toLowerCase();
+  const selectedPilot = pilotSelect ? pilotSelect.value.trim().toLowerCase() : '';
+  const selectedMonth = monthSelect ? monthSelect.value.trim() : '';
+  const selectedType = typeSelect ? typeSelect.value.trim() : '';
+
+  let flights = STATE.flights || [];
+
+  const allPersonnel = [...(STATE.flightCrew || []), ...(STATE.cabinCrew || [])];
+
+  // 1. Month filter (YYYY-MM)
+  if (selectedMonth) {
+    flights = flights.filter(f => f.date && f.date.startsWith(selectedMonth));
+  }
+
+  // 2. Pilot / Surname filter (bilingual Cyrillic <-> Latin + ID + transliteration)
+  if (selectedPilot) {
+    flights = flights.filter(f => {
+      return (f.crew || []).some(c => isCrewMemberMatch(c, selectedPilot, allPersonnel));
+    });
+  }
+
+  // 3. Flight Type filter
+  if (selectedType) {
+    const lowerType = selectedType.toLowerCase();
+    flights = flights.filter(f => {
+      if (selectedType === '__instructor__') {
+        return (f.crew || []).some(c => !!c.isInstructor);
+      }
+      const hasTrainingType = (f.crew || []).some(c => 
+        (c.trainingTypes || []).some(t => {
+          const tLow = (t || '').toLowerCase();
+          return tLow === lowerType || tLow.includes(lowerType) || lowerType.includes(tLow);
+        })
+      );
+      if (hasTrainingType) return true;
+
+      const mainTaskMatch = (f.mainFlightTask || '').toLowerCase().includes(lowerType);
+      const crewTaskMatch = (f.crew || []).some(c => (c.flightTask || '').toLowerCase().includes(lowerType));
+      return mainTaskMatch || crewTaskMatch;
+    });
+  }
+
+  // 4. Search query
   if (query) {
-    flightsToDisplay = flightsToDisplay.filter(f => {
-      const dateMatch = (f.date || '').toLowerCase().includes(query) || formatDateDisplay(f.date).toLowerCase().includes(query);
+    flights = flights.filter(f => {
+      const dateMatch = (f.date || '').toLowerCase().includes(query) || (typeof formatDateDisplay === 'function' ? formatDateDisplay(f.date).toLowerCase().includes(query) : false);
       const regMatch = (f.helicopterReg || '').toLowerCase().includes(query);
       const taskMatch = (f.mainFlightTask || '').toLowerCase().includes(query);
       const crewMatch = (f.crew || []).some(c => {
-        const nameMatch = (c.name || '').toLowerCase().includes(query);
+        const nameMatch = (c.name || '').toLowerCase().includes(query) || isCrewMemberMatch(c, query, allPersonnel);
         const pstnMatch = (c.pstn || '').toLowerCase().includes(query);
         const indTaskMatch = (c.flightTask || '').toLowerCase().includes(query);
-        const trgMatch = (c.trainingTypes || []).some(t => t.toLowerCase().includes(query));
+        const trgMatch = (c.trainingTypes || []).some(t => (t || '').toLowerCase().includes(query));
         return nameMatch || pstnMatch || indTaskMatch || trgMatch;
       });
       return dateMatch || regMatch || taskMatch || crewMatch;
     });
   }
 
+  return flights;
+}
+
+/**
+ * Renders monthly flight accordions with search filter
+ */
+function renderMonthlyArchive(searchQuery) {
+  const container = document.getElementById('flights-archive-months');
+  if (!container) return;
+
+  const dict = TRANSLATIONS[STATE.lang] || {};
+  const allPersonnel = [...(STATE.flightCrew || []), ...(STATE.cabinCrew || [])];
+  const searchInput = document.getElementById('flight-archive-search');
+  const pilotSelect = document.getElementById('flight-archive-filter-pilot');
+  const monthSelect = document.getElementById('flight-archive-filter-month');
+  const typeSelect = document.getElementById('flight-archive-filter-type');
+  const clearBtn = document.getElementById('btn-clear-archive-search');
+  const resetBtn = document.getElementById('btn-reset-archive-filters');
+
+  if (searchQuery !== undefined && searchInput && searchInput.value !== searchQuery) {
+    searchInput.value = searchQuery;
+  }
+
+  if (pilotSelect && pilotSelect.options.length <= 1) {
+    populateArchiveFilterDropdowns();
+  }
+
+  const query = searchInput ? searchInput.value.trim() : '';
+  const selectedPilot = pilotSelect ? pilotSelect.value.trim() : '';
+  const selectedMonth = monthSelect ? monthSelect.value.trim() : '';
+  const selectedType = typeSelect ? typeSelect.value.trim() : '';
+
+  const hasFilter = !!(query || selectedPilot || selectedMonth || selectedType);
+
+  if (clearBtn) clearBtn.style.display = query ? 'block' : 'none';
+  if (resetBtn) resetBtn.style.display = hasFilter ? 'inline-flex' : 'none';
+
+  if (selectedMonth) {
+    if (!STATE._openArchiveMonths) STATE._openArchiveMonths = new Set();
+    STATE._openArchiveMonths.add(selectedMonth);
+  }
+
+  // Filter flights
+  const flightsToDisplay = getFilteredArchiveFlights();
+
   if (!flightsToDisplay || flightsToDisplay.length === 0) {
     container.innerHTML = `
       <div class="card" style="padding: 32px 16px; text-align: center; color: var(--text-secondary);">
         <i data-lucide="archive-x" style="width: 32px; height: 32px; margin: 0 auto 8px auto; opacity: 0.6; display: block;"></i>
         <div style="font-size: 13.5px; font-weight: 600;">
-          ${query ? (STATE.lang === 'uk' ? 'Нічого не знайдено за вашим запитом' : 'No flights match your search query') : (dict.no_logged_flights || 'Немає збережених польотів')}
+          ${hasFilter 
+            ? (STATE.lang === 'uk' ? 'Нічого не знайдено за обраними фільтрами' : 'No flights match your filter criteria') 
+            : (dict.no_logged_flights || 'Немає збережених польотів')}
         </div>
-        ${query ? `<button type="button" class="btn btn-secondary btn-sm" style="margin-top: 10px;" onclick="clearArchiveSearch()">${STATE.lang === 'uk' ? 'Скинути пошук' : 'Clear search'}</button>` : ''}
+        ${hasFilter ? `<button type="button" class="btn btn-secondary btn-sm" style="margin-top: 10px;" onclick="resetArchiveFilters()">${dict.btn_reset_filters || (STATE.lang === 'uk' ? 'Скинути фільтри' : 'Reset filters')}</button>` : ''}
       </div>
     `;
     if (window.lucide) window.lucide.createIcons();
@@ -3579,9 +4451,47 @@ function renderMonthlyArchive(searchQuery = '') {
     let flightCardsHtml = '';
 
     m.flights.forEach(flight => {
+      // Crew filtering
+      const pilotFilter = selectedPilot || '';
+      const queryIsPilot = Boolean(query && (flight.crew || []).some(c => isCrewMemberMatch(c, query, allPersonnel)));
+      const isPilotFilterActive = Boolean(pilotFilter || queryIsPilot);
+
+      const typeFilter = selectedType || '';
+      const isTypeFilterActive = Boolean(typeFilter);
+
+      let matchingCount = 0;
+      const totalCount = (flight.crew || []).length;
+
       // Build crew table rows
       let crewRowsHtml = '';
       (flight.crew || []).forEach(c => {
+        let isCrewMatch = true;
+
+        if (pilotFilter) {
+          isCrewMatch = isCrewMemberMatch(c, pilotFilter, allPersonnel);
+        }
+        if (isCrewMatch && queryIsPilot) {
+          isCrewMatch = isCrewMemberMatch(c, query, allPersonnel);
+        }
+
+        if (isCrewMatch && isTypeFilterActive) {
+          if (typeFilter === '__instructor__') {
+            isCrewMatch = Boolean(c.isInstructor);
+          } else {
+            const lowerType = typeFilter.toLowerCase();
+            isCrewMatch = (c.trainingTypes || []).some(t => {
+              const tLow = (t || '').toLowerCase();
+              return tLow === lowerType || tLow.includes(lowerType) || lowerType.includes(tLow);
+            });
+          }
+        }
+
+        if (isCrewMatch) {
+          matchingCount++;
+        }
+
+        const isHidden = (isPilotFilterActive || isTypeFilterActive) && !isCrewMatch;
+
         // Individual times
         const cFltTime = formatCrewTimeObj(c.flightTime, c, 'flight');
         const cBlkTime = formatCrewTimeObj(c.blockTime, c, 'block');
@@ -3600,7 +4510,7 @@ function renderMonthlyArchive(searchQuery = '') {
         }
 
         crewRowsHtml += `
-          <tr>
+          <tr class="${isHidden ? 'archive-extra-crew' : ''}" style="${isHidden ? 'display: none;' : ''}">
             <td style="font-weight: 700; color: var(--accent); white-space: nowrap;">${c.pstn || '—'}</td>
             <td style="font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${c.name}">${c.name}</td>
             <td style="text-align: left; font-family: var(--font-mono); font-weight: 700; color: var(--accent);">${cFltTime}</td>
@@ -3610,6 +4520,22 @@ function renderMonthlyArchive(searchQuery = '') {
           </tr>
         `;
       });
+
+      const hasHiddenRows = totalCount > matchingCount && (isPilotFilterActive || isTypeFilterActive);
+      const crewToggleBarHtml = hasHiddenRows ? `
+        <div class="archive-crew-filter-toggle-bar" style="padding: 5px 12px; font-size: 11.5px; background: var(--bg-surface-alt); border-top: 1px dashed var(--border-color); display: flex; align-items: center; justify-content: space-between;">
+          <span style="color: var(--text-secondary); display: inline-flex; align-items: center; gap: 4px;">
+            <i data-lucide="filter" style="width: 12px; height: 12px; color: var(--accent);"></i>
+            ${STATE.lang === 'uk' 
+              ? `Показано тільки обраного учасника (${matchingCount} з ${totalCount})` 
+              : `Showing matching crew only (${matchingCount} of ${totalCount})`}
+          </span>
+          <button type="button" class="btn btn-secondary btn-sm" style="font-size: 11px; height: 22px; padding: 0 8px; line-height: 1; display: inline-flex; align-items: center; gap: 4px;" onclick="toggleArchiveFlightCrewRows(this, ${totalCount})">
+            <i data-lucide="users" style="width: 11px; height: 11px;"></i>
+            <span class="crew-toggle-btn-label">${STATE.lang === 'uk' ? 'Показати весь екіпаж' : 'Show full crew'} (${totalCount})</span>
+          </button>
+        </div>
+      ` : '';
 
       // Briefing text
       const hasBriefing = flight.preBgn || flight.postBgn || flight.dutyTime;
@@ -3681,6 +4607,7 @@ function renderMonthlyArchive(searchQuery = '') {
                 ${crewRowsHtml}
               </tbody>
             </table>
+            ${crewToggleBarHtml}
           </div>
 
           <!-- Нижня підсумкова смужка (Паливо, Брифінги) -->
@@ -3741,6 +4668,9 @@ function renderLoggedFlightsList() {
   renderRecentFlightsList();
 
   // Render monthly archive and trend chart on Tab 2
+  if (typeof populateArchiveFilterDropdowns === 'function') {
+    populateArchiveFilterDropdowns();
+  }
   const searchInput = document.getElementById('flight-archive-search');
   renderMonthlyArchive(searchInput ? searchInput.value : '');
   renderFlightTrendChart();
@@ -4352,7 +5282,7 @@ window.startEditingFlight = function(flightId) {
     
     card.querySelector('.crew-task-input').value = c.flightTask || '';
     
-    updateTrainingTypesLayout(card, c.crewType || 'Flight');
+    updateTrainingTypesLayout(card, c.crewType || 'Flight', c.pstn || '');
     
     c.trainingTypes.forEach(tType => {
       let chk = card.querySelector(`.crew-training-type[value="${tType}"]`);
@@ -4582,6 +5512,12 @@ function handleTrainingFlightSubmit(e) {
 
     const norm = normalizeFlightCrewRole(member.Full_Name_EN || member.Full_Name_UA, pstn || member.Rank, isInstructor, member);
 
+    // Ensure crewType matches the actual position (SIC/PIC/PI/FE are strictly Flight)
+    const pVal = String(norm.pstn || pstn || '').toUpperCase();
+    const isFlightPstn = pVal.includes('SIC') || pVal.includes('PIC') || pVal.includes('PI') || pVal.includes('FE') || pVal.includes('2П') || pVal.includes('КПС') || pVal.includes('ІБ') || pVal.includes('PILOT');
+    const isCabinPstn = pVal.includes('FA') || pVal.includes('БП') || pVal.includes('AR') || pVal.includes('CABIN');
+    const effectiveCrewType = isFlightPstn ? 'Flight' : (isCabinPstn ? 'Cabin' : (member.crewType || 'Flight'));
+
     crewMembers.push({
       crewId: selectedId,
       name: norm.name,
@@ -4592,7 +5528,7 @@ function handleTrainingFlightSubmit(e) {
       timeInstructor: { day: instDay, night: instNght },
       flightTask: task,
       trainingTypes,
-      crewType: member.crewType
+      crewType: effectiveCrewType
     });
   }
   
@@ -4632,12 +5568,23 @@ function handleTrainingFlightSubmit(e) {
     crew: crewMembers
   };
   
+  // Duplicate check: 1 - date (primary determinator), 2 - flight task
+  const dupCheck = checkFlightDuplicate(flightRecord, STATE.flights);
+  const isDuplicate = !isEditing && dupCheck.isDuplicate;
+
   // Confirm action using custom styled confirmation dialog modal
   const backdrop = document.getElementById('confirm-backdrop');
-  const msgLabel = STATE.lang === 'uk' 
+  let msgLabel = STATE.lang === 'uk' 
     ? "Ви впевнені що внесли всю необхідну інформацію?" 
     : "Are you sure you have entered all the required information?";
-  const titleLabel = STATE.lang === 'uk' ? "Підтвердження збереження" : "Confirm Saving";
+  let titleLabel = STATE.lang === 'uk' ? "Підтвердження збереження" : "Confirm Saving";
+
+  if (isDuplicate) {
+    titleLabel = STATE.lang === 'uk' ? "⚠️ Виявлено дублікат польоту!" : "⚠️ Duplicate Flight Detected!";
+    msgLabel = STATE.lang === 'uk'
+      ? `${dupCheck.reason}.\n\nБорт: ${dupCheck.duplicateFlight?.helicopterReg || '-'}.\nБажаєте оновити існуючий запис цими даними чи скасувати?`
+      : `${dupCheck.reason}. Do you want to update the existing record or cancel?`;
+  }
   
   document.getElementById('confirm-message').textContent = msgLabel;
   document.getElementById('confirm-title').textContent = titleLabel;
@@ -4645,9 +5592,11 @@ function handleTrainingFlightSubmit(e) {
   const btnSubmit = document.getElementById('btn-submit-confirm');
   const btnCancel = document.getElementById('btn-cancel-confirm');
   
-  btnSubmit.textContent = STATE.lang === 'uk' ? "Так" : "Yes";
-  btnSubmit.className = "btn btn-primary";
-  btnCancel.textContent = STATE.lang === 'uk' ? "Ні" : "No";
+  btnSubmit.textContent = isDuplicate 
+    ? (STATE.lang === 'uk' ? "Так, оновити" : "Yes, update") 
+    : (STATE.lang === 'uk' ? "Так" : "Yes");
+  btnSubmit.className = isDuplicate ? "btn btn-warning" : "btn btn-primary";
+  btnCancel.textContent = STATE.lang === 'uk' ? "Скасувати" : "Cancel";
   
   backdrop.classList.add('active');
   
@@ -4671,6 +5620,9 @@ function handleTrainingFlightSubmit(e) {
     });
     
     if (confirmed) {
+      if (isDuplicate && dupCheck.duplicateId) {
+        flightRecord.id = dupCheck.duplicateId;
+      }
       saveFlightRecord(flightRecord);
     }
   };
@@ -4730,8 +5682,15 @@ function saveFlightRecord(flightRecord) {
       titleEl.textContent = STATE.lang === 'uk' ? "Запис тренувального польоту" : "Training Flight Log";
     }
   } else {
-    // 1. Save to state flights collection
-    STATE.flights.push(flightRecord);
+    // Check if duplicate already exists in STATE.flights (1 - date, 2 - task)
+    const existingIdx = STATE.flights.findIndex(f => f.id === flightRecord.id || isFlightDuplicate(flightRecord, f));
+    if (existingIdx !== -1) {
+      flightRecord.id = STATE.flights[existingIdx].id;
+      STATE.flights[existingIdx] = flightRecord;
+    } else {
+      // 1. Save to state flights collection
+      STATE.flights.push(flightRecord);
+    }
   }
   
   // 2. Dispatch audit email record
@@ -4841,6 +5800,11 @@ function saveFlightRecord(flightRecord) {
   });
   
   saveStateToStorage();
+  
+  // Background push to remote (Google Apps Script / server)
+  pushFlightsToRemote(flightRecord, { settings: STATE.settings }).catch(e => {
+    console.warn('[Cloud Sync] Background push notice:', e);
+  });
   
   // Render right list of logged flights
   renderLoggedFlightsList();
@@ -5924,9 +6888,14 @@ function closeOcrImportModal() {
   if (modal) modal.classList.remove('active');
 }
 
+let ocrPendingQueue = [];
+let isQueueProcessing = false;
+let ocrTotalBatchCount = 0;
+let ocrProcessedBatchCount = 0;
+
 async function handleOcrFilesSelected(fileList) {
   if (!fileList || fileList.length === 0) return;
-  
+
   const files = Array.from(fileList).filter(f => {
     const ext = f.name.toLowerCase();
     return ext.endsWith('.pdf') || ext.endsWith('.png') || ext.endsWith('.jpg') || ext.endsWith('.jpeg') || ext.endsWith('.webp');
@@ -5937,50 +6906,125 @@ async function handleOcrFilesSelected(fileList) {
     return;
   }
 
+  // 1. Immediately create and add ALL files to OCR_STATE.items with status 'queued'
+  const startIndex = OCR_STATE.items.length;
+  files.forEach((file, idx) => {
+    const item = {
+      id: `scan_${Date.now()}_${Math.random().toString(36).substr(2, 6)}_${idx}`,
+      fileName: file.name,
+      fileSize: file.size,
+      mimeType: file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'),
+      fileBlob: file,
+      status: 'queued',
+      statusMessage: 'В черзі на обробку...',
+      error: null,
+      parsedData: null,
+      duplicateInfo: null
+    };
+    OCR_STATE.items.push(item);
+    ocrPendingQueue.push({ file, item });
+  });
+
+  ocrTotalBatchCount += files.length;
+  updateOcrQueueUI();
+
+  // If no file was active, select the first newly added item for immediate preview
+  if (OCR_STATE.activeIndex === -1 && OCR_STATE.items.length > 0) {
+    selectOcrItem(startIndex);
+  }
+
+  showToast(
+    STATE.lang === 'uk' 
+      ? `Додано ${files.length} файл(ів) до списку розпізнавання.` 
+      : `Added ${files.length} file(s) to recognition queue.`, 
+    "info"
+  );
+
+  // 2. Start queue worker if not already running
+  if (!isQueueProcessing) {
+    processOcrQueueWorker();
+  }
+}
+
+async function processOcrQueueWorker() {
+  if (isQueueProcessing) return;
+  isQueueProcessing = true;
+  OCR_STATE.isProcessing = true;
+
   const progressBox = document.getElementById('ocr-batch-progress-box');
   const progressBar = document.getElementById('ocr-progress-bar');
   const progressLabel = document.getElementById('ocr-progress-label');
   const progressCount = document.getElementById('ocr-progress-count');
 
   if (progressBox) progressBox.style.display = 'flex';
-  OCR_STATE.isProcessing = true;
 
-  // Process batch using processScanBatch
-  await processScanBatch(
-    files,
-    STATE.settings.geminiApiKey,
-    STATE.flightCrew,
-    STATE.cabinCrew,
-    STATE.flights,
-    (itemResult, index, total, customStatus) => {
-      // Check if already in OCR_STATE.items
-      const existingIdx = OCR_STATE.items.findIndex(it => it.id === itemResult.id);
-      if (existingIdx !== -1) {
-        OCR_STATE.items[existingIdx] = itemResult;
-      } else {
-        OCR_STATE.items.push(itemResult);
-      }
+  while (ocrPendingQueue.length > 0) {
+    const currentQueueItem = ocrPendingQueue.shift();
+    const { file, item } = currentQueueItem;
 
-      // Update progress
-      const percent = Math.round(((index + 1) / total) * 100);
-      if (progressBar) progressBar.style.width = `${percent}%`;
-      if (progressCount) progressCount.textContent = `${index + 1}/${total}`;
-      if (progressLabel) progressLabel.textContent = customStatus || `Обробка: ${itemResult.fileName}...`;
+    // Check if item was deleted while waiting in queue
+    const currentIdx = OCR_STATE.items.findIndex(it => it.id === item.id);
+    if (currentIdx === -1) continue;
 
-      updateOcrQueueUI();
+    ocrProcessedBatchCount++;
+    const percent = Math.min(100, Math.round((ocrProcessedBatchCount / Math.max(1, ocrTotalBatchCount)) * 100));
+    if (progressBar) progressBar.style.width = `${percent}%`;
+    if (progressCount) progressCount.textContent = `${ocrProcessedBatchCount}/${ocrTotalBatchCount}`;
+    if (progressLabel) progressLabel.textContent = `Обробка: ${item.fileName}...`;
 
-      // If activeIndex is -1 or itemResult is current active, select it
-      if (OCR_STATE.activeIndex === -1 && itemResult.parsedData) {
-        selectOcrItem(OCR_STATE.items.length - 1);
-      } else if (OCR_STATE.activeIndex === existingIdx && itemResult.parsedData) {
-        selectOcrItem(existingIdx);
-      }
+    item.status = 'processing';
+    item.statusMessage = 'ШІ підключається та готує аналіз...';
+    updateOcrQueueUI();
+
+    if (OCR_STATE.activeIndex === currentIdx) {
+      selectOcrItem(currentIdx);
     }
-  );
 
+    try {
+      await processSingleScan(
+        file,
+        item,
+        STATE.settings.geminiApiKey,
+        STATE.flightCrew,
+        STATE.cabinCrew,
+        STATE.flights,
+        (liveStatus) => {
+          item.statusMessage = liveStatus;
+          if (progressLabel) progressLabel.textContent = liveStatus;
+          updateOcrQueueUI();
+          if (OCR_STATE.activeIndex === currentIdx) {
+            const formEmpty = document.getElementById('ocr-form-empty');
+            if (formEmpty && formEmpty.style.display !== 'none') {
+              formEmpty.innerHTML = `<div style="font-size: 14px; font-weight:600;"><i data-lucide="loader" class="spin"></i> ${liveStatus}</div>`;
+              if (window.lucide) window.lucide.createIcons();
+            }
+          }
+        }
+      );
+    } catch (e) {
+      item.status = 'error';
+      item.error = e.message;
+    }
+
+    updateOcrQueueUI();
+    if (OCR_STATE.activeIndex === currentIdx) {
+      selectOcrItem(currentIdx);
+    }
+
+    // Gentle delay between files if more files are waiting
+    if (ocrPendingQueue.length > 0) {
+      item.statusMessage = 'Пауза між файлами (2 сек)...';
+      if (progressLabel) progressLabel.textContent = item.statusMessage;
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+
+  isQueueProcessing = false;
   OCR_STATE.isProcessing = false;
+  ocrTotalBatchCount = 0;
+  ocrProcessedBatchCount = 0;
   if (progressBox) progressBox.style.display = 'none';
-  showToast(STATE.lang === 'uk' ? `Обробку завершено. Розпізнано ${files.length} файлів.` : `Processing complete for ${files.length} files.`, 'success');
+  showToast(STATE.lang === 'uk' ? "Усі файли в черзі успішно оброблено!" : "All files processed!", "success");
 }
 
 function updateOcrQueueUI() {
@@ -6042,9 +7086,14 @@ function updateOcrQueueUI() {
             ${item.parsedData?.helicopterReg ? `<span>${item.parsedData.helicopterReg}</span>` : ''}
           </div>
         </div>
-        <button type="button" class="btn btn-sm" onclick="event.stopPropagation(); removeOcrItem(${idx});" style="background:transparent; border:none; padding:2px; color:var(--text-secondary);" title="Видалити зі списку">
-          <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
-        </button>
+        <div style="display: flex; align-items: center; gap: 2px; flex-shrink: 0;">
+          <button type="button" class="btn btn-sm" onclick="event.stopPropagation(); retryOcrItem(${idx});" style="background:transparent; border:none; padding:3px; color:var(--text-secondary); cursor:pointer; display:flex; align-items:center; justify-content:center;" title="Повторно розпізнати файл через ШІ">
+            <i data-lucide="refresh-cw" style="width: 13px; height: 13px;"></i>
+          </button>
+          <button type="button" class="btn btn-sm" onclick="event.stopPropagation(); removeOcrItem(${idx});" style="background:transparent; border:none; padding:3px; color:var(--text-secondary); cursor:pointer; display:flex; align-items:center; justify-content:center;" title="Видалити зі списку">
+            <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i>
+          </button>
+        </div>
       </div>
     `;
   });
@@ -6116,8 +7165,9 @@ function selectOcrItem(index) {
   if (!item.parsedData) {
     if (formEmpty) {
       formEmpty.style.display = 'block';
+      const liveMsg = item.statusMessage || 'ШІ розпізнає документ...';
       formEmpty.innerHTML = item.status === 'processing' 
-        ? `<div style="font-size: 14px; font-weight:600;"><i data-lucide="loader" class="spin"></i> ШІ розпізнає документ...</div>`
+        ? `<div style="font-size: 14px; font-weight:600;"><i data-lucide="loader" class="spin"></i> ${liveMsg}</div>`
         : `<div style="color: #ef4444; font-size: 14px; font-weight:600;">Помилка: ${item.error || 'Дані не розпізнано'}</div>`;
     }
     if (editForm) editForm.style.display = 'none';
@@ -6131,7 +7181,8 @@ function selectOcrItem(index) {
   // Duplicate Banner
   if (item.duplicateInfo?.isDuplicate) {
     if (dupBanner) dupBanner.style.display = 'flex';
-    if (dupDesc) dupDesc.textContent = ` (ID: ${item.duplicateInfo.duplicateId}, Дата: ${item.parsedData.date}, Борт: ${item.parsedData.helicopterReg})`;
+    const reasonText = item.duplicateInfo.reason ? ` — ${item.duplicateInfo.reason}` : '';
+    if (dupDesc) dupDesc.textContent = `${reasonText} [Дата: ${item.parsedData?.date || '-'}, Борт: ${item.parsedData?.helicopterReg || '-'}]`;
   } else {
     if (dupBanner) dupBanner.style.display = 'none';
   }
@@ -6408,6 +7459,10 @@ function removeOcrCrewMember(idx) {
 }
 
 function removeOcrItem(idx) {
+  const item = OCR_STATE.items[idx];
+  if (item) {
+    ocrPendingQueue = ocrPendingQueue.filter(q => q.item.id !== item.id);
+  }
   OCR_STATE.items.splice(idx, 1);
   if (OCR_STATE.activeIndex >= OCR_STATE.items.length) {
     OCR_STATE.activeIndex = OCR_STATE.items.length - 1;
@@ -6421,6 +7476,46 @@ function removeOcrItem(idx) {
     document.getElementById('ocr-preview-placeholder').style.display = 'block';
     document.getElementById('ocr-preview-iframe').style.display = 'none';
     document.getElementById('ocr-preview-img').style.display = 'none';
+  }
+}
+
+function retryOcrItem(idx) {
+  if (idx < 0 || idx >= OCR_STATE.items.length) return;
+  const item = OCR_STATE.items[idx];
+  if (!item) return;
+
+  if (item.status === 'processing') {
+    showToast(STATE.lang === 'uk' ? "Цей файл вже зараз обробляється ШІ" : "This file is already being processed", "warning");
+    return;
+  }
+
+  // Reset item state for fresh recognition
+  item.status = 'queued';
+  item.statusMessage = 'В черзі на повторне розпізнавання...';
+  item.error = null;
+  item.parsedData = null;
+  item.duplicateInfo = null;
+  item.isSaved = false;
+
+  // Add to pending queue if not present
+  const alreadyQueued = ocrPendingQueue.some(q => q.item.id === item.id);
+  if (!alreadyQueued) {
+    ocrPendingQueue.push({ file: item.fileBlob, item });
+    ocrTotalBatchCount++;
+  }
+
+  updateOcrQueueUI();
+  selectOcrItem(idx);
+
+  showToast(
+    STATE.lang === 'uk' 
+      ? `Файл "${item.fileName}" відправлено на повторне розпізнавання.` 
+      : `File "${item.fileName}" queued for re-recognition.`, 
+    "info"
+  );
+
+  if (!isQueueProcessing) {
+    processOcrQueueWorker();
   }
 }
 
@@ -6470,6 +7565,16 @@ function readCurrentOcrFormValues() {
     }
 
     const norm = normalizeFlightCrewRole(matchedName, rawPstn, isInst);
+
+    // Determine correct crewType from position
+    const pVal = String(norm.pstn || rawPstn || '').toUpperCase();
+    const isFlightPstn = pVal.includes('SIC') || pVal.includes('PIC') || pVal.includes('PI') || pVal.includes('FE') || pVal.includes('2П') || pVal.includes('КПС') || pVal.includes('ІБ') || pVal.includes('PILOT');
+    const isCabinPstn = pVal.includes('FA') || pVal.includes('БП') || pVal.includes('AR') || pVal.includes('CABIN');
+    if (isFlightPstn) {
+      matchedType = 'Flight';
+    } else if (isCabinPstn) {
+      matchedType = 'Cabin';
+    }
 
     return {
       crewId: matchedId,
@@ -6525,6 +7630,20 @@ function saveCurrentOcrFlight() {
   if (!record || !record.date || !record.helicopterReg) {
     showToast(STATE.lang === 'uk' ? "Будь ласка, заповніть дату та борт вертольота!" : "Please fill in Date and Helicopter Reg!", "warning");
     return;
+  }
+
+  // Duplicate check: 1 - date (primary determinator), 2 - flight task
+  const dup = checkFlightDuplicate(record, STATE.flights);
+  if (dup.isDuplicate) {
+    const confirmOverwrite = confirm(
+      STATE.lang === 'uk'
+        ? `⚠️ ${dup.reason}!\n\nБажаєте оновити існуючий запис цими даними зі скану?`
+        : `⚠️ ${dup.reason}!\n\nDo you want to update the existing record with this scanned data?`
+    );
+    if (!confirmOverwrite) {
+      return;
+    }
+    record.id = dup.duplicateId;
   }
 
   // Save via saveFlightRecord
@@ -6639,6 +7758,14 @@ function saveAllReadyOcrFlights() {
     }
 
     if (record.date && record.helicopterReg) {
+      // Re-verify duplicate against already saved flights in STATE.flights (1 - date, 2 - task)
+      const dup = checkFlightDuplicate(record, STATE.flights);
+      if (dup.isDuplicate) {
+        item.status = 'duplicate';
+        item.duplicateInfo = dup;
+        return; // Skip duplicate in batch save to prevent double recording
+      }
+
       saveFlightRecord(record);
       item.isSaved = true;
       item.status = 'saved';
@@ -6802,6 +7929,7 @@ function handleOcrFlightTimeChange(crewIdx, timeType, newVal) {
   // Export functions to window for inline onclick handlers
   window.selectOcrItem = selectOcrItem;
   window.removeOcrItem = removeOcrItem;
+  window.retryOcrItem = retryOcrItem;
   window.handleOcrCrewChange = handleOcrCrewChange;
   window.removeOcrCrewMember = removeOcrCrewMember;
   window.handleOcrFlightTimeChange = handleOcrFlightTimeChange;
@@ -11018,7 +12146,8 @@ async function bootstrapDatabase() {
     STATE.flightCrew = JSON.parse(localFlight);
     STATE.discrepancies = JSON.parse(localStorage.getItem('aerocheck_discrepancies') || '[]');
     STATE.cabinCrew = JSON.parse(localCabin);
-    STATE.flights = JSON.parse(localStorage.getItem('aerocheck_flights') || '[]');
+    STATE.flights = deduplicateFlightsList(JSON.parse(localStorage.getItem('aerocheck_flights') || '[]'));
+    saveStateToStorage();
     
     // Auto-fix any transliterated Name_Shrt_UA if Full_Name_UA is in Cyrillic
     let migrated = false;
@@ -11037,6 +12166,31 @@ async function bootstrapDatabase() {
         }
       });
     });
+
+    // Auto-fix misclassified crew members (e.g. pilots/flight engineers mistakenly saved in Cabin Crew)
+    if (Array.isArray(STATE.cabinCrew)) {
+      const toMove = [];
+      STATE.cabinCrew = STATE.cabinCrew.filter(m => {
+        const rank = String(m.Rank || m.pstn || '').toUpperCase();
+        const name = String(m.Full_Name_EN || m.Full_Name_UA || '').toLowerCase();
+        const isPilotOrFE = rank.includes('2П') || rank.includes('SIC') || rank.includes('КПС') || rank.includes('PIC') || rank.includes('ІБ') || rank.includes('FE') || rank.includes('PILOT') || name.includes('korostelov') || name.includes('коростельов');
+        if (isPilotOrFE) {
+          toMove.push(m);
+          return false;
+        }
+        return true;
+      });
+      if (toMove.length > 0) {
+        toMove.forEach(m => {
+          m.crewType = 'Flight';
+          if (!STATE.flightCrew.some(fc => fc.id === m.id || (fc.Full_Name_EN && fc.Full_Name_EN === m.Full_Name_EN))) {
+            STATE.flightCrew.push(m);
+          }
+        });
+        migrated = true;
+      }
+    }
+
     if (migrated) {
       saveStateToStorage();
     }
@@ -11128,6 +12282,27 @@ async function bootstrapDatabase() {
     STATE.snapshots = localSnapshots ? JSON.parse(localSnapshots) : [];
 
     initAppComponents();
+
+    STATE.deletedFlightIds = JSON.parse(localStorage.getItem('aerocheck_deleted_flight_ids') || '[]');
+
+    // Auto-sync flights in background from remote (Google Apps Script / server)
+    pullFlightsFromRemote({ settings: STATE.settings }).then(res => {
+      if (res && res.success && Array.isArray(res.flights) && res.flights.length > 0) {
+        // Exclude any flights previously deleted by the user
+        const remoteValid = res.flights.filter(f => !STATE.deletedFlightIds.includes(f.id));
+        const mergeRes = mergeFlightsData(STATE.flights, remoteValid);
+        if (mergeRes.addedCount > 0 || mergeRes.updatedCount > 0) {
+          STATE.flights = deduplicateFlightsList(mergeRes.mergedFlights);
+          saveStateToStorage();
+          renderRecentFlightsList();
+          renderMonthlyArchive();
+          renderFlightTrendChart();
+          console.log(`☁️ [Flights Cloud Init] Pulled ${remoteValid.length} flights (${mergeRes.addedCount} new, ${mergeRes.updatedCount} updated).`);
+        }
+      }
+    }).catch(e => {
+      console.warn('[Flights Cloud Init] Remote pull notice:', e);
+    });
   } else {
     // Cache is empty: bootstrap from Excel file automatically
     showToast("Ініціалізація бази даних з файлу Excel...");
@@ -11160,6 +12335,24 @@ async function bootstrapDatabase() {
       saveStateToStorage();
       showToast("Базу даних успішно ініціалізовано!");
       initAppComponents();
+
+      STATE.deletedFlightIds = JSON.parse(localStorage.getItem('aerocheck_deleted_flight_ids') || '[]');
+
+      // Cold start: try pulling flights from remote (Google Apps Script / server)
+      pullFlightsFromRemote({ settings: STATE.settings }).then(res => {
+        if (res && res.success && Array.isArray(res.flights) && res.flights.length > 0) {
+          const remoteValid = res.flights.filter(f => !STATE.deletedFlightIds.includes(f.id));
+          const mergeRes = mergeFlightsData(STATE.flights, remoteValid);
+          if (mergeRes.addedCount > 0 || mergeRes.updatedCount > 0) {
+            STATE.flights = deduplicateFlightsList(mergeRes.mergedFlights);
+            saveStateToStorage();
+            renderRecentFlightsList();
+            renderMonthlyArchive();
+            renderFlightTrendChart();
+            console.log(`☁️ [Flights Cloud Bootstrap] Loaded ${remoteValid.length} flights.`);
+          }
+        }
+      }).catch(e => console.warn('[Flights Bootstrap] Remote pull notice:', e));
     } catch (e) {
       console.error(e);
       showToast("Помилка ініціалізації бази: " + e.message, "error");
@@ -11381,6 +12574,52 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('crew-modal-backdrop').classList.remove('active');
   });
   document.getElementById('crew-modal-form').addEventListener('submit', handleCrewModalSubmit);
+
+  // Crew Modal Type, Rank & Department dynamic listeners
+  const crewTypeSelect = document.getElementById('crew-modal-type-select');
+  if (crewTypeSelect) {
+    crewTypeSelect.addEventListener('change', (e) => {
+      const newType = e.target.value;
+      document.getElementById('crew-modal-type').value = newType;
+      document.getElementById('crew-modal-license-group').style.display = newType === 'Flight' ? 'flex' : 'none';
+      const id = document.getElementById('crew-modal-id').value;
+      const isNew = !id;
+      const list = newType === 'Flight' ? STATE.flightCrew : STATE.cabinCrew;
+      const member = isNew ? null : list.find(c => c.id === id);
+      populateCrewModalDropdowns(newType, member ? member.Rank : '', member ? member.Department : '');
+      renderCrewModalDateFields(newType, member, isNew);
+    });
+  }
+
+  const crewRankSelect = document.getElementById('crew-modal-rank');
+  const customRankInput = document.getElementById('crew-modal-rank-custom');
+  if (crewRankSelect && customRankInput) {
+    crewRankSelect.addEventListener('change', () => {
+      if (crewRankSelect.value === '__custom__') {
+        customRankInput.style.display = 'block';
+        customRankInput.required = true;
+        customRankInput.focus();
+      } else {
+        customRankInput.style.display = 'none';
+        customRankInput.required = false;
+      }
+    });
+  }
+
+  const crewDeptSelect = document.getElementById('crew-modal-dept');
+  const customDeptInput = document.getElementById('crew-modal-dept-custom');
+  if (crewDeptSelect && customDeptInput) {
+    crewDeptSelect.addEventListener('change', () => {
+      if (crewDeptSelect.value === '__custom__') {
+        customDeptInput.style.display = 'block';
+        customDeptInput.required = true;
+        customDeptInput.focus();
+      } else {
+        customDeptInput.style.display = 'none';
+        customDeptInput.required = false;
+      }
+    });
+  }
   
   // Date selection prompt confirms
   document.getElementById('btn-submit-date-prompt').addEventListener('click', () => {
@@ -11561,15 +12800,32 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Archive filters listeners
+  const archivePilotSelect = document.getElementById('flight-archive-filter-pilot');
+  if (archivePilotSelect) {
+    archivePilotSelect.addEventListener('change', () => renderMonthlyArchive());
+  }
+
+  const archiveMonthSelect = document.getElementById('flight-archive-filter-month');
+  if (archiveMonthSelect) {
+    archiveMonthSelect.addEventListener('change', () => renderMonthlyArchive());
+  }
+
+  const archiveTypeSelect = document.getElementById('flight-archive-filter-type');
+  if (archiveTypeSelect) {
+    archiveTypeSelect.addEventListener('change', () => renderMonthlyArchive());
+  }
+
   // Archive export to XLSX button listener
   const btnArchiveExportXlsx = document.getElementById('btn-archive-export-xlsx');
   if (btnArchiveExportXlsx) {
     btnArchiveExportXlsx.addEventListener('click', () => {
-      if (!STATE.flights || STATE.flights.length === 0) {
-        showToast(STATE.lang === 'uk' ? "База польотів порожня" : "No flights in database to export", "warning");
+      const flightsToExport = typeof getFilteredArchiveFlights === 'function' ? getFilteredArchiveFlights() : STATE.flights;
+      if (!flightsToExport || flightsToExport.length === 0) {
+        showToast(STATE.lang === 'uk' ? "Немає записів для експорту за обраними фільтрами" : "No flights match current filters to export", "warning");
         return;
       }
-      downloadFlightsXlsx(STATE.flights);
+      downloadFlightsXlsx(flightsToExport);
       showToast(STATE.lang === 'uk' ? "Архів польотів успішно експортовано в Excel!" : "Flights archive exported to Excel!", "success");
     });
   }
@@ -11689,7 +12945,12 @@ document.addEventListener('DOMContentLoaded', () => {
           badge.className = 'status-badge status-valid';
           badge.textContent = `Підключено (${res.model})`;
         }
-        showToast(`З'єднання успішне! Модель ${res.model} готова до роботи.`, 'success');
+        if (Array.isArray(res.allAvailable) && res.allAvailable.length > 0) {
+          console.log(`📋 [Gemini API] Повний перелік доступних моделей (${res.allAvailable.length}):`, res.allAvailable);
+          showToast(`З'єднання успішне (${res.model})! Доступно моделей: ${res.allAvailable.length} (деталі в F12 Console).`, 'success');
+        } else {
+          showToast(`З'єднання успішне! Модель ${res.model} готова до роботи.`, 'success');
+        }
       } else {
         if (badge) {
           badge.className = 'status-badge status-danger';
@@ -11774,7 +13035,7 @@ document.addEventListener('DOMContentLoaded', () => {
           showToast(res.message, 'error');
           if (badge) {
             badge.className = 'status-badge status-expired';
-            badge.textContent = 'Auth Error';
+            badge.textContent = res.missingFields ? (STATE.lang === 'uk' ? 'Не заповнено поля' : 'Fields Required') : 'Auth Error';
           }
         }
       });
@@ -11794,16 +13055,49 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Sync Table 2 (Flights)
+  // Sync Table 2 (Flights) - Pull & Merge from Google Apps Script / Drive / Server
   const btnSyncFlights = document.getElementById('btn-sync-flights');
   if (btnSyncFlights) {
-    btnSyncFlights.addEventListener('click', () => {
-      showToast("Синхронізація таблиці польотів (Training_Flights)...");
-      setTimeout(() => {
-        STATE.lastSyncTimestamp = new Date().toLocaleString();
-        document.getElementById('last-sync-timestamp-display').textContent = STATE.lastSyncTimestamp;
-        showToast("Таблицю польотів успішно синхронізовано з Google Sheets!", "success");
-      }, 1000);
+    btnSyncFlights.addEventListener('click', async () => {
+      showToast(STATE.lang === 'uk' ? "Синхронізація польотів з Google Drive / Сервером..." : "Syncing flights from Google Drive / Server...");
+      try {
+        const pullRes = await pullFlightsFromRemote({ settings: STATE.settings });
+        if (pullRes && pullRes.success && Array.isArray(pullRes.flights)) {
+          if (!Array.isArray(STATE.deletedFlightIds)) {
+            STATE.deletedFlightIds = JSON.parse(localStorage.getItem('aerocheck_deleted_flight_ids') || '[]');
+          }
+          const validFlights = pullRes.flights.filter(f => !STATE.deletedFlightIds.includes(f.id));
+          const mergeRes = mergeFlightsData(STATE.flights, validFlights);
+          STATE.flights = deduplicateFlightsList(mergeRes.mergedFlights);
+          saveStateToStorage();
+
+          renderRecentFlightsList();
+          renderMonthlyArchive();
+          renderFlightTrendChart();
+
+          STATE.lastSyncTimestamp = new Date().toLocaleString();
+          const syncDisplay = document.getElementById('last-sync-timestamp-display');
+          if (syncDisplay) syncDisplay.textContent = STATE.lastSyncTimestamp;
+
+          showToast(
+            STATE.lang === 'uk'
+              ? `Синхронізовано! Отримано: ${pullRes.count}, додано нових: ${mergeRes.addedCount}, оновлено: ${mergeRes.updatedCount} (дублікатів: ${mergeRes.skippedCount})`
+              : `Synced! Received: ${pullRes.count}, added: ${mergeRes.addedCount}, updated: ${mergeRes.updatedCount}`,
+            "success"
+          );
+        } else {
+          // If remote pull had no items, push local flights as backup
+          if (STATE.flights && STATE.flights.length > 0) {
+            pushFlightsToRemote(STATE.flights, { settings: STATE.settings });
+          }
+          STATE.lastSyncTimestamp = new Date().toLocaleString();
+          const syncDisplay = document.getElementById('last-sync-timestamp-display');
+          if (syncDisplay) syncDisplay.textContent = STATE.lastSyncTimestamp;
+          showToast(STATE.lang === 'uk' ? "База польотів актуальна та синхронізована!" : "Flights database is up to date!", "success");
+        }
+      } catch (err) {
+        showToast("Помилка синхронізації: " + err.message, "error");
+      }
     });
   }
 
@@ -12074,7 +13368,7 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         const tokenClient = google.accounts.oauth2.initTokenClient({
           client_id: clientId,
-          scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive',
+          scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets',
           callback: (response) => {
             if (response.error) {
               showToast("Помилка авторизації Google: " + response.error, "error");
@@ -12124,7 +13418,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const tokenClient = google.accounts.oauth2.initTokenClient({
           client_id: clientId,
-          scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive',
+          scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets',
           callback: async (response) => {
             if (response.access_token) {
               googleAccessToken = response.access_token;

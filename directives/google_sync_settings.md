@@ -97,20 +97,20 @@ Deploy this script as a Web App (Execute as: **Me**, Who has access: **Anyone**)
 function doPost(e) {
   try {
     var data = JSON.parse(e.postData.contents);
+    var rootFolderName = data.rootFolder || 'Training_Flights';
+    
+    // 1. Отримати або створити корінну папку (Training_Flights)
+    var rootFolders = DriveApp.getFoldersByName(rootFolderName);
+    var rootFolder = rootFolders.hasNext() ? rootFolders.next() : DriveApp.createFolder(rootFolderName);
+
+    // ACTION A: Завантаження скану польоту в підпапку Month_YEAR
     if (data.action === 'upload_flight_scan') {
-      var rootFolderName = data.rootFolder || 'Training_Flights';
       var subfolderName = data.subfolder || 'Unsorted';
       var fileName = data.fileName || ('Flight_Scan_' + Date.now() + '.pdf');
       
-      // 1. Get or create root folder
-      var rootFolders = DriveApp.getFoldersByName(rootFolderName);
-      var rootFolder = rootFolders.hasNext() ? rootFolders.next() : DriveApp.createFolder(rootFolderName);
-      
-      // 2. Get or create Month_YEAR subfolder
       var subFolders = rootFolder.getFoldersByName(subfolderName);
       var subFolder = subFolders.hasNext() ? subFolders.next() : rootFolder.createFolder(subfolderName);
       
-      // 3. Decode base64 data and create file
       var rawBase64 = data.fileData;
       var commaIdx = rawBase64.indexOf(',');
       if (commaIdx !== -1) rawBase64 = rawBase64.substring(commaIdx + 1);
@@ -124,6 +124,103 @@ function doPost(e) {
         fileId: file.getId(),
         fileUrl: file.getUrl(),
         path: rootFolderName + '/' + subfolderName + '/' + fileName
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+    
+    // ACTION B: Отримати базу збережених польотів з Google Drive (flights_database.json)
+    if (data.action === 'get_flights') {
+      var files = rootFolder.getFilesByName('flights_database.json');
+      if (files.hasNext()) {
+        var file = files.next();
+        var jsonContent = file.getBlob().getDataAsString('UTF-8');
+        var parsed = JSON.parse(jsonContent || '[]');
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true,
+          flights: parsed,
+          count: parsed.length
+        })).setMimeType(ContentService.MimeType.JSON);
+      } else {
+        return ContentService.createTextOutput(JSON.stringify({
+          success: true,
+          flights: [],
+          count: 0
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+
+    // ACTION C: Зберегти/об'єднати польоти в центральну базу на Google Drive (з дедуплікацією)
+    if (data.action === 'save_flights') {
+      var incoming = Array.isArray(data.flights) ? data.flights : (data.flight ? [data.flight] : []);
+      var files = rootFolder.getFilesByName('flights_database.json');
+      var currentFlights = [];
+      var dbFile = null;
+
+      if (files.hasNext()) {
+        dbFile = files.next();
+        try {
+          currentFlights = JSON.parse(dbFile.getBlob().getDataAsString('UTF-8') || '[]');
+        } catch(err) {
+          currentFlights = [];
+        }
+      }
+
+      function normDate(d) {
+        if (!d) return '';
+        var s = String(d).trim();
+        var iso = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+        if (iso) return iso[1] + '-' + (iso[2].length === 1 ? '0' + iso[2] : iso[2]) + '-' + (iso[3].length === 1 ? '0' + iso[3] : iso[3]);
+        var dmy = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
+        if (dmy) return dmy[3] + '-' + (dmy[2].length === 1 ? '0' + dmy[2] : dmy[2]) + '-' + (dmy[1].length === 1 ? '0' + dmy[1] : dmy[1]);
+        return s;
+      }
+      function normTask(t) {
+        return t ? String(t).replace(/[№#\s]/g, '').toLowerCase().trim() : '';
+      }
+
+      var added = 0;
+      var updated = 0;
+
+      incoming.forEach(function(inc) {
+        if (!inc || !inc.date) return;
+        var incDate = normDate(inc.date);
+        var incTask = normTask(inc.mainFlightTask || (inc.crew && inc.crew[0] ? inc.crew[0].flightTask : ''));
+
+        var existIdx = -1;
+        for (var i = 0; i < currentFlights.length; i++) {
+          var f = currentFlights[i];
+          var fDate = normDate(f.date);
+          if (fDate && incDate && fDate === incDate) {
+            var fTask = normTask(f.mainFlightTask || (f.crew && f.crew[0] ? f.crew[0].flightTask : ''));
+            if (fTask && incTask && fTask !== incTask) {
+              // різні завдання в один день
+              continue;
+            }
+            existIdx = i;
+            break;
+          }
+        }
+
+        if (existIdx !== -1) {
+          for (var k in inc) { currentFlights[existIdx][k] = inc[k]; }
+          updated++;
+        } else {
+          currentFlights.push(inc);
+          added++;
+        }
+      });
+
+      var updatedJson = JSON.stringify(currentFlights, null, 2);
+      if (dbFile) {
+        dbFile.setContent(updatedJson);
+      } else {
+        rootFolder.createFile('flights_database.json', updatedJson, 'application/json');
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        success: true,
+        total: currentFlights.length,
+        added: added,
+        updated: updated
       })).setMimeType(ContentService.MimeType.JSON);
     }
     

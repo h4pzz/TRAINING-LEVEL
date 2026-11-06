@@ -453,7 +453,7 @@ CRITICAL OCR RULES:
 2. Ditto marks: If Flight Task or Time fields have repetition marks like -"-, //, do, ditto, copy the exact value from the row directly above it!
 3. Format all times strictly as 2-digit HH:MM (e.g. "02:30", "00:00"). If a field is empty, use "00:00" for times.
 4. Detect training checkboxes: Look at the headers or handwritten notes for TRI (Type Rating Instructor), NVG (Night Vision Goggles), VFR night (Visual Flight Rules Night), LPC, OPC, GI 275, HESLO, HHO, MSB, Before Rotation, Type Rating. Include all detected training types in the trainingTypes array for each crew member.
-5. If the document has a header date like "16.10.2026", convert it to ISO format "2026-10-16".
+5. Dates in Ukrainian documents are strictly in Day.Month.Year format (DD.MM.YYYY). For example, "03.11.2026" is November 3, 2026 -> "2026-11-03", NOT June or March! "05.11.2026" is November 5, 2026 -> "2026-11-05", NOT January or May! Always convert DD.MM.YYYY to ISO format "YYYY-MM-DD".
 6. If the helicopter registration says "UR-UHB" or similar, extract the full registration "UR-UHB".
 7. Block Time vs Flight Time rules:
    - Extract "totalBlockTime" (Час блоку / Total Block Time).
@@ -498,78 +498,20 @@ let cachedWorkingModel = null;
  * @returns {Promise<{apiVersion: string, modelName: string, allAvailable: string[]}>}
  */
 export async function getBestAvailableGeminiModel(apiKey) {
-  if (cachedWorkingModel && cachedWorkingModel.apiKey === apiKey.trim()) {
-    return cachedWorkingModel;
-  }
-
-  const cleanKey = apiKey.trim();
-  const apiVersions = ['v1beta', 'v1'];
-  let candidateNames = [];
-
-  for (const ver of apiVersions) {
-    try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/${ver}/models?key=${cleanKey}`);
-      if (response.ok) {
-        const data = await response.json();
-        const models = (data.models || []).filter(m => 
-          Array.isArray(m.supportedGenerationMethods) && 
-          m.supportedGenerationMethods.includes('generateContent')
-        );
-
-        if (models.length > 0) {
-          candidateNames = models.map(m => m.name.replace(/^models\//, ''));
-
-          // Preferred models in priority order for OCR Vision tasks (Flash models first for 1500 RPD)
-          const preferredPatterns = [
-            /^gemini-3\.\d+-flash/i,
-            /^gemini-3-flash/i,
-            /^gemini-2\.5-flash/i,
-            /^gemini-2\.0-flash/i,
-            /flash/i,
-            /^gemini-3\.1-pro-preview/i,
-            /^gemini-3\.\d+-pro/i,
-            /pro/i,
-            /gemini/i
-          ];
-
-          for (const pat of preferredPatterns) {
-            const found = candidateNames.find(n => pat.test(n));
-            if (found) {
-              cachedWorkingModel = { apiVersion: ver, modelName: found, apiKey: cleanKey, allAvailable: candidateNames };
-              return cachedWorkingModel;
-            }
-          }
-
-          cachedWorkingModel = { apiVersion: ver, modelName: candidateNames[0], apiKey: cleanKey, allAvailable: candidateNames };
-          return cachedWorkingModel;
-        }
-      }
-    } catch (e) {
-      console.warn(`[Gemini ListModels] Failed for ${ver}:`, e);
-    }
-  }
-
-  // Static fallback list with high-quota Gemini 3.x Flash models
-  return { 
+  const cleanKey = (apiKey || '').trim();
+  cachedWorkingModel = { 
     apiVersion: 'v1beta', 
     modelName: 'gemini-3.8-flash', 
     apiKey: cleanKey, 
-    allAvailable: [
-      'gemini-3.8-flash',
-      'gemini-3.5-flash',
-      'gemini-3-flash-preview',
-      'gemini-3.5-flash-lite',
-      'gemini-2.5-flash',
-      'gemini-2.0-flash',
-      'gemini-3.1-pro-preview'
-    ] 
+    allAvailable: ['gemini-3.8-flash'] 
   };
+  return cachedWorkingModel;
 }
 
 /**
  * Pings Google Gemini API to test if the provided API key is valid.
  * @param {string} apiKey 
- * @returns {Promise<{success: boolean, error?: string, model?: string}>}
+ * @returns {Promise<{success: boolean, error?: string, model?: string, allAvailable?: string[]}>}
  */
 export async function testGeminiApiKey(apiKey) {
   if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
@@ -579,50 +521,32 @@ export async function testGeminiApiKey(apiKey) {
   const cleanKey = apiKey.trim();
 
   try {
-    const modelInfo = await getBestAvailableGeminiModel(cleanKey);
-    const modelsToTry = [
-      modelInfo.modelName,
-      ...(modelInfo.allAvailable || []).filter(m => m !== modelInfo.modelName),
-      'gemini-3.1-pro-preview',
-      'gemini-3.8-flash',
-      'gemini-3.5-flash'
-    ];
-    const uniqueModels = [...new Set(modelsToTry)];
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${cleanKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{ text: 'Respond with "OK"' }]
+        }]
+      })
+    });
 
-    for (const model of uniqueModels) {
-      for (const ver of ['v1beta', 'v1']) {
-        try {
-          const response = await fetch(`https://generativelanguage.googleapis.com/${ver}/models/${model}:generateContent?key=${cleanKey}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{
-                parts: [{ text: 'Respond with "OK"' }]
-              }]
-            })
-          });
+    if (response.ok) {
+      cachedWorkingModel = { apiVersion: 'v1beta', modelName: 'gemini-3.8-flash', apiKey: cleanKey, allAvailable: ['gemini-3.8-flash'] };
+      return { success: true, model: 'gemini-3.8-flash (v1beta)', allAvailable: ['gemini-3.8-flash'] };
+    }
 
-          if (response.ok) {
-            cachedWorkingModel = { apiVersion: ver, modelName: model, apiKey: cleanKey };
-            return { success: true, model: `${model} (${ver})` };
-          }
-
-          const errData = await response.json().catch(() => ({}));
-          if (response.status === 400 || response.status === 403) {
-            return { 
-              success: false, 
-              error: errData.error?.message || `Помилка авторизації (HTTP ${response.status}). Перевірте правильність ключа.` 
-            };
-          }
-        } catch (netErr) {
-          // Continue to next model/version
-        }
-      }
+    const errData = await response.json().catch(() => ({}));
+    if (response.status === 400 || response.status === 403) {
+      return { 
+        success: false, 
+        error: errData.error?.message || `Помилка авторизації (HTTP ${response.status}). Перевірте правильність ключа.` 
+      };
     }
 
     return { 
       success: false, 
-      error: 'Жодна з доступних моделей Gemini не відповіла на тестовий запит. Перевірте квоти та налаштування ключа в Google AI Studio.' 
+      error: errData.error?.message || `Помилка Gemini API (HTTP ${response.status}). Перевірте доступність моделі gemini-3.8-flash.` 
     };
   } catch (err) {
     return { success: false, error: err.message || 'Мережева помилка під час перевірки ключа Gemini' };
@@ -665,41 +589,9 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
   const cleanKey = apiKey.trim();
   const modelInfo = await getBestAvailableGeminiModel(cleanKey);
   
-  const isVisionCapable = (name) => name.toLowerCase().includes('gemini') || name.toLowerCase().includes('paligemma');
-  const candidateList = [];
-
-  // Prioritize high-quota Flash models (1,500 RPD) over Pro models (50 RPD)
-  const flashPriorityModels = [
-    'gemini-3.8-flash',
-    'gemini-3.5-flash',
-    'gemini-3-flash-preview',
-    'gemini-3.5-flash-lite',
-    'gemini-2.5-flash',
-    'gemini-2.0-flash'
+  const candidateList = [
+    { ver: 'v1beta', name: 'gemini-3.8-flash' }
   ];
-
-  for (const name of flashPriorityModels) {
-    candidateList.push({ ver: 'v1beta', name });
-  }
-
-  // Next: model from ListModels if vision capable
-  if (isVisionCapable(modelInfo.modelName) && !candidateList.some(c => c.name === modelInfo.modelName)) {
-    candidateList.push({ ver: modelInfo.apiVersion, name: modelInfo.modelName });
-  }
-
-  // Next: other vision models from user's account
-  if (Array.isArray(modelInfo.allAvailable)) {
-    for (const name of modelInfo.allAvailable) {
-      if (isVisionCapable(name) && !candidateList.some(c => c.name === name)) {
-        candidateList.push({ ver: modelInfo.apiVersion, name });
-      }
-    }
-  }
-
-  // Pro model as last resort due to strict 50 RPD daily quota
-  if (!candidateList.some(c => c.name === 'gemini-3.1-pro-preview')) {
-    candidateList.push({ ver: 'v1beta', name: 'gemini-3.1-pro-preview' });
-  }
 
   let rateLimitError = null;
   let lastError = null;
@@ -707,6 +599,10 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
   for (const { ver, name: model } of candidateList) {
     const url = `https://generativelanguage.googleapis.com/${ver}/models/${model}:generateContent?key=${cleanKey}`;
     
+    if (onStatusUpdate) {
+      onStatusUpdate(`Розпізнавання через ${model}...`);
+    }
+
     const payload = {
       contents: [{
         parts: [
@@ -731,12 +627,17 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
       }
     };
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 75000);
+
     try {
       const response = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
 
       if (response.status === 429) {
         const errJson = await response.json().catch(() => ({}));
@@ -913,42 +814,134 @@ export function normalizeParsedFlightBlockTimes(parsedData) {
 }
 
 /**
+ * Normalizes a date string to standard YYYY-MM-DD for reliable duplicate comparison.
+ * Handles: YYYY-MM-DD, DD.MM.YYYY, DD/MM/YYYY, etc.
+ * @param {string} dateStr 
+ * @returns {string}
+ */
+export function normalizeDateForComparison(dateStr) {
+  if (!dateStr) return '';
+  const s = String(dateStr).trim();
+  // match YYYY-MM-DD or YYYY.MM.DD or YYYY/MM/DD
+  const isoMatch = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+  if (isoMatch) {
+    return `${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`;
+  }
+  // match DD.MM.YYYY or DD/MM/YYYY or DD-MM-YYYY
+  const dmyMatch = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
+  if (dmyMatch) {
+    return `${dmyMatch[3]}-${dmyMatch[2].padStart(2, '0')}-${dmyMatch[1].padStart(2, '0')}`;
+  }
+  return s;
+}
+
+/**
+ * Normalizes a flight task string by removing "№", "#", whitespaces and converting to lowercase.
+ * @param {string} taskStr 
+ * @returns {string}
+ */
+export function normalizeFlightTask(taskStr) {
+  if (!taskStr) return '';
+  return String(taskStr).replace(/[№#\s]/g, '').toLowerCase().trim();
+}
+
+/**
+ * Checks if candidate flight is a duplicate of an existing flight.
+ * DETERMINATION RULE:
+ * 1 - Основний детермінатор: Дата польоту (date). Якщо дати різні -> точно не дублікат.
+ * 2 - Якщо дата співпадає: перевіряємо номер польотного завдання (mainFlightTask або завдання екіпажу).
+ *     - Якщо в обох записах вказано номер завдання і вони РІЗНІ -> це різні завдання/польоти того ж дня (не дублікат).
+ *     - Якщо номери завдань співпадають, або в одному/обох номер не вказаний -> ДУБЛІКАТ за датою.
+ * 
+ * @param {object} candidate 
+ * @param {object} existing 
+ * @returns {boolean}
+ */
+export function isFlightDuplicate(candidate, existing, options = {}) {
+  if (!candidate || !existing) return false;
+  
+  // If explicitly requested to exclude comparing against self (e.g. form collision check while editing)
+  if (options && options.excludeSelfId && candidate.id && existing.id && candidate.id === existing.id) {
+    return false;
+  }
+
+  // Same ID is definitively the same flight record / duplicate
+  if (candidate.id && existing.id && candidate.id === existing.id) {
+    return true;
+  }
+
+  const candDate = normalizeDateForComparison(candidate.date);
+  const existDate = normalizeDateForComparison(existing.date);
+
+  // 1 - Дата є головним детермінатором
+  if (!candDate || !existDate || candDate !== existDate) {
+    return false;
+  }
+
+  // 2 - Якщо дата співпадає, перевіряємо номер польотного завдання
+  const candTask = normalizeFlightTask(candidate.mainFlightTask || (candidate.crew && candidate.crew[0]?.flightTask));
+  const existTask = normalizeFlightTask(existing.mainFlightTask || (existing.crew && existing.crew[0]?.flightTask));
+
+  // Якщо в обох вказано номер завдання і вони різняться -> різні завдання/польоти в один день
+  if (candTask && existTask && candTask !== existTask) {
+    return false;
+  }
+
+  // В інших випадках (номери завдань співпадають або в одному/обох не вказано) -> ДУБЛІКАТ
+  return true;
+}
+
+/**
  * Checks if a parsed flight record already exists in the local database.
  * @param {object} parsedFlight 
  * @param {Array} existingFlights 
- * @returns {{isDuplicate: boolean, duplicateId?: string}}
+ * @returns {{isDuplicate: boolean, duplicateId?: string, duplicateFlight?: object, reason?: string}}
  */
 export function checkFlightDuplicate(parsedFlight, existingFlights = []) {
-  if (!parsedFlight || !parsedFlight.date || !parsedFlight.helicopterReg) {
+  if (!parsedFlight || !parsedFlight.date || !Array.isArray(existingFlights)) {
     return { isDuplicate: false };
   }
 
-  const existing = existingFlights.find(f => {
-    return f.date === parsedFlight.date &&
-           (f.helicopterReg || '').toUpperCase() === (parsedFlight.helicopterReg || '').toUpperCase() &&
-           (f.dutyTime === parsedFlight.dutyTime || f.totalFlightTime === parsedFlight.totalFlightTime);
-  });
+  // Skip comparing against itself if record has an ID (e.g. when editing)
+  const existing = existingFlights.find(f => isFlightDuplicate(parsedFlight, f, { excludeSelfId: true }));
 
   if (existing) {
-    return { isDuplicate: true, duplicateId: existing.id };
+    const normDate = normalizeDateForComparison(parsedFlight.date);
+    const candTask = normalizeFlightTask(parsedFlight.mainFlightTask || (parsedFlight.crew && parsedFlight.crew[0]?.flightTask));
+    const existTask = normalizeFlightTask(existing.mainFlightTask || (existing.crew && existing.crew[0]?.flightTask));
+
+    let reason = `Політ за дату ${normDate} вже існує в базі`;
+    if (candTask && existTask && candTask === existTask) {
+      reason += ` (співпадіння за номером завдання №${candTask})`;
+    } else {
+      reason += ` (основний детермінатор - дата)`;
+    }
+
+    return { 
+      isDuplicate: true, 
+      duplicateId: existing.id,
+      duplicateFlight: existing,
+      reason: reason
+    };
   }
   return { isDuplicate: false };
 }
 
 /**
- * Processes a batch of scan files with rate limiting (4s pause between files for 15 RPM Free tier)
- * 
- * @param {Array<File>} files 
+ * Processes a single scan file through Gemini Vision OCR and performs crew & duplicate matching.
+ * @param {File|Blob} file 
+ * @param {object} itemResult 
  * @param {string} apiKey 
  * @param {Array} flightCrew 
  * @param {Array} cabinCrew 
  * @param {Array} existingFlights 
- * @param {Function} onProgress - Callback (itemResult, index, total)
- * @returns {Promise<Array>}
+ * @param {Function} onStatusUpdate 
+ * @returns {Promise<object>}
  */
-export async function processScanBatch(files, apiKey, flightCrew, cabinCrew, existingFlights, onProgress) {
-  const results = [];
-  const total = files.length;
+export async function processSingleScan(file, itemResult, apiKey, flightCrew, cabinCrew, existingFlights, onStatusUpdate = null) {
+  itemResult.status = 'processing';
+  itemResult.statusMessage = 'ШІ підключається та готує аналіз...';
+  if (onStatusUpdate) onStatusUpdate(itemResult.statusMessage);
 
   // Build compact crew roster for Gemini vision disambiguation
   const knownCrewList = [...(flightCrew || []), ...(cabinCrew || [])]
@@ -961,90 +954,133 @@ export async function processScanBatch(files, apiKey, flightCrew, cabinCrew, exi
     .filter(Boolean);
   const knownCrewRoster = knownCrewList.join(', ');
 
-  for (let i = 0; i < total; i++) {
-    const file = files[i];
-    const itemResult = {
-      id: `scan_${Date.now()}_${i}`,
-      fileName: file.name,
-      fileSize: file.size,
-      mimeType: file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'),
-      fileBlob: file,
-      status: 'processing', // 'ready' | 'needs_review' | 'duplicate' | 'error'
-      error: null,
-      parsedData: null,
-      duplicateInfo: null
-    };
+  try {
+    const base64Data = await fileToBase64(file);
+    itemResult.base64Data = base64Data;
+    const parsedData = await callGeminiVisionAPI(
+      base64Data, 
+      itemResult.mimeType, 
+      apiKey, 
+      0, 
+      (statusMsg) => {
+        itemResult.statusMessage = statusMsg;
+        if (onStatusUpdate) onStatusUpdate(statusMsg);
+      },
+      knownCrewRoster
+    );
+    itemResult.statusMessage = null;
+    
+    // Auto-normalize & derive crew block times if missing or zero
+    normalizeParsedFlightBlockTimes(parsedData);
 
-    if (onProgress) onProgress(itemResult, i, total);
-
-    try {
-      const base64Data = await fileToBase64(file);
-      itemResult.base64Data = base64Data;
-      const parsedData = await callGeminiVisionAPI(
-        base64Data, 
-        itemResult.mimeType, 
-        apiKey, 
-        0, 
-        (statusMsg) => {
-          if (onProgress) onProgress(itemResult, i, total, statusMsg);
-        },
-        knownCrewRoster
-      );
-      
-      // Auto-normalize & derive crew block times if missing or zero
-      normalizeParsedFlightBlockTimes(parsedData);
-      
-      // Perform crew fuzzy matching & position validation
-      if (Array.isArray(parsedData.crew)) {
-        parsedData.crew = parsedData.crew.map(c => {
-          const match = matchCrewMember(c.name, flightCrew, cabinCrew);
-          const norm = normalizeFlightCrewRole(
-            match.matchedMember ? (match.matchedMember.Full_Name_EN || c.name) : c.name,
-            c.pstn,
-            c.isInstructor,
-            match.matchedMember
-          );
-
-          return {
-            ...c,
-            name: norm.name,
-            pstn: norm.pstn,
-            isInstructor: norm.isInstructor,
-            matchedCrewId: match.matchedMember ? match.matchedMember.id : null,
-            matchedCrewType: match.matchedMember ? match.matchedMember.crewType : 'Flight',
-            matchedCrewName: norm.name,
-            matchConfidence: match.confidence,
-            candidates: match.candidates || []
-          };
-        });
-      }
-
-      // Check duplicates
-      const dup = checkFlightDuplicate(parsedData, existingFlights);
-      itemResult.duplicateInfo = dup;
-      itemResult.parsedData = parsedData;
-
-      if (dup.isDuplicate) {
-        itemResult.status = 'duplicate';
+    // Auto-correct date if filename has clear European date pattern (e.g. "03.11.2026")
+    const fnDateMatch = (file.name || '').match(/(\d{1,2})[._-](\d{1,2})[._-](\d{4})/);
+    if (fnDateMatch) {
+      const d = fnDateMatch[1].padStart(2, '0');
+      const m = fnDateMatch[2].padStart(2, '0');
+      const y = fnDateMatch[3];
+      const fnDateIso = `${y}-${m}-${d}`;
+      if (!parsedData.date || parsedData.date.length < 8) {
+        parsedData.date = fnDateIso;
       } else {
-        // If any crew member has no match or fuzzy match, flag as needs_review
-        const hasUncertainCrew = parsedData.crew?.some(c => c.matchConfidence !== 'exact');
-        itemResult.status = hasUncertainCrew ? 'needs_review' : 'ready';
+        const parsedParts = parsedData.date.split('-');
+        if (parsedParts.length === 3 && parsedParts[0] === y && (parsedParts[1] !== m || parsedParts[2] !== d)) {
+          if (parsedParts[2] === d || parsedParts[1] === d) {
+            parsedData.date = fnDateIso;
+          }
+        }
       }
+    }
+    
+    // Perform crew fuzzy matching & position validation
+    if (Array.isArray(parsedData.crew)) {
+      parsedData.crew = parsedData.crew.map(c => {
+        const match = matchCrewMember(c.name, flightCrew, cabinCrew);
+        const norm = normalizeFlightCrewRole(
+          match.matchedMember ? (match.matchedMember.Full_Name_EN || c.name) : c.name,
+          c.pstn,
+          c.isInstructor,
+          match.matchedMember
+        );
 
-    } catch (err) {
-      console.error(`Error processing file ${file.name}:`, err);
-      itemResult.status = 'error';
-      itemResult.error = err.message || 'Помилка розпізнавання файлу';
+        return {
+          ...c,
+          name: norm.name,
+          pstn: norm.pstn,
+          isInstructor: norm.isInstructor,
+          matchedCrewId: match.matchedMember ? match.matchedMember.id : null,
+          matchedCrewType: match.matchedMember ? match.matchedMember.crewType : 'Flight',
+          matchedCrewName: norm.name,
+          matchConfidence: match.confidence,
+          candidates: match.candidates || []
+        };
+      });
     }
 
-    results.push(itemResult);
+    // Check duplicates
+    const dup = checkFlightDuplicate(parsedData, existingFlights);
+    itemResult.duplicateInfo = dup;
+    itemResult.parsedData = parsedData;
+
+    if (dup.isDuplicate) {
+      itemResult.status = 'duplicate';
+    } else {
+      // If any crew member has no match or fuzzy match, flag as needs_review
+      const hasUncertainCrew = parsedData.crew?.some(c => c.matchConfidence !== 'exact');
+      itemResult.status = hasUncertainCrew ? 'needs_review' : 'ready';
+    }
+
+  } catch (err) {
+    console.error(`Error processing file ${file.name}:`, err);
+    itemResult.status = 'error';
+    itemResult.error = err.message || 'Помилка розпізнавання файлу';
+  }
+
+  return itemResult;
+}
+
+/**
+ * High-level batch processing for multiple scan files.
+ * @param {Array<File>} files 
+ * @param {string} apiKey 
+ * @param {Array} flightCrew 
+ * @param {Array} cabinCrew 
+ * @param {Array} existingFlights 
+ * @param {Function} onProgress - Callback (itemResult, index, total, customStatus)
+ * @returns {Promise<Array>}
+ */
+export async function processScanBatch(files, apiKey, flightCrew, cabinCrew, existingFlights, onProgress) {
+  const total = files.length;
+  const results = files.map((file, i) => ({
+    id: `scan_${Date.now()}_${i}`,
+    fileName: file.name,
+    fileSize: file.size,
+    mimeType: file.type || (file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'),
+    fileBlob: file,
+    status: i === 0 ? 'processing' : 'queued',
+    statusMessage: i === 0 ? 'ШІ підключається та готує аналіз...' : 'В черзі на обробку...',
+    error: null,
+    parsedData: null,
+    duplicateInfo: null
+  }));
+
+  // Announce all files upfront so UI lists them immediately!
+  if (onProgress) {
+    results.forEach((it, idx) => onProgress(it, idx, total, it.statusMessage));
+  }
+
+  for (let i = 0; i < total; i++) {
+    const itemResult = results[i];
+    await processSingleScan(files[i], itemResult, apiKey, flightCrew, cabinCrew, existingFlights, (statusMsg) => {
+      if (onProgress) onProgress(itemResult, i, total, statusMsg);
+    });
+
     if (onProgress) onProgress(itemResult, i, total);
 
-    // Free tier safe pacing: 6000ms delay before processing next file to respect 15 RPM
+    // Free tier safe pacing: 3000ms delay before processing next file to respect RPM limits
     if (i < total - 1) {
-      if (onProgress) onProgress(itemResult, i, total, 'Пауза між файлами для дотримання квоти Google API (6 сек)...');
-      await new Promise(r => setTimeout(r, 6000));
+      if (onProgress) onProgress(itemResult, i, total, 'Пауза між файлами (3 сек)...');
+      await new Promise(r => setTimeout(r, 3000));
     }
   }
 

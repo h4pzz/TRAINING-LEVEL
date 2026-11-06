@@ -1301,5 +1301,211 @@ export async function uploadFlightScanToGoogleDrive({
   };
 }
 
+/**
+ * Syncs / pulls flights from remote sources (Google Apps Script Web App, Server /api/flights, or Google Sheets)
+ * @param {object} options
+ * @returns {Promise<{success: boolean, flights: Array, source: string, count: number}>}
+ */
+export async function pullFlightsFromRemote({ settings = null } = {}) {
+  const effectiveSettings = settings || (typeof STATE !== 'undefined' ? STATE.settings : {}) || {};
+  const appsScriptUrl = (effectiveSettings.googleAppsScriptUrl || effectiveSettings.appsScriptUrl || '').trim();
+  const rootFolderName = (effectiveSettings.googleDriveFlightsFolderId || 'Training_Flights').trim();
+
+  // 1. Try Google Apps Script Web App (uh.nairobi@gmail.com Drive)
+  if (appsScriptUrl) {
+    try {
+      console.log('☁️ [Flights Cloud Sync] Fetching flights from Google Apps Script Web App...');
+      const res = await fetch(appsScriptUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'get_flights',
+          rootFolder: rootFolderName
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        if (data && data.success && Array.isArray(data.flights)) {
+          console.log(`✅ [Flights Cloud Sync] Successfully pulled ${data.flights.length} flights from Google Drive via Apps Script!`);
+          return {
+            success: true,
+            source: 'google_drive_apps_script',
+            flights: data.flights,
+            count: data.flights.length
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('[Flights Cloud Sync] Apps Script pull notice:', err.message);
+    }
+  }
+
+  // 2. Try Local / Remote Server API (/api/flights)
+  try {
+    const serverRes = await fetch('/api/flights');
+    if (serverRes.ok) {
+      const serverData = await serverRes.json().catch(() => null);
+      if (serverData && serverData.success && Array.isArray(serverData.flights)) {
+        console.log(`✅ [Flights Cloud Sync] Successfully pulled ${serverData.flights.length} flights from Server API!`);
+        return {
+          success: true,
+          source: 'server_database',
+          flights: serverData.flights,
+          count: serverData.flights.length
+        };
+      }
+    }
+  } catch (err) {
+    // Server not running or offline
+  }
+
+  return {
+    success: false,
+    source: 'none',
+    flights: [],
+    count: 0
+  };
+}
+
+/**
+ * Pushes / backs up a flight record or all flights to remote sources (Google Apps Script, Server /api/flights)
+ * @param {Array<object>|object} flightsToPush 
+ * @param {object} options
+ * @returns {Promise<{success: boolean, message: string}>}
+ */
+export async function pushFlightsToRemote(flightsToPush, { settings = null } = {}) {
+  const effectiveSettings = settings || (typeof STATE !== 'undefined' ? STATE.settings : {}) || {};
+  const appsScriptUrl = (effectiveSettings.googleAppsScriptUrl || effectiveSettings.appsScriptUrl || '').trim();
+  const rootFolderName = (effectiveSettings.googleDriveFlightsFolderId || 'Training_Flights').trim();
+  const flightsList = Array.isArray(flightsToPush) ? flightsToPush : (flightsToPush ? [flightsToPush] : []);
+
+  let pushedAppsScript = false;
+  let pushedServer = false;
+
+  // 1. Push to Google Apps Script
+  if (appsScriptUrl && flightsList.length > 0) {
+    try {
+      const res = await fetch(appsScriptUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'save_flights',
+          rootFolder: rootFolderName,
+          flights: flightsList
+        })
+      });
+      if (res.ok) {
+        const data = await res.json().catch(() => ({ success: true }));
+        if (data && data.success) {
+          pushedAppsScript = true;
+          console.log(`✅ [Flights Cloud Sync] Saved ${flightsList.length} flights to Google Drive!`);
+        }
+      }
+    } catch (err) {
+      console.warn('[Flights Cloud Sync] Apps script push notice:', err.message);
+    }
+  }
+
+  // 2. Push to Local / Remote Server /api/flights
+  try {
+    const srvRes = await fetch('/api/flights', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ flights: flightsList })
+    });
+    if (srvRes.ok) {
+      pushedServer = true;
+      console.log(`💾 [Flights Cloud Sync] Saved ${flightsList.length} flights to local server DATABASE/flights.json!`);
+    }
+  } catch (err) {
+    // Offline
+  }
+
+  return {
+    success: pushedAppsScript || pushedServer,
+    pushedAppsScript,
+    pushedServer,
+    message: pushedAppsScript ? 'Синхронізовано з Google Диском' : (pushedServer ? 'Збережено на сервері' : 'Локальне збереження')
+  };
+}
+
+/**
+ * Deletes a flight from remote destinations (Server /api/flights/delete and Google Apps Script)
+ * @param {string} flightId 
+ * @param {object} options
+ * @returns {Promise<boolean>}
+ */
+export async function deleteFlightFromRemote(flightId, { settings = null } = {}) {
+  if (!flightId) return false;
+  const effectiveSettings = settings || (typeof STATE !== 'undefined' ? STATE.settings : {}) || {};
+  const appsScriptUrl = (effectiveSettings.googleAppsScriptUrl || effectiveSettings.appsScriptUrl || '').trim();
+  const rootFolderName = (effectiveSettings.googleDriveFlightsFolderId || 'Training_Flights').trim();
+
+  // 1. Delete on Server
+  try {
+    await fetch(`/api/flights/${encodeURIComponent(flightId)}`, {
+      method: 'DELETE'
+    });
+  } catch(e) {}
+
+  // 2. Delete on Google Apps Script
+  if (appsScriptUrl) {
+    try {
+      await fetch(appsScriptUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'delete_flight',
+          rootFolder: rootFolderName,
+          flightId: flightId
+        })
+      });
+    } catch(e) {}
+  }
+  return true;
+}
+
+/**
+ * Replaces the remote database completely with the current list of flights
+ * @param {Array<object>} allFlights 
+ * @param {object} options
+ * @returns {Promise<boolean>}
+ */
+export async function syncAllFlightsToRemote(allFlights = [], { settings = null } = {}) {
+  const effectiveSettings = settings || (typeof STATE !== 'undefined' ? STATE.settings : {}) || {};
+  const appsScriptUrl = (effectiveSettings.googleAppsScriptUrl || effectiveSettings.appsScriptUrl || '').trim();
+  const rootFolderName = (effectiveSettings.googleDriveFlightsFolderId || 'Training_Flights').trim();
+
+  // 1. Overwrite on Server
+  try {
+    await fetch('/api/flights', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'sync_all',
+        overwrite: true,
+        flights: allFlights
+      })
+    });
+  } catch(e) {}
+
+  // 2. Overwrite on Google Apps Script
+  if (appsScriptUrl) {
+    try {
+      await fetch(appsScriptUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          action: 'overwrite_all_flights',
+          rootFolder: rootFolderName,
+          flights: allFlights
+        })
+      });
+    } catch(e) {}
+  }
+  return true;
+}
+
 
 

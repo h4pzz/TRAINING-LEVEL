@@ -127,3 +127,97 @@ export function mergeCrewData(cachedList, importedList, userEmail = 'system@aero
     changelogEntries
   };
 }
+
+import { isFlightDuplicate } from './scan_ocr_parser.js';
+
+/**
+ * Merges imported flights with local cached flights while strictly preventing duplicates.
+ * DETERMINATION RULE:
+ * 1 - Основний детермінатор: Дата польоту (date).
+ * 2 - Якщо дата співпадає: номер польотного завдання (mainFlightTask).
+ * 
+ * @param {Array<object>} cachedFlights 
+ * @param {Array<object>} incomingFlights 
+ * @returns {{ mergedFlights: Array, addedCount: number, updatedCount: number, skippedCount: number }}
+ */
+export function mergeFlightsData(cachedFlights = [], incomingFlights = []) {
+  // 1. Purge any pre-existing duplicates in cachedFlights first
+  const mergedFlights = [];
+  (cachedFlights || []).forEach(f => {
+    if (!f || !f.date) return;
+    const exists = mergedFlights.some(m => (
+      (f.id && m.id && f.id === m.id) ||
+      isFlightDuplicate(f, m)
+    ));
+    if (!exists) {
+      mergedFlights.push(JSON.parse(JSON.stringify(f)));
+    }
+  });
+
+  let addedCount = 0;
+  let updatedCount = 0;
+  let skippedCount = 0;
+
+  (incomingFlights || []).forEach(incFlight => {
+    if (!incFlight || !incFlight.date) {
+      skippedCount++;
+      return;
+    }
+
+    const existingIdx = mergedFlights.findIndex(existing => (
+      (incFlight.id && existing.id && incFlight.id === existing.id) ||
+      isFlightDuplicate(incFlight, existing)
+    ));
+
+    if (existingIdx !== -1) {
+      // Duplicate found by ID or (1 - date, 2 - flight task)
+      // Merge richer data without creating duplicate flight cards
+      const existing = mergedFlights[existingIdx];
+      let updated = false;
+
+      // Preserve canonical ID
+      if (!existing.id && incFlight.id) existing.id = incFlight.id;
+
+      // Update crew if incoming has fuller crew data
+      if (Array.isArray(incFlight.crew) && incFlight.crew.length > 0) {
+        if (!Array.isArray(existing.crew) || existing.crew.length < incFlight.crew.length) {
+          existing.crew = incFlight.crew;
+          updated = true;
+        }
+      }
+
+      // Update scan reference if incoming has one and existing doesn't
+      if (incFlight.sourceScanFile && !existing.sourceScanFile) {
+        existing.sourceScanFile = incFlight.sourceScanFile;
+        updated = true;
+      }
+      if (incFlight.scanFileUrl && !existing.scanFileUrl) {
+        existing.scanFileUrl = incFlight.scanFileUrl;
+        updated = true;
+      }
+
+      // Sync task if existing didn't have one
+      if (!existing.mainFlightTask && incFlight.mainFlightTask) {
+        existing.mainFlightTask = incFlight.mainFlightTask;
+        updated = true;
+      }
+
+      if (updated) {
+        updatedCount++;
+      } else {
+        skippedCount++;
+      }
+    } else {
+      // No duplicate found -> append as new unique flight
+      mergedFlights.push(incFlight);
+      addedCount++;
+    }
+  });
+
+  return {
+    mergedFlights,
+    addedCount,
+    updatedCount,
+    skippedCount
+  };
+}

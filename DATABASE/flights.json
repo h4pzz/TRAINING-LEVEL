@@ -1,0 +1,829 @@
+[
+  {
+    "id": "fl_import_1793915244465_piw5",
+    "date": "2026-11-03",
+    "helicopterReg": "UR-UHK",
+    "mainFlightTask": "SPO 384/26",
+    "fuelStart": "3900",
+    "fuelEnd": "800",
+    "refuel": "1300",
+    "dutyTime": "06:00",
+    "totalFlightTime": "03:59",
+    "totalBlockTime": "04:27",
+    "preBgn": "13:30",
+    "preEnd": "14:30",
+    "preTtl": "01:00",
+    "postBgn": "19:00",
+    "postEnd": "19:30",
+    "postTtl": "00:30",
+    "sourceScanFile": "4. Время -налет 03.11.2026.pdf",
+    "crew": [
+      {
+        "crewId": "Turchyn Oleksandr",
+        "crewType": "Flight",
+        "name": "Turchyn Oleksandr",
+        "pstn": "PI",
+        "isInstructor": true,
+        "flightTime": {
+          "day": "00:50",
+          "nght": "01:39",
+          "nvg": "01:30"
+        },
+        "blockTime": {
+          "day": "01:11",
+          "nght": "03:16"
+        },
+        "timeInstructor": {
+          "day": "01:12",
+          "night": "03:15"
+        },
+        "flightDay": "00:50",
+        "flightNght": "01:39",
+        "flightNvg": "01:30",
+        "blockDay": "01:11",
+        "blockNght": "03:16",
+        "instDay": "01:12",
+        "instNght": "03:15",
+        "flightTask": "SPO 384/26",
+        "trainingTypes": []
+      },
+      {
+        "crewId": "Kovalenko Arsenii",
+        "crewType": "Flight",
+        "name": "Kovalenko Arsenii",
+        "pstn": "PIC",
+        "isInstructor": false,
+        "flightTime": {
+          "day": "00:50",
+          "nght": "01:39",
+          "nvg": "00:30"
+        },
+        "blockTime": {
+          "day": "00:50",
+          "nght": "01:39"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "00:00"
+        },
+        "flightDay": "00:50",
+        "flightNght": "01:39",
+        "flightNvg": "00:30",
+        "blockDay": "00:50",
+        "blockNght": "01:39",
+        "instDay": "00:00",
+        "instNght": "00:00",
+        "flightTask": "SPO 384/26",
+        "trainingTypes": [
+          "HESLO_PRCT",
+          "HHO_PRCT",
+          "Before Rotation"
+        ]
+      },
+      {
+        "crewId": "Iefymenko Oleksandr",
+        "crewType": "Flight",
+        "name": "Iefymenko Oleksandr",
+        "pstn": "PIC",
+        "isInstructor": false,
+        "flightTime": {
+          "day": "00:50",
+          "nght": "01:39",
+          "nvg": "00:00"
+        },
+        "blockTime": {
+          "day": "00:50",
+          "nght": "01:44"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "00:00"
+        },
+        "flightDay": "00:50",
+        "flightNght": "01:39",
+        "flightNvg": "00:00",
+        "blockDay": "00:50",
+        "blockNght": "01:44",
+        "instDay": "00:00",
+        "instNght": "00:00",
+        "flightTask": "SPO 384/26",
+        "trainingTypes": [
+          "GI_275_PRCT",
+          "HESLO_PRCT",
+          "HHO_PRCT"
+        ]
+      },
+      {
+        "crewId": "Kotsar Oleh",
+        "crewType": "Flight",
+        "name": "Kotsar Oleh",
+        "pstn": "PIC",
+        "isInstructor": false,
+        "flightTime": {
+          "day": "00:50",
+          "nght": "01:39",
+          "nvg": "01:00"
+        },
+        "blockTime": {
+          "day": "00:50",
+          "nght": "01:39"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "00:00"
+        },
+        "flightDay": "00:50",
+        "flightNght": "01:39",
+        "flightNvg": "01:00",
+        "blockDay": "00:50",
+        "blockNght": "01:39",
+        "instDay": "00:00",
+        "instNght": "00:00",
+        "flightTask": "SPO 384/26",
+        "trainingTypes": [
+          "NVG"
+        ]
+      },
+      {
+        "crewId": "Formaniuk Iurii",
+        "crewType": "Flight",
+        "name": "Formaniuk Iurii",
+        "pstn": "FE inst",
+        "isInstructor": true,
+        "flightTime": {
+          "day": "00:50",
+          "nght": "01:39",
+          "nvg": "01:30"
+        },
+        "blockTime": {
+          "day": "01:11",
+          "nght": "03:16"
+        },
+        "timeInstructor": {
+          "day": "01:12",
+          "night": "03:15"
+        },
+        "flightDay": "00:50",
+        "flightNght": "01:39",
+        "flightNvg": "01:30",
+        "blockDay": "01:11",
+        "blockNght": "03:16",
+        "instDay": "01:12",
+        "instNght": "03:15",
+        "flightTask": "SPO 384/26",
+        "trainingTypes": []
+      },
+      {
+        "crewId": "Rudenko Vadym",
+        "crewType": "Flight",
+        "name": "Rudenko Vadym",
+        "pstn": "FE",
+        "isInstructor": false,
+        "flightTime": {
+          "day": "00:50",
+          "nght": "01:39",
+          "nvg": "00:00"
+        },
+        "blockTime": {
+          "day": "01:11",
+          "nght": "01:44"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "00:00"
+        },
+        "flightDay": "00:50",
+        "flightNght": "01:39",
+        "flightNvg": "00:00",
+        "blockDay": "01:11",
+        "blockNght": "01:44",
+        "instDay": "00:00",
+        "instNght": "00:00",
+        "flightTask": "SPO 384/26",
+        "trainingTypes": [
+          "GI_275_PRCT",
+          "HESLO_PRCT",
+          "HHO_PRCT"
+        ]
+      },
+      {
+        "crewId": "Vasiliev Vadym",
+        "crewType": "Flight",
+        "name": "Vasiliev Vadym",
+        "pstn": "FE",
+        "isInstructor": false,
+        "flightTime": {
+          "day": "00:30",
+          "nght": "00:30",
+          "nvg": "00:00"
+        },
+        "blockTime": {
+          "day": "00:31",
+          "nght": "00:31"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "00:00"
+        },
+        "flightDay": "00:30",
+        "flightNght": "00:30",
+        "flightNvg": "00:00",
+        "blockDay": "00:31",
+        "blockNght": "00:31",
+        "instDay": "00:00",
+        "instNght": "00:00",
+        "flightTask": "SPO 384/26",
+        "trainingTypes": [
+          "HESLO_PRCT",
+          "HHO_PRCT",
+          "Before Rotation"
+        ]
+      },
+      {
+        "crewId": "23",
+        "crewType": "Cabin",
+        "name": "Dubinin Andrii",
+        "pstn": "FA-AR inst",
+        "isInstructor": true,
+        "flightTime": {
+          "day": "00:50",
+          "nght": "03:09",
+          "nvg": "00:00"
+        },
+        "blockTime": {
+          "day": "01:11",
+          "nght": "03:16"
+        },
+        "timeInstructor": {
+          "day": "01:12",
+          "night": "03:15"
+        },
+        "flightDay": "00:50",
+        "flightNght": "03:09",
+        "flightNvg": "00:00",
+        "blockDay": "01:11",
+        "blockNght": "03:16",
+        "instDay": "01:12",
+        "instNght": "03:15",
+        "flightTask": "SPO 384/26",
+        "trainingTypes": []
+      },
+      {
+        "crewId": "crew_Cabin_1793787227370",
+        "crewType": "Cabin",
+        "name": "Calvo Sanchez Abraham",
+        "pstn": "FA",
+        "isInstructor": false,
+        "flightTime": {
+          "day": "00:50",
+          "nght": "03:09",
+          "nvg": "00:00"
+        },
+        "blockTime": {
+          "day": "01:11",
+          "nght": "03:16"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "00:00"
+        },
+        "flightDay": "00:50",
+        "flightNght": "03:09",
+        "flightNvg": "00:00",
+        "blockDay": "01:11",
+        "blockNght": "03:16",
+        "instDay": "00:00",
+        "instNght": "00:00",
+        "flightTask": "SPO 384/26",
+        "trainingTypes": [
+          "Type Rating"
+        ]
+      },
+      {
+        "crewId": "crew_Cabin_1793787274810",
+        "crewType": "Cabin",
+        "name": "Brunt Lee",
+        "pstn": "FA",
+        "isInstructor": false,
+        "flightTime": {
+          "day": "00:50",
+          "nght": "03:09",
+          "nvg": "00:00"
+        },
+        "blockTime": {
+          "day": "01:11",
+          "nght": "03:16"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "00:00"
+        },
+        "flightDay": "00:50",
+        "flightNght": "03:09",
+        "flightNvg": "00:00",
+        "blockDay": "01:11",
+        "blockNght": "03:16",
+        "instDay": "00:00",
+        "instNght": "00:00",
+        "flightTask": "SPO 384/26",
+        "trainingTypes": [
+          "Type Rating"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "fl_import_1793915265923_ewdl",
+    "date": "2026-11-05",
+    "helicopterReg": "UR-UHK",
+    "mainFlightTask": "SPO 356/26/1",
+    "fuelStart": 3800,
+    "fuelEnd": 1000,
+    "refuel": 2677,
+    "dutyTime": "06:30",
+    "totalFlightTime": "04:00",
+    "totalBlockTime": "04:18",
+    "preBgn": "13:00",
+    "preEnd": "14:00",
+    "preTtl": "01:00",
+    "postBgn": "19:00",
+    "postEnd": "19:30",
+    "postTtl": "00:30",
+    "sourceScanFile": "4. Время -налет 05.11.2026.pdf",
+    "crew": [
+      {
+        "crewId": "Turchyn Oleksandr",
+        "name": "Turchyn Oleksandr",
+        "pstn": "PI",
+        "isInstructor": true,
+        "flightTime": {
+          "day": "00:48",
+          "nght": "01:42",
+          "nvg": "01:30"
+        },
+        "blockTime": {
+          "day": "01:02",
+          "nght": "03:16"
+        },
+        "timeInstructor": {
+          "day": "01:02",
+          "night": "03:16"
+        },
+        "flightTask": "SPO 356/26/1",
+        "trainingTypes": [],
+        "crewType": "Flight"
+      },
+      {
+        "crewId": "Kotsar Oleh",
+        "name": "Kotsar Oleh",
+        "pstn": "PIC",
+        "isInstructor": false,
+        "flightTime": {
+          "day": "00:48",
+          "nght": "01:42",
+          "nvg": "01:30"
+        },
+        "blockTime": {
+          "day": "01:02",
+          "nght": "03:16"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "00:00"
+        },
+        "flightTask": "SPO 356/26/1",
+        "trainingTypes": [
+          "NVG"
+        ],
+        "crewType": "Flight"
+      },
+      {
+        "crewId": "crew_Cabin_1793912321018",
+        "name": "Korostelov Tymur",
+        "pstn": "SIC",
+        "isInstructor": false,
+        "flightTime": {
+          "day": "00:48",
+          "nght": "01:42",
+          "nvg": "00:00"
+        },
+        "blockTime": {
+          "day": "01:02",
+          "nght": "03:16"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "00:00"
+        },
+        "flightTask": "SPO 356/26/1",
+        "trainingTypes": [
+          "GI_275_PRCT",
+          "HHO_PRCT"
+        ],
+        "crewType": "Flight"
+      },
+      {
+        "crewId": "Formaniuk Iurii",
+        "name": "Formaniuk Iurii",
+        "pstn": "FE inst",
+        "isInstructor": true,
+        "flightTime": {
+          "day": "00:48",
+          "nght": "01:42",
+          "nvg": "01:30"
+        },
+        "blockTime": {
+          "day": "01:02",
+          "nght": "03:16"
+        },
+        "timeInstructor": {
+          "day": "01:02",
+          "night": "00:00"
+        },
+        "flightTask": "SPO 356/26/1",
+        "trainingTypes": [],
+        "crewType": "Flight"
+      },
+      {
+        "crewId": "Dudnyk Oleksandr",
+        "name": "Dudnyk Oleksandr",
+        "pstn": "FE",
+        "isInstructor": false,
+        "flightTime": {
+          "day": "00:48",
+          "nght": "01:42",
+          "nvg": "00:00"
+        },
+        "blockTime": {
+          "day": "01:02",
+          "nght": "03:16"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "00:00"
+        },
+        "flightTask": "SPO 356/26/1",
+        "trainingTypes": [
+          "HHO_PRCT"
+        ],
+        "crewType": "Flight"
+      },
+      {
+        "crewId": "23",
+        "name": "Dubinin Andrii",
+        "pstn": "FA-AR inst",
+        "isInstructor": true,
+        "flightTime": {
+          "day": "00:48",
+          "nght": "01:42",
+          "nvg": "01:30"
+        },
+        "blockTime": {
+          "day": "01:02",
+          "nght": "03:16"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "03:16"
+        },
+        "flightTask": "SPO 356/26/1",
+        "trainingTypes": [],
+        "crewType": "Cabin"
+      },
+      {
+        "crewId": "crew_Cabin_1793787274810",
+        "name": "Brunt Lee",
+        "pstn": "FA",
+        "isInstructor": false,
+        "flightTime": {
+          "day": "00:48",
+          "nght": "03:12",
+          "nvg": "00:00"
+        },
+        "blockTime": {
+          "day": "01:02",
+          "nght": "03:16"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "00:00"
+        },
+        "flightTask": "SPO 356/26/1",
+        "trainingTypes": [
+          "Type Rating"
+        ],
+        "crewType": "Cabin"
+      },
+      {
+        "crewId": "crew_Cabin_1793787227370",
+        "name": "Calvo Sanchez Abraham",
+        "pstn": "FA",
+        "isInstructor": false,
+        "flightTime": {
+          "day": "00:48",
+          "nght": "03:12",
+          "nvg": "00:00"
+        },
+        "blockTime": {
+          "day": "01:02",
+          "nght": "03:16"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "00:00"
+        },
+        "flightTask": "SPO 356/26/1",
+        "trainingTypes": [
+          "Type Rating"
+        ],
+        "crewType": "Cabin"
+      }
+    ],
+    "sameFlightTask": false
+  },
+  {
+    "id": "fl_import_1793917366444_spdc",
+    "date": "2026-11-04",
+    "helicopterReg": "UR-UHK",
+    "mainFlightTask": "SPO 380/26",
+    "fuelStart": 2600,
+    "fuelEnd": 1250,
+    "refuel": 1950,
+    "dutyTime": "08:45",
+    "totalFlightTime": "04:51",
+    "totalBlockTime": "05:31",
+    "preBgn": "10:30",
+    "preEnd": "11:30",
+    "preTtl": "01:00",
+    "postBgn": "18:45",
+    "postEnd": "19:15",
+    "postTtl": "00:30",
+    "sourceScanFile": "4. Время -налет 04.11.2026.pdf",
+    "crew": [
+      {
+        "crewId": "Berehovyy Serhiy",
+        "name": "Berehovyy Serhiy",
+        "pstn": "PI",
+        "isInstructor": true,
+        "flightTime": {
+          "day": "01:47",
+          "nght": "00:00",
+          "nvg": "00:00"
+        },
+        "blockTime": {
+          "day": "02:11",
+          "nght": "00:00"
+        },
+        "timeInstructor": {
+          "day": "02:11",
+          "night": "00:00"
+        },
+        "flightTask": "SPO 380/26",
+        "trainingTypes": [],
+        "crewType": "Flight"
+      },
+      {
+        "crewId": "Turchyn Oleksandr",
+        "name": "Turchyn Oleksandr",
+        "pstn": "PI",
+        "isInstructor": true,
+        "flightTime": {
+          "day": "00:00",
+          "nght": "02:34",
+          "nvg": "00:30"
+        },
+        "blockTime": {
+          "day": "00:00",
+          "nght": "03:20"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "03:20"
+        },
+        "flightTask": "SPO 380/26",
+        "trainingTypes": [],
+        "crewType": "Flight"
+      },
+      {
+        "crewId": "Brezhnyev Serhiy",
+        "name": "Brezhnyev Serhiy",
+        "pstn": "PIC",
+        "isInstructor": false,
+        "flightTime": {
+          "day": "00:40",
+          "nght": "00:55",
+          "nvg": "00:30"
+        },
+        "blockTime": {
+          "day": "00:42",
+          "nght": "01:40"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "00:00"
+        },
+        "flightTask": "SPO 380/26",
+        "trainingTypes": [
+          "GI_275_PRCT",
+          "NVG",
+          "HESLO_PRCT",
+          "HHO_PRCT"
+        ],
+        "crewType": "Flight"
+      },
+      {
+        "crewId": "Khoptii Vitalii",
+        "name": "Khoptii Vitalii",
+        "pstn": "PIC",
+        "isInstructor": false,
+        "flightTime": {
+          "day": "00:41",
+          "nght": "01:39",
+          "nvg": "00:00"
+        },
+        "blockTime": {
+          "day": "00:46",
+          "nght": "01:40"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "00:00"
+        },
+        "flightTask": "SPO 380/26",
+        "trainingTypes": [
+          "GI_275_PRCT",
+          "HESLO_PRCT"
+        ],
+        "crewType": "Flight"
+      },
+      {
+        "crewId": "crew_Cabin_1793912321018",
+        "name": "Korostelov Tymur",
+        "pstn": "SIC",
+        "isInstructor": false,
+        "flightTime": {
+          "day": "00:26",
+          "nght": "00:00",
+          "nvg": "00:00"
+        },
+        "blockTime": {
+          "day": "00:43",
+          "nght": "00:00"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "00:00"
+        },
+        "flightTask": "SPO 380/26",
+        "trainingTypes": [
+          "GI_275_PRCT",
+          "HHO_PRCT"
+        ],
+        "crewType": "Flight"
+      },
+      {
+        "crewId": "Formaniuk Iurii",
+        "name": "Formaniuk Iurii",
+        "pstn": "FE inst",
+        "isInstructor": true,
+        "flightTime": {
+          "day": "01:47",
+          "nght": "02:34",
+          "nvg": "00:30"
+        },
+        "blockTime": {
+          "day": "02:11",
+          "nght": "03:20"
+        },
+        "timeInstructor": {
+          "day": "02:11",
+          "night": "03:20"
+        },
+        "flightTask": "SPO 380/26",
+        "trainingTypes": [],
+        "crewType": "Flight"
+      },
+      {
+        "crewId": "Konjihinaah Kenneth Mohammed",
+        "name": "Konjihinaah Kenneth Mohammed",
+        "pstn": "FE",
+        "isInstructor": false,
+        "flightTime": {
+          "day": "00:41",
+          "nght": "01:39",
+          "nvg": "00:00"
+        },
+        "blockTime": {
+          "day": "00:46",
+          "nght": "01:40"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "00:00"
+        },
+        "flightTask": "SPO 380/26",
+        "trainingTypes": [
+          "GI_275_PRCT",
+          "HESLO_PRCT"
+        ],
+        "crewType": "Flight"
+      },
+      {
+        "crewId": "Dudnyk Oleksandr",
+        "name": "Dudnyk Oleksandr",
+        "pstn": "FE",
+        "isInstructor": false,
+        "flightTime": {
+          "day": "01:06",
+          "nght": "00:00",
+          "nvg": "00:00"
+        },
+        "blockTime": {
+          "day": "01:25",
+          "nght": "00:00"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "00:00"
+        },
+        "flightTask": "SPO 380/26",
+        "trainingTypes": [
+          "HESLO_PRCT",
+          "HHO_PRCT"
+        ],
+        "crewType": "Flight"
+      },
+      {
+        "crewId": "23",
+        "name": "Dubinin Andrii",
+        "pstn": "FA-AR inst",
+        "isInstructor": true,
+        "flightTime": {
+          "day": "01:47",
+          "nght": "03:04",
+          "nvg": "00:00"
+        },
+        "blockTime": {
+          "day": "02:11",
+          "nght": "03:20"
+        },
+        "timeInstructor": {
+          "day": "02:11",
+          "night": "03:20"
+        },
+        "flightTask": "SPO 380/26",
+        "trainingTypes": [],
+        "crewType": "Cabin"
+      },
+      {
+        "crewId": "crew_Cabin_1793787274810",
+        "name": "Brunt Lee",
+        "pstn": "FA",
+        "isInstructor": false,
+        "flightTime": {
+          "day": "01:47",
+          "nght": "03:04",
+          "nvg": "00:00"
+        },
+        "blockTime": {
+          "day": "02:11",
+          "nght": "03:20"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "00:00"
+        },
+        "flightTask": "SPO 380/26",
+        "trainingTypes": [
+          "Type Rating"
+        ],
+        "crewType": "Cabin"
+      },
+      {
+        "crewId": "crew_Cabin_1793787227370",
+        "name": "Calvo Sanchez Abraham",
+        "pstn": "FA",
+        "isInstructor": false,
+        "flightTime": {
+          "day": "01:47",
+          "nght": "03:04",
+          "nvg": "00:00"
+        },
+        "blockTime": {
+          "day": "02:11",
+          "nght": "03:20"
+        },
+        "timeInstructor": {
+          "day": "00:00",
+          "night": "00:00"
+        },
+        "flightTask": "SPO 380/26",
+        "trainingTypes": [
+          "Type Rating"
+        ],
+        "crewType": "Cabin"
+      }
+    ],
+    "sameFlightTask": false
+  }
+]

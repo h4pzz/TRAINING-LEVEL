@@ -293,6 +293,193 @@ ${report.comment || '(без коментаря)'}
     return;
   }
 
+  // API Endpoint: Get all flights from server database (DATABASE/flights.json)
+  if (req.method === 'GET' && cleanUrl === '/api/flights') {
+    try {
+      const dbFile = path.join(__dirname, 'DATABASE', 'flights.json');
+      if (fs.existsSync(dbFile)) {
+        const content = fs.readFileSync(dbFile, 'utf-8');
+        const flights = JSON.parse(content || '[]');
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify({ success: true, flights: flights, count: flights.length }));
+      } else {
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify({ success: true, flights: [], count: 0 }));
+      }
+    } catch (err) {
+      res.writeHead(500, {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      });
+      res.end(JSON.stringify({ success: false, error: err.message }));
+    }
+    return;
+  }
+
+  // API Endpoint: Delete flight from server database
+  if ((req.method === 'DELETE' || req.method === 'POST') && (cleanUrl === '/api/flights/delete' || cleanUrl.startsWith('/api/flights/'))) {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        let flightIdToDelete = '';
+        if (cleanUrl.startsWith('/api/flights/') && cleanUrl !== '/api/flights/delete') {
+          flightIdToDelete = decodeURIComponent(cleanUrl.replace('/api/flights/', ''));
+        } else {
+          const parsed = JSON.parse(body || '{}');
+          flightIdToDelete = parsed.flightId || parsed.id || '';
+        }
+
+        const dbFile = path.join(__dirname, 'DATABASE', 'flights.json');
+        if (fs.existsSync(dbFile)) {
+          let flights = JSON.parse(fs.readFileSync(dbFile, 'utf-8') || '[]');
+          const beforeCount = flights.length;
+          flights = flights.filter(f => f.id !== flightIdToDelete);
+          fs.writeFileSync(dbFile, JSON.stringify(flights, null, 2), 'utf-8');
+          console.log(`🗑️ [Server Flights DB] Deleted flight ${flightIdToDelete} (Remaining: ${flights.length}, Removed: ${beforeCount - flights.length})`);
+        }
+
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify({ success: true, deletedId: flightIdToDelete }));
+      } catch (err) {
+        res.writeHead(500, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify({ success: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // API Endpoint: Save / Merge / Sync flights into server database (DATABASE/flights.json)
+  if (req.method === 'POST' && cleanUrl === '/api/flights') {
+    let body = '';
+    req.on('data', chunk => { body += chunk; });
+    req.on('end', () => {
+      try {
+        const payload = JSON.parse(body || '{}');
+        const dbDir = path.join(__dirname, 'DATABASE');
+        if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true });
+        const dbFile = path.join(dbDir, 'flights.json');
+
+        // Full state sync / overwrite
+        if (payload.action === 'sync_all' || payload.overwrite === true) {
+          const newFlightsList = Array.isArray(payload.flights) ? payload.flights : [];
+          fs.writeFileSync(dbFile, JSON.stringify(newFlightsList, null, 2), 'utf-8');
+          console.log(`💾 [Server Flights DB] Synced all flights (Total: ${newFlightsList.length})`);
+          res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          });
+          res.end(JSON.stringify({ success: true, total: newFlightsList.length, mode: 'overwrite' }));
+          return;
+        }
+
+        // Delete action
+        if (payload.action === 'delete') {
+          let flights = [];
+          if (fs.existsSync(dbFile)) {
+            flights = JSON.parse(fs.readFileSync(dbFile, 'utf-8') || '[]');
+          }
+          const delId = payload.flightId || payload.id;
+          flights = flights.filter(f => f.id !== delId);
+          fs.writeFileSync(dbFile, JSON.stringify(flights, null, 2), 'utf-8');
+          console.log(`🗑️ [Server Flights DB] Deleted flight ${delId} via POST /api/flights`);
+          res.writeHead(200, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          });
+          res.end(JSON.stringify({ success: true, total: flights.length }));
+          return;
+        }
+
+        const incoming = Array.isArray(payload.flights) ? payload.flights : (payload.flight ? [payload.flight] : []);
+        let currentFlights = [];
+        if (fs.existsSync(dbFile)) {
+          try {
+            currentFlights = JSON.parse(fs.readFileSync(dbFile, 'utf-8') || '[]');
+          } catch(e) {
+            currentFlights = [];
+          }
+        }
+
+        // Helper normalize date for server deduplication
+        const normDate = (d) => {
+          if (!d) return '';
+          const s = String(d).trim();
+          const iso = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+          if (iso) return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`;
+          const dmy = s.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})/);
+          if (dmy) return `${dmy[3]}-${dmy[2].padStart(2, '0')}-${dmy[1].padStart(2, '0')}`;
+          return s;
+        };
+        const normTask = (t) => t ? String(t).replace(/[№#\s]/g, '').toLowerCase().trim() : '';
+
+        let added = 0;
+        let updated = 0;
+
+        incoming.forEach(inc => {
+          if (!inc || !inc.date) return;
+          const incDate = normDate(inc.date);
+          const incTask = normTask(inc.mainFlightTask || (inc.crew && inc.crew[0]?.flightTask));
+
+          // Find duplicate by ID first, then by (1 - date, 2 - task)
+          const existIdx = currentFlights.findIndex(f => {
+            if (f.id && inc.id && f.id === inc.id) return true;
+            const fDate = normDate(f.date);
+            if (!fDate || !incDate || fDate !== incDate) return false;
+            const fTask = normTask(f.mainFlightTask || (f.crew && f.crew[0]?.flightTask));
+            if (fTask && incTask && fTask !== incTask) return false;
+            return true;
+          });
+
+          if (existIdx !== -1) {
+            // Update existing record
+            currentFlights[existIdx] = Object.assign({}, currentFlights[existIdx], inc);
+            updated++;
+          } else {
+            currentFlights.push(inc);
+            added++;
+          }
+        });
+
+        fs.writeFileSync(dbFile, JSON.stringify(currentFlights, null, 2), 'utf-8');
+        console.log(`💾 [Server Flights DB] Saved DATABASE/flights.json (Total: ${currentFlights.length}, Added: ${added}, Updated: ${updated})`);
+
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*'
+        });
+        res.end(JSON.stringify({
+          success: true,
+          total: currentFlights.length,
+          added: added,
+          updated: updated
+        }));
+      } catch (err) {
+        console.error('[Flights API] Error saving flights:', err);
+        if (!res.headersSent) {
+          res.writeHead(500, {
+            'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': '*'
+          });
+          res.end(JSON.stringify({ success: false, error: err.message }));
+        }
+      }
+    });
+    return;
+  }
+
   let decodedUrl;
   try {
     decodedUrl = decodeURIComponent(cleanUrl);

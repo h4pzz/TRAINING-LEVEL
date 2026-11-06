@@ -1,0 +1,390 @@
+<style>
+  .comparison-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem 0 2rem;
+  }
+  .header-desc {
+    font-size: 1.05rem;
+    color: var(--text-secondary);
+    margin-bottom: 2rem;
+    line-height: 1.5;
+  }
+  .header-desc strong {
+    color: var(--text-primary);
+  }
+  .top-btn-banner {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.5rem;
+    margin-bottom: 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .tag-pill {
+    display: inline-block;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .tag-green { background: rgba(52, 199, 89, 0.15); color: #28a745; }
+  .tag-blue { background: rgba(0, 113, 227, 0.15); color: var(--accent); }
+
+  .split-preview {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    margin-top: 1.5rem;
+  }
+  @media (max-width: 860px) {
+    .split-preview {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .choice-card {
+    background: var(--bg-secondary);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  .choice-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.06);
+  }
+  .choice-card.selected {
+    border-color: var(--accent);
+    background: var(--selected-bg);
+    box-shadow: 0 0 0 1px var(--accent);
+  }
+  .choice-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.75rem;
+  }
+  .choice-badge {
+    font-size: 1.25rem;
+    font-weight: 800;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .choice-card.selected .choice-badge {
+    background: var(--accent);
+    color: #ffffff;
+  }
+
+  /* Modal mockup styles */
+  .modal-window-mock {
+    background: #ffffff;
+    color: #0f172a;
+    border-radius: 16px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+    font-size: 13px;
+  }
+  .mock-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #f1f5f9;
+    padding-bottom: 0.6rem;
+  }
+  .mock-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+  .mock-field label {
+    font-weight: 600;
+    font-size: 12px;
+    color: #334155;
+  }
+  .mock-input {
+    height: 36px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    padding: 0 10px;
+    font-size: 13px;
+    background: #ffffff;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+  }
+
+  /* Variant A Source Buttons */
+  .source-buttons-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+  .source-btn {
+    border: 2px dashed #94a3b8;
+    background: #f8fafc;
+    border-radius: 10px;
+    padding: 1rem 0.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    font-weight: 600;
+    font-size: 12px;
+    color: #1e293b;
+    transition: all 0.15s ease;
+  }
+  .source-btn:hover {
+    border-color: #3b82f6;
+    background: #eff6ff;
+    color: #1d4ed8;
+  }
+  .source-btn-icon {
+    font-size: 24px;
+  }
+
+  .file-ready-preview {
+    background: #f0fdf4;
+    border: 1px solid #86efac;
+    border-radius: 8px;
+    padding: 0.5rem 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #166534;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  /* Buttons */
+  .modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    margin-top: 0.5rem;
+    border-top: 1px solid #f1f5f9;
+    padding-top: 0.9rem;
+  }
+  .btn-ui {
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: none;
+    cursor: pointer;
+  }
+  .btn-ui-secondary {
+    background: #f1f5f9;
+    color: #475569;
+  }
+  .btn-ui-primary {
+    background: #4f46e5;
+    color: #ffffff;
+  }
+  .btn-ui-scan {
+    background: #0284c7;
+    color: #ffffff;
+  }
+  .btn-ui-upload {
+    background: #16a34a;
+    color: #ffffff;
+  }
+  .btn-ui:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+</style>
+
+<div class="comparison-container">
+  <h2>Виберіть найзручніший варіант діалогу додавання документів</h2>
+  <p class="header-desc">
+    На сторінці профілю перейменовуємо кнопку на <strong>«+ Додати документ»</strong>. Нижче показано два варіанти самого спливаючого вікна на вибір:
+  </p>
+
+  <!-- Banner showing renamed portal button -->
+  <div class="top-btn-banner">
+    <div>
+      <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 2px;">Оновлена кнопка у профілі співробітника:</div>
+      <div style="font-weight: 700; font-size: 1.05rem;">Завантажені скан-копії документів</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="font-size: 12px; color: var(--text-secondary);">Було: <del>+ Сканувати</del></span>
+      <button class="btn-ui btn-ui-secondary" style="border: 1px solid #cbd5e1; background: #ffffff; font-weight: 700; color: #1e293b;">
+        <span>+</span> 📄 Додати документ
+      </button>
+      <span class="tag-pill tag-green">Зрозуміліше для всіх</span>
+    </div>
+  </div>
+
+  <!-- A/B Comparison Cards -->
+  <div class="split-preview">
+
+    <!-- OPTION A -->
+    <div class="choice-card selected" data-choice="a" onclick="toggleSelect(this)">
+      <div class="choice-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="choice-badge">A</div>
+          <div>
+            <h3 style="margin: 0; font-size: 1.15rem;">Варіант А: Дві великі кнопки вибору джерела</h3>
+            <span class="tag-pill tag-blue" style="margin-top: 4px;">Рекомендовано для смартфонів</span>
+          </div>
+        </div>
+      </div>
+
+      <p style="font-size: 0.9rem; color: var(--text-secondary); margin: 0;">
+        У полі документа — 2 великі кнопки: <strong>«Камера / Сканер»</strong> та <strong>«Файл із пристрою»</strong>. Після вибору показується назва готового файлу та одна кнопка «Зберегти на Google Диск».
+      </p>
+
+      <!-- Mockup of Option A -->
+      <div class="modal-window-mock">
+        <div class="mock-title">
+          <span>Додати документ до папки пілота</span>
+          <span style="color: #94a3b8; font-size: 16px;">✕</span>
+        </div>
+
+        <div class="mock-field">
+          <label>Тип підготовки</label>
+          <div class="mock-input" style="justify-content: space-between;">
+            <span>OPC (Operator Proficiency Check)</span>
+            <span>▾</span>
+          </div>
+        </div>
+
+        <div class="mock-field">
+          <label>Дата проходження</label>
+          <div class="mock-input">2026-10-30 📅</div>
+        </div>
+
+        <div class="mock-field">
+          <label>Джерело документа (виберіть дію):</label>
+          
+          <!-- Large touch-friendly source buttons -->
+          <div class="source-buttons-grid">
+            <div class="source-btn" style="border-color: #3b82f6; background: #eff6ff; color: #1d4ed8;">
+              <span class="source-btn-icon">📷</span>
+              <span>Сканувати камерою</span>
+              <span style="font-size: 10px; opacity: 0.8; font-weight: 500;">Apple / Android скан</span>
+            </div>
+            <div class="source-btn">
+              <span class="source-btn-icon">📁</span>
+              <span>Вибрати файл</span>
+              <span style="font-size: 10px; color: #64748b; font-weight: 500;">PDF / фото з пам'яті</span>
+            </div>
+          </div>
+
+          <!-- Preview box when scanned/chosen -->
+          <div class="file-ready-preview" style="margin-top: 0.5rem;">
+            <div style="display: flex; align-items: center; gap: 6px;">
+              <span>✓</span>
+              <span>OPC_Bondarenko_Mykhailo_2026.pdf (1.2 MB)</span>
+            </div>
+            <span style="color: #dc2626; cursor: pointer;">✕</span>
+          </div>
+        </div>
+
+        <div class="modal-actions">
+          <button class="btn-ui btn-ui-secondary">Скасувати</button>
+          <button class="btn-ui btn-ui-upload">
+            ☁️ Зберегти на Google Диск
+          </button>
+        </div>
+      </div>
+
+      <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+        ✅ <strong>Плюси:</strong> Жодної плутанини: чітко видно, що в один клік відкриває сканер, а що файл; зручно тапати пальцем; видно статус готовності перед відправкою на Диск.
+      </div>
+    </div>
+
+    <!-- OPTION B -->
+    <div class="choice-card" data-choice="b" onclick="toggleSelect(this)">
+      <div class="choice-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <div class="choice-badge">B</div>
+          <div>
+            <h3 style="margin: 0; font-size: 1.15rem;">Варіант Б: Дві кнопки дій внизу вікна</h3>
+            <span class="tag-pill" style="background: var(--bg-tertiary); color: var(--text-secondary); margin-top: 4px;">Класичний стиль</span>
+          </div>
+        </div>
+      </div>
+
+      <p style="font-size: 0.9rem; color: var(--text-secondary); margin: 0;">
+        Стандартне поле вибору файлу, а внизу дві різні кнопки дій: окрема кнопка <strong>«Сканувати»</strong> та окрема кнопка <strong>«Завантажити файл»</strong>.
+      </p>
+
+      <!-- Mockup of Option B -->
+      <div class="modal-window-mock">
+        <div class="mock-title">
+          <span>Сканувати документ</span>
+          <span style="color: #94a3b8; font-size: 16px;">✕</span>
+        </div>
+
+        <div class="mock-field">
+          <label>Тип підготовки</label>
+          <div class="mock-input" style="justify-content: space-between;">
+            <span>OPC (Operator Proficiency Check)</span>
+            <span>▾</span>
+          </div>
+        </div>
+
+        <div class="mock-field">
+          <label>Дата проходження</label>
+          <div class="mock-input">2026-10-30 📅</div>
+        </div>
+
+        <div class="mock-field">
+          <label>Файл документа (PDF / Image)</label>
+          <div style="border: 1px solid #cbd5e1; border-radius: 8px; padding: 6px 10px; display: flex; align-items: center; gap: 8px; background: #ffffff;">
+            <button style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 8px; font-size: 11.5px; font-weight: 600;">Вибрати файл</button>
+            <span style="color: #64748b; font-size: 12px;">Файл не вибрано</span>
+          </div>
+        </div>
+
+        <div class="modal-actions" style="flex-wrap: wrap;">
+          <button class="btn-ui btn-ui-secondary">Скасувати</button>
+          <button class="btn-ui btn-ui-scan">
+            📷 Сканувати
+          </button>
+          <button class="btn-ui btn-ui-upload" disabled style="opacity: 0.5;">
+            ⬆️ Завантажити файл
+          </button>
+        </div>
+      </div>
+
+      <div style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.4;">
+        ℹ️ <strong>Особливість:</strong> Кнопка «Завантажити файл» активується тільки коли вручну вибрано файл. Кнопка «Сканувати» запускає камеру.
+      </div>
+    </div>
+
+  </div>
+</div>

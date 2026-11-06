@@ -23,7 +23,11 @@ Define the structure, operational rules, and synchronization behavior for the **
 
 ### Tab 2: Персонал (Personnel & Access)
 - **Personnel Management**:
-  - Add new personnel modal (`#crew-modal-backdrop`).
+  - Add new personnel modal (`#crew-modal-backdrop`):
+    - **Crew Type Selector (`#crew-modal-type-select`)**: dropdown allows choosing between `Flight Crew` (Льотний склад) and `Cabin Crew` (Кабінний склад) when adding personnel from settings.
+    - **Position / Rank Dropdown (`#crew-modal-rank`)**: dynamic dropdown populated from existing database positions for the selected crew type (`КПС`, `2П`, `ІБ` for Flight; `БП-РА`, `БП` for Cabin) with an option `+ Інша посада (ввести нову)...` to add custom positions.
+    - **Department Dropdown (`#crew-modal-dept`)**: dynamic dropdown populated from all unique existing departments in the database (`ПРВ`, `ТВ`, `ВзПЕ`, `ВТЦ` тощо) with an option `+ Інший відділ (ввести новий)...` to enter a new department.
+    - **Auto-Sync & Dates**: toggles License group visibility (flight only) and dynamically renders category-specific training date fields.
   - Fast search & category filter (All, Flight, Cabin).
   - Row actions: inline edit and safe deletion with confirmation and changelog audit logging.
 - **Access Control & Permissions**:

@@ -12,7 +12,7 @@
   
   <!-- CSS Stylesheets -->
   <link rel="stylesheet" href="css/variables.css?v=0.4">
-  <link rel="stylesheet" href="css/layout.css?v=0.4">
+  <link rel="stylesheet" href="css/layout.css?v=0.5">
   <link rel="stylesheet" href="css/components.css?v=0.5">
   
   <!-- SheetJS Library (CDN) -->
@@ -713,19 +713,27 @@
           <!-- 1. Лінійний графік нальоту -->
           <div class="card flight-trend-card" id="flight-trend-card" style="padding: 14px 16px;">
             <div class="flight-trend-header" style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px;">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: inline-block;"></span>
-                <span style="font-family: var(--font-display); font-size: 13.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;" data-i18n="trend_chart_title">Динаміка тренувального нальоту за місяцями</span>
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981; display: inline-block;"></span>
+                <span style="font-family: var(--font-display); font-size: 13.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em;" data-i18n="trend_chart_title">Динаміка тренувального нальоту</span>
+                
+                <!-- Metric switcher: Block vs Flight -->
+                <div class="trend-metric-toggle" style="display: inline-flex; background: var(--bg-surface-alt); border: 1px solid var(--border-color); border-radius: 6px; padding: 2px;">
+                  <button type="button" id="btn-trend-metric-block" class="btn-trend-metric active" onclick="switchFlightTrendMetric('block')" data-i18n="trend_metric_block" style="padding: 2px 8px; font-size: 11px; font-weight: 700; border-radius: 4px; border: none; cursor: pointer; transition: all 0.15s; background: #10b981; color: #fff;">Час БЛОК</button>
+                  <button type="button" id="btn-trend-metric-flight" class="btn-trend-metric" onclick="switchFlightTrendMetric('flight')" data-i18n="trend_metric_flight" style="padding: 2px 8px; font-size: 11px; font-weight: 500; border-radius: 4px; border: none; cursor: pointer; transition: all 0.15s; background: transparent; color: var(--text-secondary);">Польотний час</button>
+                </div>
               </div>
               
-              <div style="display: flex; align-items: center; gap: 14px; font-size: 12px;">
+              <div style="display: flex; align-items: center; gap: 14px; font-size: 12px; flex-wrap: wrap;">
                 <div>
                   <span style="color: var(--text-secondary);" data-i18n="trend_current_month">У поточному місяці:</span>
-                  <span id="trend-current-month-hours" style="font-family: var(--font-mono); font-weight: 700; color: var(--accent); margin-left: 4px;">00:00 год</span>
+                  <span id="trend-current-month-hours" style="font-family: var(--font-mono); font-weight: 700; color: #10b981; margin-left: 4px;">00:00 год</span>
+                  <span id="trend-current-month-sub" style="font-size: 11px; color: var(--text-secondary); margin-left: 3px;"></span>
                 </div>
                 <div class="hidden-mobile">
                   <span style="color: var(--text-secondary);" data-i18n="trend_year_total">Всього за рік:</span>
                   <span id="trend-yearly-hours" style="font-family: var(--font-mono); font-weight: 700; color: #10b981; margin-left: 4px;">00:00 год</span>
+                  <span id="trend-yearly-sub" style="font-size: 11px; color: var(--text-secondary); margin-left: 3px;"></span>
                 </div>
                 <button type="button" id="btn-toggle-flight-trend" class="btn btn-secondary btn-sm" onclick="toggleFlightTrendChart()" style="padding: 3px 8px; font-size: 11px; height: 26px; display: inline-flex; align-items: center; gap: 4px;">
                   <span id="trend-btn-text" data-i18n="btn_collapse_chart">Згорнути графік</span>
@@ -740,20 +748,42 @@
             </div>
           </div>
 
-          <!-- 2. Панель інструментів (Пошук та Експорт) -->
+          <!-- 2. Панель інструментів (Пошук, Фільтри та Експорт) -->
           <div class="card flight-archive-toolbar" style="padding: 10px 14px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;">
-            <div class="flight-search-wrapper" style="position: relative; display: flex; align-items: center; flex: 1; min-width: 260px; max-width: 450px;">
-              <i data-lucide="search" style="position: absolute; left: 10px; width: 15px; height: 15px; color: var(--text-secondary);"></i>
-              <input type="text" id="flight-archive-search" class="form-input" style="padding-left: 32px; height: 34px; font-size: 12.5px; width: 100%; margin: 0;" placeholder="Пошук за прізвищем пілота, бортом UR-..., завданням..." data-i18n-placeholder="search_archive_placeholder">
-              <button type="button" id="btn-clear-archive-search" style="display: none; position: absolute; right: 8px; background: transparent; border: none; cursor: pointer; color: var(--text-secondary); padding: 2px;" onclick="clearArchiveSearch()">
-                <i data-lucide="x" style="width: 14px; height: 14px;"></i>
+            <div class="flight-archive-filters-group" style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px; flex: 1; min-width: 280px;">
+              <!-- Пошук -->
+              <div class="flight-search-wrapper" style="position: relative; display: flex; align-items: center; flex: 1; min-width: 180px; max-width: 280px;">
+                <i data-lucide="search" style="position: absolute; left: 10px; width: 14px; height: 14px; color: var(--text-secondary); pointer-events: none;"></i>
+                <input type="text" id="flight-archive-search" class="form-input" style="padding-left: 30px; height: 34px; font-size: 12px; width: 100%; margin: 0;" placeholder="Пошук (борт, завдання...)" data-i18n-placeholder="search_archive_placeholder">
+                <button type="button" id="btn-clear-archive-search" style="display: none; position: absolute; right: 8px; background: transparent; border: none; cursor: pointer; color: var(--text-secondary); padding: 2px;" onclick="clearArchiveSearch()">
+                  <i data-lucide="x" style="width: 14px; height: 14px;"></i>
+                </button>
+              </div>
+
+              <!-- Фільтр за прізвищем -->
+              <select id="flight-archive-filter-pilot" class="form-select" style="height: 34px; font-size: 12px; padding: 0 24px 0 8px; margin: 0; min-width: 150px; max-width: 210px; flex: 1;" title="Фільтр за прізвищем пілота">
+                <option value="" data-i18n="opt_all_pilots">Всі пілоти / екіпаж</option>
+              </select>
+
+              <!-- Фільтр за місяцем -->
+              <select id="flight-archive-filter-month" class="form-select" style="height: 34px; font-size: 12px; padding: 0 24px 0 8px; margin: 0; min-width: 130px; max-width: 170px; flex: 1;" title="Фільтр за місяцем">
+                <option value="" data-i18n="opt_all_months">Всі місяці</option>
+              </select>
+
+              <!-- Фільтр за типами польотів -->
+              <select id="flight-archive-filter-type" class="form-select" style="height: 34px; font-size: 12px; padding: 0 24px 0 8px; margin: 0; min-width: 145px; max-width: 195px; flex: 1;" title="Фільтр за типом польоту">
+                <option value="" data-i18n="opt_all_flight_types">Всі типи польотів</option>
+              </select>
+
+              <!-- Кнопка швидкого скидання фільтрів -->
+              <button type="button" id="btn-reset-archive-filters" class="btn btn-secondary" style="display: none; height: 34px; padding: 0 10px; font-size: 12px; align-items: center; gap: 5px; white-space: nowrap;" onclick="resetArchiveFilters()" title="Скинути всі фільтри">
+                <i data-lucide="rotate-ccw" style="width: 13px; height: 13px;"></i>
+                <span data-i18n="btn_reset_filters">Скинути</span>
               </button>
             </div>
+
+            <!-- Дії (Експорт Excel) -->
             <div class="flight-toolbar-actions" style="display: flex; gap: 8px; align-items: center;">
-              <button type="button" id="btn-archive-import-scans-ai" class="btn btn-primary" style="height: 34px; padding: 0 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;" title="Розпізнати відскановані або сфотографовані журнали за допомогою ШІ">
-                <i data-lucide="sparkles" style="width: 15px; height: 15px;"></i>
-                <span>Імпорт сканів (ШІ)</span>
-              </button>
               <button type="button" id="btn-archive-export-xlsx" class="btn btn-secondary" style="height: 34px; padding: 0 12px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px;" title="Завантажити всі записи у форматі Excel (.xlsx)">
                 <i data-lucide="file-spreadsheet" style="width: 15px; height: 15px; color: #10b981;"></i>
                 <span data-i18n="btn_export_excel">Експорт Excel</span>
@@ -2181,6 +2211,16 @@
       <form id="crew-modal-form" style="display: flex; flex-direction: column; gap: var(--spacing-4);">
         <input type="hidden" id="crew-modal-id">
         <input type="hidden" id="crew-modal-type">
+
+        <div class="form-row" id="crew-modal-type-row" style="display: grid; grid-template-columns: 1fr; gap: var(--spacing-4);">
+          <div class="form-group">
+            <label for="crew-modal-type-select" style="font-weight: 600; font-size: 13px;" data-i18n="label_crew_type_select">Категорія екіпажу / Склад</label>
+            <select id="crew-modal-type-select" class="form-select">
+              <option value="Flight">✈ Льотний склад (Flight Crew)</option>
+              <option value="Cabin">👥 Кабінний склад (Cabin Crew)</option>
+            </select>
+          </div>
+        </div>
         
         <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-4);">
           <div class="form-group">
@@ -2196,11 +2236,17 @@
         <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--spacing-4);">
           <div class="form-group">
             <label for="crew-modal-rank" data-i18n="label_rank">Посада</label>
-            <input type="text" id="crew-modal-rank" class="form-input" required placeholder="БП-РА">
+            <select id="crew-modal-rank" class="form-select" required>
+              <option value="">-- Оберіть посаду --</option>
+            </select>
+            <input type="text" id="crew-modal-rank-custom" class="form-input" placeholder="Введіть нову посаду..." style="display: none; margin-top: 6px;">
           </div>
           <div class="form-group">
             <label for="crew-modal-dept" data-i18n="label_dept">Відділ</label>
-            <input type="text" id="crew-modal-dept" class="form-input" required placeholder="ВзПЕ">
+            <select id="crew-modal-dept" class="form-select" required>
+              <option value="">-- Оберіть відділ --</option>
+            </select>
+            <input type="text" id="crew-modal-dept-custom" class="form-input" placeholder="Введіть новий відділ..." style="display: none; margin-top: 6px;">
           </div>
         </div>
 
@@ -3086,6 +3132,6 @@
   </div>
 
   <!-- Main SPA Application logic script -->
-  <script type="module" src="js/app.js?v=1.0"></script>
+  <script type="module" src="js/app.js?v=2.7"></script>
 </body>
 </html>
