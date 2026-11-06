@@ -1362,11 +1362,14 @@ export async function pullFlightsFromRemote({ settings = null } = {}) {
 
   // 3. Fallback to static repository file (DATABASE/flights.json) for static hosting / GitHub Pages
   try {
-    const staticRes = await fetch('DATABASE/flights.json');
+    const dbUrl = (typeof import.meta !== 'undefined' && import.meta.url)
+      ? new URL('../DATABASE/flights.json', import.meta.url).href
+      : 'DATABASE/flights.json';
+    const staticRes = await fetch(dbUrl);
     if (staticRes.ok) {
       const staticData = await staticRes.json().catch(() => null);
       if (Array.isArray(staticData) && staticData.length > 0) {
-        console.log(`✅ [Flights Cloud Sync] Loaded ${staticData.length} flights from static DATABASE/flights.json!`);
+        console.log(`✅ [Flights Cloud Sync] Loaded ${staticData.length} flights from static ${dbUrl}!`);
         return {
           success: true,
           source: 'static_database_file',

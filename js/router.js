@@ -61,15 +61,33 @@ export const ROUTES = {
 };
 
 /**
+ * Returns GitHub Pages or subfolder base path (e.g. '/TRAINING-LEVEL')
+ */
+export function getAppBase() {
+  if (typeof window === 'undefined') return '';
+  const pathname = window.location.pathname || '';
+  const match = pathname.match(/^\/([^\/]+)(?:\/|$)/);
+  if (match && match[1] && !ROUTES['/' + match[1]]) {
+    return '/' + match[1];
+  }
+  return '';
+}
+
+/**
  * Normalizes URL path by removing trailing slashes (except root) and query strings
  */
 export function normalizePath(path) {
   if (!path) return '/';
   const clean = path.split('?')[0].split('#')[0];
-  if (clean.length > 1 && clean.endsWith('/')) {
-    return clean.slice(0, -1);
+  const base = getAppBase();
+  let rel = clean;
+  if (base && rel.startsWith(base)) {
+    rel = rel.slice(base.length) || '/';
   }
-  return clean || '/';
+  if (rel.length > 1 && rel.endsWith('/')) {
+    return rel.slice(0, -1);
+  }
+  return rel || '/';
 }
 
 /**
@@ -132,11 +150,13 @@ export function navigateTo(targetPath, replace = false, skipHistory = false) {
   const route = ROUTES[safePath] || ROUTES['/dashboard'];
   
   // 1. Update browser history
-  if (!skipHistory && window.location.pathname !== safePath) {
+  const base = getAppBase();
+  const fullBrowserPath = base + safePath;
+  if (!skipHistory && window.location.pathname !== fullBrowserPath) {
     if (replace) {
-      window.history.replaceState({ path: safePath, view: route.view }, '', safePath);
+      window.history.replaceState({ path: safePath, view: route.view }, '', fullBrowserPath);
     } else {
-      window.history.pushState({ path: safePath, view: route.view }, '', safePath);
+      window.history.pushState({ path: safePath, view: route.view }, '', fullBrowserPath);
     }
   }
   

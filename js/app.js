@@ -56,7 +56,7 @@ import {
   mapPstnToRank,
   normalizeFlightCrewRole,
   PERMANENT_INSTRUCTORS
-} from '../execution/scan_ocr_parser.js?v=2.0';
+} from '../execution/scan_ocr_parser.js?v=2.2';
  
 /**
  * Returns today's date formatted as YYYY-MM-DD in local time
@@ -12300,10 +12300,10 @@ async function bootstrapDatabase() {
         if (mergeRes.addedCount > 0 || mergeRes.updatedCount > 0) {
           STATE.flights = deduplicateFlightsList(mergeRes.mergedFlights);
           saveStateToStorage();
-          renderLoggedFlightsList();
-          renderDashboardStats();
-          console.log(`☁️ [Flights Cloud Init] Pulled ${remoteValid.length} flights (${mergeRes.addedCount} new, ${mergeRes.updatedCount} updated).`);
         }
+        renderLoggedFlightsList();
+        renderDashboardStats();
+        console.log(`☁️ [Flights Cloud Init] Pulled ${remoteValid.length} flights (${mergeRes.addedCount} new, ${mergeRes.updatedCount} updated). Current total: ${STATE.flights.length}`);
       }
     }).catch(e => {
       console.warn('[Flights Cloud Init] Remote pull notice:', e);
@@ -12312,7 +12312,10 @@ async function bootstrapDatabase() {
     // Cache is empty: bootstrap from Excel file automatically
     showToast("Ініціалізація бази даних з файлу Excel...");
     try {
-      const res = await fetch('DATABASE/Training_level_FLIGHT_and CABIN.xlsx');
+      const excelUrl = (typeof import.meta !== 'undefined' && import.meta.url)
+        ? new URL('../DATABASE/Training_level_FLIGHT_and CABIN.xlsx', import.meta.url).href
+        : 'DATABASE/Training_level_FLIGHT_and CABIN.xlsx';
+      const res = await fetch(excelUrl);
       if (!res.ok) throw new Error("Excel file not found in DATABASE/ folder");
       
       const buffer = await res.arrayBuffer();
@@ -12351,10 +12354,10 @@ async function bootstrapDatabase() {
           if (mergeRes.addedCount > 0 || mergeRes.updatedCount > 0) {
             STATE.flights = deduplicateFlightsList(mergeRes.mergedFlights);
             saveStateToStorage();
-            renderLoggedFlightsList();
-            renderDashboardStats();
-            console.log(`☁️ [Flights Cloud Bootstrap] Loaded ${remoteValid.length} flights.`);
           }
+          renderLoggedFlightsList();
+          renderDashboardStats();
+          console.log(`☁️ [Flights Cloud Bootstrap] Loaded ${remoteValid.length} flights. Current total: ${STATE.flights.length}`);
         }
       }).catch(e => console.warn('[Flights Bootstrap] Remote pull notice:', e));
     } catch (e) {
@@ -12420,6 +12423,11 @@ function initAppComponents() {
   document.getElementById('sidebar-ref-date').textContent = STATE.settings.referenceDate;
   
   populateSelectors();
+
+  // Populate flight lists, archive counters, and widgets from currently loaded state
+  if (typeof renderLoggedFlightsList === 'function') {
+    renderLoggedFlightsList();
+  }
 
   // Background check for weekly flights dispatch
   checkWeeklyFlightsEmailDispatch();

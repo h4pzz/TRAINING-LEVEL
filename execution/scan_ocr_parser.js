@@ -639,11 +639,13 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
       });
       clearTimeout(timeoutId);
 
-      if (response.status === 429) {
+      // Handle 429 (Rate Limit) and 503 / High Demand Spikes on Google servers
+      if (response.status === 429 || response.status === 503) {
         const errJson = await response.json().catch(() => ({}));
-        const googleMsg = errJson.error?.message || 'Resource Exhausted';
+        const googleMsg = errJson.error?.message || (response.status === 503 ? 'High demand / Service Unavailable' : 'Resource Exhausted');
+        const isHighDemandSpike = response.status === 503 || googleMsg.toLowerCase().includes('high demand');
 
-        let waitMs = 15000;
+        let waitMs = isHighDemandSpike ? [5000, 8000, 12000][retryCount] || 8000 : 15000;
         const retryInfo = errJson.error?.details?.find(d => d.retryDelay);
         if (retryInfo && retryInfo.retryDelay) {
           const parsedSec = parseFloat(retryInfo.retryDelay);
@@ -655,38 +657,38 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
           if (retryHeader) {
             const sec = parseFloat(retryHeader);
             if (!isNaN(sec)) waitMs = Math.ceil(sec * 1000) + 1000;
-          } else {
+          } else if (!isHighDemandSpike) {
             waitMs = [12000, 20000, 30000][retryCount] || 30000;
           }
         }
 
         // If wait time is > 35 seconds, this is a DAILY quota exhaustion (RPD), NOT a per-minute limit.
-        // DO NOT block the user for hours! Skip to the next candidate model immediately!
         if (waitMs > 35000) {
           console.warn(`[Gemini OCR] Model ${model} daily quota exhausted (retryDelay: ${Math.round(waitMs / 1000)}s). Skipping immediately to next model...`);
           rateLimitError = new Error(`Вичерпано добову квоту безкоштовного тарифу для ${model} (добовий ліміт RPD). Спробуйте інший API ключ або зачекайте оновлення добової квоти.`);
           continue;
         }
 
-        // Normal per-minute burst limit (<= 35 seconds): wait and retry
+        // Auto-retry transient load spikes & rate limits (up to 3 attempts)
         if (retryCount < 3) {
           const secText = Math.round(waitMs / 1000);
-          console.warn(`[Gemini OCR] 429 Minute rate limit hit on ${model}. Waiting ${secText}s... (Attempt ${retryCount + 1}/3)`);
+          const reasonLabel = isHighDemandSpike ? 'Пікове навантаження на серверах Google' : 'Ліміт запитів Gemini';
+          console.warn(`[Gemini OCR] ${response.status} (${reasonLabel}) on ${model}. Waiting ${secText}s... (Спроба ${retryCount + 1}/3)`);
           
           if (onStatusUpdate) {
             for (let s = secText; s > 0; s--) {
-              onStatusUpdate(`Очікування квоти Gemini ШІ (${s} сек)...`);
+              onStatusUpdate(`${reasonLabel}. Автоповтор через ${s} сек... (Спроба ${retryCount + 1}/3)`);
               await new Promise(r => setTimeout(r, 1000));
             }
           } else {
             await new Promise(r => setTimeout(r, waitMs));
           }
 
-          return callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCount + 1, onStatusUpdate);
+          return callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCount + 1, onStatusUpdate, knownCrewRoster);
         }
 
-        console.warn(`Model ${ver}/${model} rate limited after retries. Trying next candidate model...`);
-        rateLimitError = new Error(`Перевищено ліміт запитів Gemini (Rate Limit 429): ${googleMsg}.`);
+        console.warn(`Model ${ver}/${model} busy after retries.`);
+        rateLimitError = new Error(`Сервери Google Gemini тимчасово перевантажені (${googleMsg}). Натисніть кнопку 🔄 біля файлу для повторної спроби.`);
         continue;
       }
 
@@ -694,6 +696,13 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
         const errJson = await response.json().catch(() => ({}));
         const errMsg = errJson.error?.message || `HTTP ${response.status}`;
         
+        // If message is high demand spike that came with another status code, retry
+        if (errMsg.toLowerCase().includes('high demand') && retryCount < 3) {
+          if (onStatusUpdate) onStatusUpdate('Пікове навантаження на модель. Автоповтор через 5 сек...');
+          await new Promise(r => setTimeout(r, 5000));
+          return callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCount + 1, onStatusUpdate, knownCrewRoster);
+        }
+
         // If 404 on model, continue to try fallback model
         if (response.status === 404) {
           console.warn(`Model ${ver}/${model} returned 404: ${errMsg}. Trying fallback model...`);
