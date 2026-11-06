@@ -1346,7 +1346,7 @@ export async function pullFlightsFromRemote({ settings = null } = {}) {
     const serverRes = await fetch('/api/flights');
     if (serverRes.ok) {
       const serverData = await serverRes.json().catch(() => null);
-      if (serverData && serverData.success && Array.isArray(serverData.flights)) {
+      if (serverData && serverData.success && Array.isArray(serverData.flights) && serverData.flights.length > 0) {
         console.log(`✅ [Flights Cloud Sync] Successfully pulled ${serverData.flights.length} flights from Server API!`);
         return {
           success: true,
@@ -1358,6 +1358,25 @@ export async function pullFlightsFromRemote({ settings = null } = {}) {
     }
   } catch (err) {
     // Server not running or offline
+  }
+
+  // 3. Fallback to static repository file (DATABASE/flights.json) for static hosting / GitHub Pages
+  try {
+    const staticRes = await fetch('DATABASE/flights.json');
+    if (staticRes.ok) {
+      const staticData = await staticRes.json().catch(() => null);
+      if (Array.isArray(staticData) && staticData.length > 0) {
+        console.log(`✅ [Flights Cloud Sync] Loaded ${staticData.length} flights from static DATABASE/flights.json!`);
+        return {
+          success: true,
+          source: 'static_database_file',
+          flights: staticData,
+          count: staticData.length
+        };
+      }
+    }
+  } catch (err) {
+    // Static fetch not available
   }
 
   return {

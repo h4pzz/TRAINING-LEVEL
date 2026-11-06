@@ -1728,8 +1728,14 @@ function renderDashboard() {
   // Render Last flight logged details widget
   const flightsChangelog = STATE.changelog.filter(log => log.type === 'FLIGHT_LOG');
   const lastFlightWidget = document.getElementById('last-flight-widget');
+  let flight = null;
   if (flightsChangelog.length > 0) {
-    const flight = flightsChangelog[flightsChangelog.length - 1].details[0].newValue;
+    flight = flightsChangelog[flightsChangelog.length - 1].details[0].newValue;
+  } else if (STATE.flights && STATE.flights.length > 0) {
+    const sorted = [...STATE.flights].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    flight = sorted[0];
+  }
+  if (flight) {
     const labelDate = STATE.lang === 'uk' ? 'Дата' : 'Date';
     const labelUnit = STATE.lang === 'uk' ? 'год.' : 'hrs';
     
@@ -12294,9 +12300,8 @@ async function bootstrapDatabase() {
         if (mergeRes.addedCount > 0 || mergeRes.updatedCount > 0) {
           STATE.flights = deduplicateFlightsList(mergeRes.mergedFlights);
           saveStateToStorage();
-          renderRecentFlightsList();
-          renderMonthlyArchive();
-          renderFlightTrendChart();
+          renderLoggedFlightsList();
+          renderDashboardStats();
           console.log(`☁️ [Flights Cloud Init] Pulled ${remoteValid.length} flights (${mergeRes.addedCount} new, ${mergeRes.updatedCount} updated).`);
         }
       }
@@ -12346,9 +12351,8 @@ async function bootstrapDatabase() {
           if (mergeRes.addedCount > 0 || mergeRes.updatedCount > 0) {
             STATE.flights = deduplicateFlightsList(mergeRes.mergedFlights);
             saveStateToStorage();
-            renderRecentFlightsList();
-            renderMonthlyArchive();
-            renderFlightTrendChart();
+            renderLoggedFlightsList();
+            renderDashboardStats();
             console.log(`☁️ [Flights Cloud Bootstrap] Loaded ${remoteValid.length} flights.`);
           }
         }
