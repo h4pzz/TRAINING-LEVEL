@@ -1532,46 +1532,37 @@ export async function syncAllFlightsToRemote(allFlights = [], { settings = null 
 export function getCrewIdentityKey(item, isFromRow = false, headers = []) {
   if (!item) return '';
 
-  let license = '';
   let nameEn = '';
   let nameUa = '';
   let cabinId = '';
 
   if (isFromRow) {
     const row = item;
-    const licIdx = headers.indexOf('LICENSE');
     const nameEnIdx = headers.indexOf('Full_Name_EN');
     const nameUaIdx = headers.indexOf('Full_Name_UA');
     const hashIdx = headers.indexOf('#');
 
-    license = licIdx !== -1 ? String(row[licIdx] || '').trim().toUpperCase() : '';
     nameEn = nameEnIdx !== -1 ? String(row[nameEnIdx] || '').trim().toLowerCase() : '';
     nameUa = nameUaIdx !== -1 ? String(row[nameUaIdx] || '').trim().toLowerCase() : '';
     cabinId = hashIdx !== -1 ? String(row[hashIdx] || '').trim() : '';
   } else {
     const member = item;
-    license = member.LICENSE ? String(member.LICENSE).trim().toUpperCase() : '';
     nameEn = member.Full_Name_EN ? String(member.Full_Name_EN).trim().toLowerCase() : '';
     nameUa = member.Full_Name_UA ? String(member.Full_Name_UA).trim().toLowerCase() : '';
     cabinId = member.id ? String(member.id).trim() : '';
   }
 
-  // 1. If License is present and not a date, it is the primary unique identifier
-  if (license && !/^\d{2}\.\d{2}\.\d{4}$/.test(license) && !/^\d{4}-\d{2}-\d{2}$/.test(license)) {
-    return `lic:${license}`;
-  }
-
-  // 2. Full Name EN is unique per individual (e.g. "Kushch Oleksandr" vs "Kushch Oleksiy")
+  // 1. Normalized Full_Name_EN (always unique per person in UH, e.g. "kushch oleksandr" vs "kushch oleksiy")
   if (nameEn) {
     return `en:${nameEn}`;
   }
 
-  // 3. Full Name UA
+  // 2. Full Name UA
   if (nameUa) {
     return `ua:${nameUa}`;
   }
 
-  // 4. Cabin # ID
+  // 3. Cabin # ID
   if (cabinId) {
     return `id:${cabinId}`;
   }
