@@ -1573,6 +1573,35 @@ export async function syncPersonnelToGoogleSheets(spreadsheetId, flightCrew = []
       const url = match ? match[0] : 'https://console.developers.google.com/apis/api/sheets.googleapis.com/overview';
       throw new Error(`API_DISABLED: Google Sheets API вимкнено у вашому Google Cloud проєкті. Будь ласка, увімкніть його за посиланням: ${url}`);
     }
+    if (errMsg.includes('must not be an Office file') || errMsg.includes('Office file')) {
+      // Attempt automatic conversion of Excel file to native Google Sheet via Drive API
+      try {
+        const copyRes = await fetch(`https://www.googleapis.com/drive/v3/files/${cleanSheetId}/copy`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            mimeType: 'application/vnd.google-apps.spreadsheet',
+            name: 'Training_level_FLIGHT_and_CABIN (Google Sheets)'
+          })
+        });
+        if (copyRes.ok) {
+          const newSheet = await copyRes.json();
+          if (newSheet && newSheet.id) {
+            const retryRes = await syncPersonnelToGoogleSheets(newSheet.id, flightCrew, cabinCrew, accessToken);
+            retryRes.convertedFromOffice = true;
+            retryRes.newSpreadsheetId = newSheet.id;
+            retryRes.message = `Файл Excel успішно перетворено в Google Таблицю! ${retryRes.message}`;
+            return retryRes;
+          }
+        }
+      } catch (convErr) {
+        console.warn('Auto conversion error:', convErr);
+      }
+      throw new Error(`Вказаний ID належить файлу Microsoft Excel (.xlsx), а не Google Таблиці. Будь ласка, відкрийте його на Google Диску ➔ меню «Файл» ➔ «Зберегти як Google Таблиці» та вставте ID нової таблиці.`);
+    }
     throw new Error(`Помилка доступу до Google Sheets (${metaRes.status}): ${errMsg}`);
   }
 

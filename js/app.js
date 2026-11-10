@@ -13131,6 +13131,19 @@ document.addEventListener('DOMContentLoaded', () => {
           const syncDisplay = document.getElementById('last-sync-timestamp-display');
           if (syncDisplay) syncDisplay.textContent = STATE.lastSyncTimestamp;
 
+          if (res.newSpreadsheetId) {
+            const sheetInput = document.getElementById('settings-google-sheet-id');
+            if (sheetInput) sheetInput.value = res.newSpreadsheetId;
+            STATE.settings.googleSpreadsheetId = res.newSpreadsheetId;
+            STATE.settings.googleSpreadsheetIdPersonnel = res.newSpreadsheetId;
+            saveStateToStorage();
+            const linkOpenPersonnelSheet = document.getElementById('link-open-personnel-sheet');
+            if (linkOpenPersonnelSheet) {
+              linkOpenPersonnelSheet.href = `https://docs.google.com/spreadsheets/d/${res.newSpreadsheetId}/edit`;
+              linkOpenPersonnelSheet.style.display = 'inline-flex';
+            }
+          }
+
           let detailsMsg = '';
           if (res.flightStats) {
             detailsMsg += `Flight: ${res.flightStats.total} (додано: ${res.flightStats.added}, оновлено: ${res.flightStats.updated})`;
