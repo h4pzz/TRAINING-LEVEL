@@ -13194,11 +13194,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
           let detailsMsg = '';
           if (res.flightStats) {
-            detailsMsg += `Flight: ${res.flightStats.total} (додано: ${res.flightStats.added}, оновлено: ${res.flightStats.updated})`;
+            detailsMsg += `Льотний склад: ${res.flightStats.total} (у таблиці: ${res.flightStats.dataRows})`;
           }
           if (res.cabinStats) {
             detailsMsg += detailsMsg ? ' | ' : '';
-            detailsMsg += `Cabin: ${res.cabinStats.total} (додано: ${res.cabinStats.added}, оновлено: ${res.cabinStats.updated})`;
+            detailsMsg += `Кабінний склад: ${res.cabinStats.total} (у таблиці: ${res.cabinStats.dataRows})`;
           }
 
           showToast(STATE.lang === 'uk' 

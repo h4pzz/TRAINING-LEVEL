@@ -1811,62 +1811,17 @@ export async function syncPersonnelToGoogleSheets(spreadsheetId, flightCrew = []
     }
 
     const prefixRows = existingRows.slice(0, headerRowIndex + 1);
-    const rawDataRows = existingRows.slice(headerRowIndex + 1);
 
-    const seenKeysInSheet = new Set();
-    const updatedDataRows = [];
-    const matchedKeys = new Set();
-    let updatedCount = 0;
-    let addedCount = 0;
-
-    // Process existing sheet rows: update matching rows and DROP duplicate rows!
-    for (let rIdx = 0; rIdx < rawDataRows.length; rIdx++) {
-      const row = rawDataRows[rIdx];
-      const rowKey = getCrewIdentityKey(row, true, headers);
-
-      if (!rowKey) {
-        // Keep empty rows or separators as is
-        updatedDataRows.push(row);
-        continue;
-      }
-
-      // If we already saw this person earlier in the sheet, this is a DUPLICATE row -> SKIP IT to delete duplicate!
-      if (seenKeysInSheet.has(rowKey)) {
-        console.warn(`[Google Sheets Sync] Dropping duplicate row for key: ${rowKey}`);
-        continue;
-      }
-
-      seenKeysInSheet.add(rowKey);
-
-      // Find matching member from our deduped crewList
-      const member = dedupedCrewList.find(m => getCrewIdentityKey(m, false) === rowKey);
-
-      if (member) {
-        matchedKeys.add(rowKey);
-        updatedCount++;
-        updatedDataRows.push(buildMemberRow(member, headers, updatedDataRows.length));
-      } else {
-        // Keep row if present in Google Sheet but not in local state
-        updatedDataRows.push(row);
-      }
-    }
-
-    // Now, APPEND only members from dedupedCrewList that were NOT already in the sheet!
-    for (const member of dedupedCrewList) {
-      const mKey = getCrewIdentityKey(member, false);
-      if (!matchedKeys.has(mKey) && !seenKeysInSheet.has(mKey)) {
-        addedCount++;
-        matchedKeys.add(mKey);
-        seenKeysInSheet.add(mKey);
-        updatedDataRows.push(buildMemberRow(member, headers, updatedDataRows.length));
-      }
-    }
+    // Build data rows strictly matching dedupedCrewList so count on site strictly matches table
+    const dataRows = dedupedCrewList.map((member, idx) => {
+      return buildMemberRow(member, headers, idx);
+    });
 
     return {
-      matrix: prefixRows.concat(updatedDataRows),
-      addedCount,
-      updatedCount,
-      total: dedupedCrewList.length
+      matrix: prefixRows.concat(dataRows),
+      total: dedupedCrewList.length,
+      prefixRowsCount: prefixRows.length,
+      dataRowsCount: dataRows.length
     };
   }
 
@@ -1885,7 +1840,7 @@ export async function syncPersonnelToGoogleSheets(spreadsheetId, flightCrew = []
     const clearPromises = [];
     if (flightSheetTitle) {
       clearPromises.push(
-        fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanSheetId}/values/'${flightSheetTitle}'!A1:AZ600:clear`, {
+        fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanSheetId}/values/'${encodeURIComponent(flightSheetTitle)}'!A1:ZZ2000:clear`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
           body: '{}'
@@ -1894,7 +1849,7 @@ export async function syncPersonnelToGoogleSheets(spreadsheetId, flightCrew = []
     }
     if (cabinSheetTitle) {
       clearPromises.push(
-        fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanSheetId}/values/'${cabinSheetTitle}'!A1:AZ600:clear`, {
+        fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanSheetId}/values/'${encodeURIComponent(cabinSheetTitle)}'!A1:ZZ2000:clear`, {
           method: 'POST',
           headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
           body: '{}'
@@ -1944,14 +1899,12 @@ export async function syncPersonnelToGoogleSheets(spreadsheetId, flightCrew = []
     flightStats: {
       sheet: flightSheetTitle,
       total: flightResult.total,
-      updated: flightResult.updatedCount,
-      added: flightResult.addedCount
+      dataRows: flightResult.dataRowsCount
     },
     cabinStats: cabinResult ? {
       sheet: cabinSheetTitle,
       total: cabinResult.total,
-      updated: cabinResult.updatedCount,
-      added: cabinResult.addedCount
+      dataRows: cabinResult.dataRowsCount
     } : null
   };
 }
