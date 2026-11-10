@@ -2,7 +2,7 @@
  * execution/scan_ocr_parser.js
  * 
  * Deterministic AI OCR Engine & Intelligent Crew Matching for Scanned Training Flight Logs
- * Integrates Google Gemini Vision API (2.5-flash / 1.5-flash) with structured schema extraction,
+ * Integrates Google Gemini Vision API (gemini-3.8-flash) with structured schema extraction,
  * bidirectional Cyrillic-Latin transliteration fuzzy matching, and rate-limited batch processing.
  */
 
@@ -497,13 +497,15 @@ let cachedWorkingModel = null;
  * @param {string} apiKey 
  * @returns {Promise<{apiVersion: string, modelName: string, allAvailable: string[]}>}
  */
-export async function getBestAvailableGeminiModel(apiKey) {
+export async function getBestAvailableGeminiModel(apiKey, preferredModel = 'gemini-3.8-flash') {
   const cleanKey = (apiKey || '').trim();
+  const allAvailable = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-pro-preview'];
+  const chosenModel = allAvailable.includes(preferredModel) ? preferredModel : 'gemini-3.8-flash';
   cachedWorkingModel = { 
     apiVersion: 'v1beta', 
-    modelName: 'gemini-3.8-flash', 
+    modelName: chosenModel, 
     apiKey: cleanKey, 
-    allAvailable: ['gemini-3.8-flash'] 
+    allAvailable 
   };
   return cachedWorkingModel;
 }
@@ -519,38 +521,38 @@ export async function testGeminiApiKey(apiKey) {
   }
 
   const cleanKey = apiKey.trim();
+  const candidateModels = ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.1-pro-preview'];
 
-  try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${cleanKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{ text: 'Respond with "OK"' }]
-        }]
-      })
-    });
+  for (const model of candidateModels) {
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cleanKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [{ text: 'Respond with "OK"' }]
+          }]
+        })
+      });
 
-    if (response.ok) {
-      cachedWorkingModel = { apiVersion: 'v1beta', modelName: 'gemini-3.8-flash', apiKey: cleanKey, allAvailable: ['gemini-3.8-flash'] };
-      return { success: true, model: 'gemini-3.8-flash (v1beta)', allAvailable: ['gemini-3.8-flash'] };
+      if (response.ok) {
+        cachedWorkingModel = { apiVersion: 'v1beta', modelName: model, apiKey: cleanKey, allAvailable: candidateModels };
+        return { success: true, model: `${model} (v1beta)`, allAvailable: candidateModels };
+      }
+
+      const errData = await response.json().catch(() => ({}));
+      if (response.status === 400 || response.status === 403) {
+        return { 
+          success: false, 
+          error: errData.error?.message || `Помилка авторизації (HTTP ${response.status}). Перевірте правильність ключа.` 
+        };
+      }
+    } catch (err) {
+      // Continue to next model if network or model specific
     }
-
-    const errData = await response.json().catch(() => ({}));
-    if (response.status === 400 || response.status === 403) {
-      return { 
-        success: false, 
-        error: errData.error?.message || `Помилка авторизації (HTTP ${response.status}). Перевірте правильність ключа.` 
-      };
-    }
-
-    return { 
-      success: false, 
-      error: errData.error?.message || `Помилка Gemini API (HTTP ${response.status}). Перевірте доступність моделі gemini-3.8-flash.` 
-    };
-  } catch (err) {
-    return { success: false, error: err.message || 'Мережева помилка під час перевірки ключа Gemini' };
   }
+
+  return { success: false, error: 'Не вдалося підключитися до жодної з моделей Gemini (3.8-flash, 3.5-flash, 3.1-pro-preview).' };
 }
 
 /**
@@ -583,14 +585,20 @@ export function fileToBase64(file) {
  * @param {string} knownCrewRoster
  * @returns {Promise<object>}
  */
-export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCount = 0, onStatusUpdate = null, knownCrewRoster = '') {
+export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCount = 0, onStatusUpdate = null, knownCrewRoster = '', preferredModel = 'gemini-3.8-flash') {
   if (!apiKey) throw new Error('Gemini API ключ не налаштовано в системі');
 
   const cleanKey = apiKey.trim();
-  const modelInfo = await getBestAvailableGeminiModel(cleanKey);
   
+  const allCandidates = [
+    { ver: 'v1beta', name: 'gemini-3.8-flash' },
+    { ver: 'v1beta', name: 'gemini-3.5-flash' },
+    { ver: 'v1beta', name: 'gemini-3.1-pro-preview' }
+  ];
+
   const candidateList = [
-    { ver: 'v1beta', name: 'gemini-3.8-flash' }
+    ...allCandidates.filter(c => c.name === preferredModel),
+    ...allCandidates.filter(c => c.name !== preferredModel)
   ];
 
   let rateLimitError = null;
@@ -627,8 +635,15 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
       }
     };
 
+    let isTimedOut = false;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 75000);
+    const timeoutMs = 180000; // 3 minutes timeout for heavy scans/server response
+    const timeoutId = setTimeout(() => {
+      isTimedOut = true;
+      try {
+        controller.abort();
+      } catch (e) {}
+    }, timeoutMs);
 
     try {
       const response = await fetch(url, {
@@ -684,11 +699,11 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
             await new Promise(r => setTimeout(r, waitMs));
           }
 
-          return callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCount + 1, onStatusUpdate, knownCrewRoster);
+          return callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCount + 1, onStatusUpdate, knownCrewRoster, preferredModel);
         }
 
-        console.warn(`Model ${ver}/${model} busy after retries.`);
-        rateLimitError = new Error(`Сервери Google Gemini тимчасово перевантажені (${googleMsg}). Натисніть кнопку 🔄 біля файлу для повторної спроби.`);
+        console.warn(`Model ${ver}/${model} busy after retries. Trying fallback model...`);
+        rateLimitError = new Error(`Сервери Google Gemini тимчасово перевантажені для ${model} (${googleMsg}).`);
         continue;
       }
 
@@ -698,24 +713,24 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
         
         // If message is high demand spike that came with another status code, retry
         if (errMsg.toLowerCase().includes('high demand') && retryCount < 3) {
-          if (onStatusUpdate) onStatusUpdate('Пікове навантаження на модель. Автоповтор через 5 сек...');
+          if (onStatusUpdate) onStatusUpdate(`Пікове навантаження на ${model}. Автоповтор через 5 сек...`);
           await new Promise(r => setTimeout(r, 5000));
-          return callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCount + 1, onStatusUpdate, knownCrewRoster);
+          return callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCount + 1, onStatusUpdate, knownCrewRoster, preferredModel);
         }
 
         // If 404 on model, continue to try fallback model
         if (response.status === 404) {
           console.warn(`Model ${ver}/${model} returned 404: ${errMsg}. Trying fallback model...`);
-          lastError = new Error(`Gemini API Error: ${errMsg}`);
+          lastError = new Error(`Gemini API Error (${model}): ${errMsg}`);
           continue;
         }
-        throw new Error(`Gemini API Error: ${errMsg}`);
+        throw new Error(`Gemini API Error (${model}): ${errMsg}`);
       }
 
       const data = await response.json();
       const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
       if (!rawText) {
-        throw new Error('ШІ не зміг прочитати або повернути дані з цього документа');
+        throw new Error(`ШІ (${model}) не зміг прочитати або повернути дані з цього документа`);
       }
 
       // Successful call: update cache to this model for subsequent files in batch
@@ -733,10 +748,37 @@ export async function callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCou
       return parsed;
 
     } catch (err) {
-      if (err.message.includes('Rate Limit') || err.message.includes('429')) {
+      clearTimeout(timeoutId);
+
+      const isAbort = isTimedOut || 
+                      err?.name === 'AbortError' || 
+                      (typeof err?.message === 'string' && err.message.toLowerCase().includes('abort'));
+
+      if (isAbort) {
+        if (retryCount < 1) {
+          console.warn(`[Gemini OCR] Timeout reached (${Math.round(timeoutMs / 1000)}s) on ${model}. Retrying once...`);
+          if (onStatusUpdate) onStatusUpdate(`Час очікування ${model} перевищено. Спроба автоповтору...`);
+          await new Promise(r => setTimeout(r, 2000));
+          return callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCount + 1, onStatusUpdate, knownCrewRoster, preferredModel);
+        }
+        console.warn(`[Gemini OCR] Model ${model} timed out. Trying fallback model...`);
+        lastError = new Error(`Час очікування відповіді ${model} вичерпано (таймаут 3 хв).`);
+        continue;
+      }
+
+      if (err?.message && (err.message.includes('Rate Limit') || err.message.includes('429'))) {
         rateLimitError = err;
         continue;
       }
+
+      // Handle transient network drops
+      if (err?.message && (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) && retryCount < 1) {
+        console.warn(`[Gemini OCR] Network glitch. Retrying once in 2s...`);
+        if (onStatusUpdate) onStatusUpdate('Тимчасовий збій мережі. Повторна спроба через 2 сек...');
+        await new Promise(r => setTimeout(r, 2000));
+        return callGeminiVisionAPI(base64Data, mimeType, apiKey, retryCount + 1, onStatusUpdate, knownCrewRoster, preferredModel);
+      }
+
       lastError = err;
     }
   }
@@ -947,7 +989,7 @@ export function checkFlightDuplicate(parsedFlight, existingFlights = []) {
  * @param {Function} onStatusUpdate 
  * @returns {Promise<object>}
  */
-export async function processSingleScan(file, itemResult, apiKey, flightCrew, cabinCrew, existingFlights, onStatusUpdate = null) {
+export async function processSingleScan(file, itemResult, apiKey, flightCrew, cabinCrew, existingFlights, onStatusUpdate = null, preferredModel = 'gemini-3.8-flash') {
   itemResult.status = 'processing';
   itemResult.statusMessage = 'ШІ підключається та готує аналіз...';
   if (onStatusUpdate) onStatusUpdate(itemResult.statusMessage);
@@ -975,7 +1017,8 @@ export async function processSingleScan(file, itemResult, apiKey, flightCrew, ca
         itemResult.statusMessage = statusMsg;
         if (onStatusUpdate) onStatusUpdate(statusMsg);
       },
-      knownCrewRoster
+      knownCrewRoster,
+      preferredModel
     );
     itemResult.statusMessage = null;
     
@@ -1058,7 +1101,7 @@ export async function processSingleScan(file, itemResult, apiKey, flightCrew, ca
  * @param {Function} onProgress - Callback (itemResult, index, total, customStatus)
  * @returns {Promise<Array>}
  */
-export async function processScanBatch(files, apiKey, flightCrew, cabinCrew, existingFlights, onProgress) {
+export async function processScanBatch(files, apiKey, flightCrew, cabinCrew, existingFlights, onProgress = null, preferredModel = 'gemini-3.8-flash') {
   const total = files.length;
   const results = files.map((file, i) => ({
     id: `scan_${Date.now()}_${i}`,
@@ -1082,7 +1125,7 @@ export async function processScanBatch(files, apiKey, flightCrew, cabinCrew, exi
     const itemResult = results[i];
     await processSingleScan(files[i], itemResult, apiKey, flightCrew, cabinCrew, existingFlights, (statusMsg) => {
       if (onProgress) onProgress(itemResult, i, total, statusMsg);
-    });
+    }, preferredModel);
 
     if (onProgress) onProgress(itemResult, i, total);
 

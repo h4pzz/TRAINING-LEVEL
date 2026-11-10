@@ -27,12 +27,17 @@ const MIME_TYPES = {
 const server = http.createServer((req, res) => {
   console.log(`[${req.method}] ${req.url}`);
 
+  // Default security headers for all responses
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     res.writeHead(204, {
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type'
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization'
     });
     res.end();
     return;
@@ -486,12 +491,55 @@ ${report.comment || '(без коментаря)'}
   } catch (e) {
     decodedUrl = cleanUrl;
   }
+
+  // Security Check 1: Normalize path & check for directory traversal
+  const normalizedPath = path.normalize(decodedUrl).replace(/^(\.\.[\/\\])+/, '');
+  const pathParts = normalizedPath.split(/[/\\]/);
+
+  // Security Check 2: Block access to hidden files and directories (.env, .git, .tmp, etc.)
+  const hasHiddenPart = pathParts.some(part => part.startsWith('.') && part !== '.' && part !== '..');
+
+  // Security Check 3: Block direct access to sensitive system directories and backend files
+  const lowerUrl = normalizedPath.toLowerCase();
+  const isForbiddenDir = lowerUrl.startsWith('/directives') || 
+                         lowerUrl.startsWith('\\directives') ||
+                         lowerUrl.startsWith('/backup') ||
+                         lowerUrl.startsWith('\\backup') ||
+                         lowerUrl.startsWith('/.tmp') ||
+                         lowerUrl.startsWith('\\.tmp');
+
+  // Allow client-side ES modules in execution/ (*.js), but block any non-JS files in execution/
+  const isExecutionDir = lowerUrl.startsWith('/execution') || lowerUrl.startsWith('\\execution');
+  const isForbiddenExecution = isExecutionDir && !lowerUrl.endsWith('.js');
+
+  const isForbiddenFile = lowerUrl.endsWith('.env') || 
+                          lowerUrl.includes('.env.') ||
+                          lowerUrl.endsWith('credentials.json') || 
+                          lowerUrl.endsWith('token.json') ||
+                          lowerUrl.endsWith('flights.json') || // Database records are served only via /api/flights
+                          lowerUrl.endsWith('.py') || 
+                          lowerUrl.endsWith('.mjs') ||
+                          lowerUrl.endsWith('.md') ||
+                          lowerUrl.endsWith('skills-lock.json') ||
+                          lowerUrl.endsWith('package.json') ||
+                          lowerUrl.endsWith('package-lock.json');
+
+  if (hasHiddenPart || isForbiddenDir || isForbiddenExecution || isForbiddenFile) {
+    console.warn(`[SECURITY ALERT] Blocked direct access attempt to: ${decodedUrl}`);
+    res.writeHead(403, { 
+      'Content-Type': 'application/json; charset=utf-8',
+      'X-Content-Type-Options': 'nosniff'
+    });
+    res.end(JSON.stringify({ success: false, error: 'Forbidden: Access to sensitive system file or directory is blocked.' }));
+    return;
+  }
+
   let filePath = path.join(__dirname, decodedUrl === '/' ? 'index.html' : decodedUrl);
   
   // Prevent directory traversal attacks
   if (!filePath.startsWith(__dirname)) {
-    res.writeHead(403, { 'Content-Type': 'text/plain' });
-    res.end('Forbidden');
+    res.writeHead(403, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify({ success: false, error: 'Forbidden: Invalid file path.' }));
     return;
   }
 

@@ -13150,6 +13150,11 @@ document.addEventListener('DOMContentLoaded', () => {
           if (err.message && err.message.includes('AUTH_EXPIRED')) {
             showToast("Термін дії Google сесії закінчився. Запитуємо повторну авторизацію...", "warning");
             requestFreshTokenAndSync();
+          } else if (err.message && err.message.includes('API_DISABLED')) {
+            const urlMatch = err.message.match(/https:\/\/[^\s]+/);
+            const actUrl = urlMatch ? urlMatch[0] : 'https://console.developers.google.com/apis/api/sheets.googleapis.com/overview';
+            showToast(`Увімкніть Google Sheets API у вашому Google Cloud проєкті за посиланням: ${actUrl}`, "error", 12000);
+            window.open(actUrl, '_blank');
           } else {
             showToast(`Помилка синхронізації Google Sheets: ${err.message}`, "error");
           }

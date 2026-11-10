@@ -25,6 +25,7 @@ Provide seamless synchronization of aviation training compliance data, personal 
 To ensure strict organizational clarity across departments, all documents and files must follow this hierarchy:
 
 ```
+
 Google Drive Root
 └── Training level/
     ├── Flight Crew/
@@ -43,6 +44,7 @@ Google Drive Root
         ├── Dubinin_Andrii/
         └── ... (47 individual folders)
 ```
+
 
 ### Folder Naming Rule:
 - Each folder inside `Flight Crew` and `Cabin crew` must be strictly named using `LastName_FirstName` separated by an underscore `_`.
@@ -73,6 +75,7 @@ Google Drive Root
 All training flight log scans (PDF or image) imported via AI OCR are automatically categorized and stored according to flight date:
 
 ```
+
 Google Drive Root
 └── Training_Flights/               <-- Default root (or configured in Settings)
     ├── Jan_2026/                   <-- Subfolder format: [Month_YEAR]
@@ -83,6 +86,7 @@ Google Drive Root
     │   └── Scan_Flight_UR-UHC_2026-10-27.pdf
     └── ...
 ```
+
 
 ### 2. Month Naming Rule
 - Subfolder format is strictly `[3-Letter-Month]_[4-Digit-Year]`:
@@ -233,3 +237,17 @@ function doPost(e) {
 }
 ```
 
+
+
+
+## 8. Server Hardening & Production Deployment on Hetzner Cloud
+
+### 1. File Protection in `server.js`
+- Direct access to `.env`, `.git`, `.tmp`, `credentials.json`, `token.json`, `*.py`, `*.mjs`, `*.md` is strictly blocked with `403 Forbidden`.
+- Direct static file access to `DATABASE/flights.json` is blocked; database records must be retrieved via `GET /api/flights`.
+- Standard security headers (`X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, `Referrer-Policy: strict-origin-when-cross-origin`) are injected on every response.
+
+### 2. Deployment Artifacts
+- **Google Apps Script Bridge**: `execution/google_apps_script_deploy.js` — for cloud scan uploading and cloud flights database sync.
+- **Nginx Reverse Proxy**: `execution/nginx_aerocheck.conf` — handles SSL, rate limiting, and blocking of hidden/sensitive files at web server level.
+- **Systemd Unit Service**: `execution/aerocheck.service` — ensures 24/7 background persistence and automated recovery on reboot.

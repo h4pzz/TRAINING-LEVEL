@@ -1565,7 +1565,15 @@ export async function syncPersonnelToGoogleSheets(spreadsheetId, flightCrew = []
   }
   if (!metaRes.ok) {
     const errText = await metaRes.text();
-    throw new Error(`Помилка доступу до Google Sheets (${metaRes.status}): ${errText}`);
+    let parsedErr = null;
+    try { parsedErr = JSON.parse(errText); } catch(e) {}
+    const errMsg = parsedErr?.error?.message || errText;
+    if (errMsg.includes('has not been used in project') || errMsg.includes('disabled')) {
+      const match = errMsg.match(/https:\/\/[^\s"']+/);
+      const url = match ? match[0] : 'https://console.developers.google.com/apis/api/sheets.googleapis.com/overview';
+      throw new Error(`API_DISABLED: Google Sheets API вимкнено у вашому Google Cloud проєкті. Будь ласка, увімкніть його за посиланням: ${url}`);
+    }
+    throw new Error(`Помилка доступу до Google Sheets (${metaRes.status}): ${errMsg}`);
   }
 
   const metaData = await metaRes.json();
