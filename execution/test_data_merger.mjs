@@ -2,6 +2,7 @@ import test, { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { shouldOverwriteDate, mergeCrewData } from './data_merger.js';
+import { isValidLicenseNumber, getCrewIdentityKey } from './drive_sync.js';
 
 describe('Smart Merge Date Comparison (shouldOverwriteDate)', () => {
   it('does NOT overwrite with empty, dash, null, or undefined incoming strings', () => {
@@ -111,5 +112,39 @@ describe('Smart Merge Crew Data Invariants (mergeCrewData)', () => {
     assert.equal(result.mergedList.length, 1);
     assert.equal(result.mergedList[0].MED, '2026-01-01');
     assert.equal(result.mergedList[0].Full_Name_EN, 'Kovalenko Oleg', 'Backfilled missing English name');
+  });
+});
+
+describe('License Disambiguation & Key Generation (drive_sync.js)', () => {
+  it('identifies valid vs invalid license numbers correctly', () => {
+    assert.equal(isValidLicenseNumber('UKR-12345'), true);
+    assert.equal(isValidLicenseNumber('ATPL-098'), true);
+    assert.equal(isValidLicenseNumber('CMC-5541'), true);
+
+    // Excel serial dates should NOT be treated as licenses
+    assert.equal(isValidLicenseNumber('46599.0'), false);
+    assert.equal(isValidLicenseNumber('46143'), false);
+
+    // Formatted dates should NOT be treated as licenses
+    assert.equal(isValidLicenseNumber('31.07.2027'), false);
+    assert.equal(isValidLicenseNumber('2027-07-31'), false);
+    assert.equal(isValidLicenseNumber(''), false);
+    assert.equal(isValidLicenseNumber('-'), false);
+  });
+
+  it('generates consistent identity keys and only attaches LICENSE when valid', () => {
+    // Normal case: person with serial date in column P or no license
+    const member1 = { Full_Name_EN: 'Avezov Rustam', LICENSE: '46599.0' };
+    assert.equal(getCrewIdentityKey(member1), 'en:avezov rustam');
+
+    // Namesake with distinct valid license
+    const member2 = { Full_Name_EN: 'Ivanov Ivan', LICENSE: 'UKR-001' };
+    assert.equal(getCrewIdentityKey(member2), 'en:ivanov ivan|lic:UKR-001');
+
+    const member3 = { Full_Name_EN: 'Ivanov Ivan', LICENSE: 'UKR-002' };
+    assert.equal(getCrewIdentityKey(member3), 'en:ivanov ivan|lic:UKR-002');
+
+    // Both keys differ, preventing accidental collision
+    assert.notEqual(getCrewIdentityKey(member2), getCrewIdentityKey(member3));
   });
 });

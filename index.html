@@ -2558,6 +2558,74 @@
     </div>
   </div>
 
+  <!-- ================= CREW COLLISION / DUPLICATE WARNING MODAL ================= -->
+  <div id="crew-collision-modal-backdrop" class="modal-backdrop">
+    <div class="modal-content" style="max-width: 560px; width: 95%; border-top: 4px solid var(--badge-warning-color); padding: 24px;">
+      <div class="modal-header" style="display: flex; align-items: flex-start; gap: 14px; margin-bottom: 16px;">
+        <div style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 10px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+          <i data-lucide="alert-triangle" style="width: 26px; height: 26px;"></i>
+        </div>
+        <div style="flex: 1;">
+          <h2 id="crew-collision-modal-title" style="margin: 0; font-size: 18px; font-weight: 700; color: var(--text-primary);">
+            Виявлено співпадіння за ПІБ
+          </h2>
+          <p style="margin: 4px 0 0; font-size: 13px; color: var(--text-secondary); line-height: 1.4;">
+            У системі вже знайдено профіль з таким самим ім'ям. Номер свідоцтва (LICENSE) використовується для перевірки: це та сама особа чи однофамілець.
+          </p>
+        </div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+        <!-- Existing member box -->
+        <div style="background: var(--bg-hover, rgba(255,255,255,0.03)); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="database" style="width: 14px; height: 14px; color: var(--accent);"></i>
+            <span>Існуючий профіль у базі</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; font-size: 13px;">
+            <div><span style="color: var(--text-secondary);">ПІБ (UA):</span> <strong id="collision-exist-name-ua">—</strong></div>
+            <div><span style="color: var(--text-secondary);">ПІБ (EN):</span> <strong id="collision-exist-name-en">—</strong></div>
+            <div><span style="color: var(--text-secondary);">Посада / Відділ:</span> <span id="collision-exist-rank-dept">—</span></div>
+            <div><span style="color: var(--text-secondary);">Свідоцтво (LICENSE):</span> <span id="collision-exist-license" style="font-family: monospace; font-weight: 700; color: #60a5fa;">—</span></div>
+          </div>
+        </div>
+
+        <!-- Incoming member box -->
+        <div style="background: var(--bg-hover, rgba(255,255,255,0.03)); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="user-plus" style="width: 14px; height: 14px; color: #10b981;"></i>
+            <span>Новий запис, що вводиться</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px 14px; font-size: 13px;">
+            <div><span style="color: var(--text-secondary);">ПІБ (UA):</span> <strong id="collision-new-name-ua">—</strong></div>
+            <div><span style="color: var(--text-secondary);">ПІБ (EN):</span> <strong id="collision-new-name-en">—</strong></div>
+            <div><span style="color: var(--text-secondary);">Посада / Відділ:</span> <span id="collision-new-rank-dept">—</span></div>
+            <div><span style="color: var(--text-secondary);">Свідоцтво (LICENSE):</span> <span id="collision-new-license" style="font-family: monospace; font-weight: 700; color: #34d399;">—</span></div>
+          </div>
+        </div>
+
+        <!-- Context explanation box -->
+        <div id="collision-explanation-box" style="padding: 10px 14px; border-radius: 6px; font-size: 12.5px; line-height: 1.45; background: rgba(59, 130, 246, 0.1); border-left: 3px solid #3b82f6; color: var(--text-primary);">
+          <!-- Dynamic info based on LICENSE match or mismatch -->
+        </div>
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap;">
+        <button class="btn btn-secondary" id="btn-collision-cancel" type="button" style="height: 38px; font-size: 13px; padding: 0 16px;">
+          Скасувати
+        </button>
+        <button class="btn btn-warning" id="btn-collision-add-separate" type="button" style="height: 38px; font-size: 13px; padding: 0 16px; display: none;">
+          <i data-lucide="user-plus" style="width: 14px; height: 14px; margin-right: 6px;"></i>
+          <span>Додати окремо (Однофамілець)</span>
+        </button>
+        <button class="btn btn-primary" id="btn-collision-replace" type="button" style="height: 38px; font-size: 13px; padding: 0 16px;">
+          <i data-lucide="refresh-cw" style="width: 14px; height: 14px; margin-right: 6px;"></i>
+          <span>Підтвердити заміну / Оновити</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ================= CONFIRM DIALOG ================= -->
   <div id="confirm-backdrop" class="modal-backdrop">
     <div class="modal-content" style="width: 400px;">
@@ -3149,6 +3217,6 @@
   </div>
 
   <!-- Main SPA Application logic script -->
-  <script type="module" src="js/app.js?v=4.2"></script>
+  <script type="module" src="js/app.js?v=4.3"></script>
 </body>
 </html>

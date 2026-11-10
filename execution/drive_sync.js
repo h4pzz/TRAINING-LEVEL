@@ -1529,37 +1529,55 @@ export async function syncAllFlightsToRemote(allFlights = [], { settings = null 
   return true;
 }
 
+export function isValidLicenseNumber(val) {
+  if (!val) return false;
+  const s = String(val).trim();
+  if (!s || s === '-' || s === 'n/a' || s === 'N/A') return false;
+  // Exclude Excel serial numbers (e.g. 46599.0 or 46143)
+  if (/^\d{4,5}(\.\d+)?$/.test(s)) return false;
+  // Exclude calendar dates
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(s) || /^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+  return true;
+}
+
 export function getCrewIdentityKey(item, isFromRow = false, headers = []) {
   if (!item) return '';
 
   let nameEn = '';
   let nameUa = '';
   let cabinId = '';
+  let license = '';
 
   if (isFromRow) {
     const row = item;
     const nameEnIdx = headers.indexOf('Full_Name_EN');
     const nameUaIdx = headers.indexOf('Full_Name_UA');
     const hashIdx = headers.indexOf('#');
+    const licIdx = headers.indexOf('LICENSE');
 
     nameEn = nameEnIdx !== -1 ? String(row[nameEnIdx] || '').trim().toLowerCase() : '';
     nameUa = nameUaIdx !== -1 ? String(row[nameUaIdx] || '').trim().toLowerCase() : '';
     cabinId = hashIdx !== -1 ? String(row[hashIdx] || '').trim() : '';
+    license = licIdx !== -1 ? String(row[licIdx] || '').trim() : '';
   } else {
     const member = item;
     nameEn = member.Full_Name_EN ? String(member.Full_Name_EN).trim().toLowerCase() : '';
     nameUa = member.Full_Name_UA ? String(member.Full_Name_UA).trim().toLowerCase() : '';
     cabinId = member.id ? String(member.id).trim() : '';
+    license = member.LICENSE ? String(member.LICENSE).trim() : '';
   }
+
+  // LICENSE is only used as a secondary determinant when valid and there's a need to differentiate namesakes
+  const licSuffix = isValidLicenseNumber(license) ? `|lic:${license.toUpperCase()}` : '';
 
   // 1. Normalized Full_Name_EN (always unique per person in UH, e.g. "kushch oleksandr" vs "kushch oleksiy")
   if (nameEn) {
-    return `en:${nameEn}`;
+    return `en:${nameEn}${licSuffix}`;
   }
 
   // 2. Full Name UA
   if (nameUa) {
-    return `ua:${nameUa}`;
+    return `ua:${nameUa}${licSuffix}`;
   }
 
   // 3. Cabin # ID

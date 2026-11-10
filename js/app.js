@@ -40,7 +40,8 @@ import {
   deleteFlightFromRemote,
   syncAllFlightsToRemote,
   syncPersonnelToGoogleSheets,
-  deduplicateCrewArray
+  deduplicateCrewArray,
+  isValidLicenseNumber
 } from '../execution/drive_sync.js';
 import { dispatchFlightLogEmail, dispatchFlightsWeeklyEmail, formatFlightReportText, generateFlightPdfBase64 } from '../execution/email_dispatcher.js';
 import { 
@@ -2638,33 +2639,34 @@ function handleCrewModalSubmit(e) {
     }
   });
   
-  if (isNew) {
-    const normEn = (member.Full_Name_EN || '').trim().toLowerCase();
-    const normUa = (member.Full_Name_UA || '').trim().toLowerCase();
-    const normLic = (member.LICENSE || '').trim().toUpperCase();
+  const normEn = (member.Full_Name_EN || '').trim().toLowerCase();
+  const normUa = (member.Full_Name_UA || '').trim().toLowerCase();
 
-    const existingMatch = list.find(c => {
-      const cLic = (c.LICENSE || '').trim().toUpperCase();
-      const cEn = (c.Full_Name_EN || '').trim().toLowerCase();
-      const cUa = (c.Full_Name_UA || '').trim().toLowerCase();
+  // Primary check: search for existing crew member by Full Name (UA or EN) excluding self
+  const existingMatch = list.find(c => {
+    if (c.id === member.id) return false;
+    const cEn = (c.Full_Name_EN || '').trim().toLowerCase();
+    const cUa = (c.Full_Name_UA || '').trim().toLowerCase();
+    if (normEn && cEn && normEn === cEn) return true;
+    if (normUa && cUa && normUa === cUa) return true;
+    return false;
+  });
 
-      if (normLic && cLic && normLic === cLic) return true;
-      if (normEn && cEn && normEn === cEn) return true;
-      if (normUa && cUa && normUa === cUa) return true;
-      return false;
+  if (existingMatch) {
+    // Collision detected by FULL NAME!
+    // LICENSE is evaluated only when Full Name matches, and admin confirmation modal pops up
+    openCrewCollisionModal({
+      member,
+      existingMatch,
+      isNew,
+      list,
+      details,
+      crewType
     });
+    return;
+  }
 
-    if (existingMatch) {
-      showToast(
-        STATE.lang === 'uk'
-          ? `Співробітник ${member.Full_Name_UA || member.Full_Name_EN} вже є в базі! Щоб уникнути дублікатів, відкрийте існуючий профіль.`
-          : `Crew member ${member.Full_Name_EN} already exists!`,
-        'warning',
-        7000
-      );
-      return;
-    }
-
+  if (isNew) {
     list.push(member);
     STATE.changelog.push({
       timestamp: new Date().toISOString(),
@@ -2690,6 +2692,210 @@ function handleCrewModalSubmit(e) {
   saveStateToStorage();
   document.getElementById('crew-modal-backdrop').classList.remove('active');
   switchView(STATE.currentView);
+}
+
+let pendingCrewCollision = null;
+
+function openCrewCollisionModal({ member, existingMatch, isNew, list, details, crewType }) {
+  pendingCrewCollision = { member, existingMatch, isNew, list, details, crewType };
+
+  const modalBackdrop = document.getElementById('crew-collision-modal-backdrop');
+  if (!modalBackdrop) return;
+
+  // Existing member in DB
+  const existNameUa = document.getElementById('collision-exist-name-ua');
+  const existNameEn = document.getElementById('collision-exist-name-en');
+  const existRankDept = document.getElementById('collision-exist-rank-dept');
+  const existLicEl = document.getElementById('collision-exist-license');
+
+  if (existNameUa) existNameUa.textContent = existingMatch.Full_Name_UA || '—';
+  if (existNameEn) existNameEn.textContent = existingMatch.Full_Name_EN || '—';
+  if (existRankDept) existRankDept.textContent = `${existingMatch.Rank || ''} / ${existingMatch.Department || ''}`.trim() || '—';
+
+  const existLic = existingMatch.LICENSE ? String(existingMatch.LICENSE).trim() : '';
+  if (existLicEl) {
+    existLicEl.textContent = existLic || '(не вказано)';
+    existLicEl.style.color = existLic ? '#60a5fa' : 'var(--text-secondary)';
+  }
+
+  // Incoming member
+  const newNameUa = document.getElementById('collision-new-name-ua');
+  const newNameEn = document.getElementById('collision-new-name-en');
+  const newRankDept = document.getElementById('collision-new-rank-dept');
+  const newLicEl = document.getElementById('collision-new-license');
+
+  if (newNameUa) newNameUa.textContent = member.Full_Name_UA || '—';
+  if (newNameEn) newNameEn.textContent = member.Full_Name_EN || '—';
+  if (newRankDept) newRankDept.textContent = `${member.Rank || ''} / ${member.Department || ''}`.trim() || '—';
+
+  const newLic = member.LICENSE ? String(member.LICENSE).trim() : '';
+  if (newLicEl) {
+    newLicEl.textContent = newLic || '(не вказано)';
+    newLicEl.style.color = newLic ? '#34d399' : 'var(--text-secondary)';
+  }
+
+  // Compare licenses (ignoring date serials or calendar dates)
+  const isExistLicValid = typeof isValidLicenseNumber === 'function' ? isValidLicenseNumber(existLic) : Boolean(existLic);
+  const isNewLicValid = typeof isValidLicenseNumber === 'function' ? isValidLicenseNumber(newLic) : Boolean(newLic);
+
+  const cleanExist = isExistLicValid ? existLic.toUpperCase() : '';
+  const cleanNew = isNewLicValid ? newLic.toUpperCase() : '';
+
+  const btnAddSeparate = document.getElementById('btn-collision-add-separate');
+  const explanationBox = document.getElementById('collision-explanation-box');
+  const isUk = STATE.lang === 'uk';
+
+  if (cleanExist && cleanNew && cleanExist !== cleanNew) {
+    // Both have valid licenses and they DIFFER -> namesakes or updated license
+    if (btnAddSeparate) btnAddSeparate.style.display = 'inline-flex';
+    if (explanationBox) {
+      explanationBox.innerHTML = isUk
+        ? `⚠️ <strong>Увага:</strong> Виявлено однакове ПІБ, але <strong>різні номери свідоцтва</strong> (<code>${existLic}</code> проти <code>${newLic}</code>).<br>` +
+          `• Якщо це два різних співробітника (однофамільці) — підтвердіть <strong>«Додати окремо (Однофамілець)»</strong>.<br>` +
+          `• Якщо це та сама особа з новим номером свідоцтва — оберіть <strong>«Підтвердити заміну / Оновити»</strong>.`
+        : `⚠️ <strong>Warning:</strong> Same Full Name found, but with <strong>different license numbers</strong> (<code>${existLic}</code> vs <code>${newLic}</code>).<br>` +
+          `• If these are two separate individuals (namesakes) — click <strong>"Add Separately (Namesake)"</strong>.<br>` +
+          `• If this is the same person with a new license — click <strong>"Confirm Replace / Update"</strong>.`;
+      explanationBox.style.background = 'rgba(245, 158, 11, 0.12)';
+      explanationBox.style.borderLeftColor = '#f59e0b';
+    }
+  } else if (cleanNew && !cleanExist) {
+    // Existing lacked license, incoming has license
+    if (btnAddSeparate) btnAddSeparate.style.display = 'inline-flex';
+    if (explanationBox) {
+      explanationBox.innerHTML = isUk
+        ? `ℹ️ <strong>Збіг за ПІБ:</strong> В існуючому профілі номер свідоцтва не був зазначений, а в новому вказано <code>${newLic}</code>.<br>` +
+          `• Щоб оновити профіль і присвоїти це свідоцтво — оберіть <strong>«Підтвердити заміну / Оновити»</strong>.<br>` +
+          `• Якщо це окремий співробітник-однофамілець — оберіть <strong>«Додати окремо (Однофамілець)»</strong>.`
+        : `ℹ️ <strong>Name match:</strong> Existing profile had no license, new entry specifies <code>${newLic}</code>.<br>` +
+          `• To assign this license to the existing profile — choose <strong>"Confirm Replace / Update"</strong>.<br>` +
+          `• If this is a separate namesake — choose <strong>"Add Separately (Namesake)"</strong>.`;
+      explanationBox.style.background = 'rgba(59, 130, 246, 0.1)';
+      explanationBox.style.borderLeftColor = '#3b82f6';
+    }
+  } else {
+    // Same license or neither has valid license
+    if (btnAddSeparate) btnAddSeparate.style.display = 'none';
+    if (explanationBox) {
+      explanationBox.innerHTML = isUk
+        ? `ℹ️ <strong>Збіг за ПІБ:</strong> Профіль з таким ім'ям вже є в системі (${existLic ? `свідоцтво: <code>${existLic}</code>` : 'номер свідоцтва не вказано'}).<br>` +
+          `Щоб оновити посаду, контакти та терміни підготовки існуючого співробітника — натисніть <strong>«Підтвердити заміну / Оновити»</strong>.`
+        : `ℹ️ <strong>Name match:</strong> A profile with this name already exists (${existLic ? `license: <code>${existLic}</code>` : 'no license set'}).<br>` +
+          `Click <strong>"Confirm Replace / Update"</strong> to update details and training dates.`;
+      explanationBox.style.background = 'rgba(59, 130, 246, 0.1)';
+      explanationBox.style.borderLeftColor = '#3b82f6';
+    }
+  }
+
+  modalBackdrop.classList.add('active');
+  if (window.lucide) window.lucide.createIcons();
+}
+
+function handleCollisionReplace() {
+  if (!pendingCrewCollision) return;
+  const { member, existingMatch, isNew, list, crewType } = pendingCrewCollision;
+
+  const target = existingMatch;
+  const auditDetails = [];
+
+  if (member.Rank && member.Rank !== target.Rank) {
+    auditDetails.push({ field: 'Rank', oldValue: target.Rank || '', newValue: member.Rank });
+    target.Rank = member.Rank;
+  }
+  if (member.Department && member.Department !== target.Department) {
+    auditDetails.push({ field: 'Department', oldValue: target.Department || '', newValue: member.Department });
+    target.Department = member.Department;
+  }
+  if (member.Full_Name_UA && member.Full_Name_UA !== target.Full_Name_UA) {
+    auditDetails.push({ field: 'Full_Name_UA', oldValue: target.Full_Name_UA || '', newValue: member.Full_Name_UA });
+    target.Full_Name_UA = member.Full_Name_UA;
+    target.Name_Shrt_UA = member.Name_Shrt_UA;
+  }
+  if (member.Full_Name_EN && member.Full_Name_EN !== target.Full_Name_EN) {
+    auditDetails.push({ field: 'Full_Name_EN', oldValue: target.Full_Name_EN || '', newValue: member.Full_Name_EN });
+    target.Full_Name_EN = member.Full_Name_EN;
+  }
+  if (member.Phone !== undefined && member.Phone !== target.Phone) {
+    target.Phone = member.Phone;
+  }
+  if (member.Email !== undefined && member.Email !== target.Email) {
+    target.Email = member.Email;
+  }
+  if (member.LICENSE && member.LICENSE !== target.LICENSE) {
+    auditDetails.push({ field: 'LICENSE', oldValue: target.LICENSE || 'empty', newValue: member.LICENSE });
+    target.LICENSE = member.LICENSE;
+  }
+
+  // Update training dates
+  Object.keys(member).forEach(k => {
+    if (!['id', 'crewType', 'Rank', 'Department', 'Phone', 'Email', 'LICENSE', 'Full_Name_UA', 'Full_Name_EN', 'Name_Shrt_UA', 'active', 'isNamesake'].includes(k)) {
+      if (member[k] && member[k] !== target[k]) {
+        auditDetails.push({ field: k, oldValue: target[k] || 'empty', newValue: member[k] });
+        target[k] = member[k];
+      }
+    }
+  });
+
+  if (!isNew && member.id && member.id !== target.id) {
+    const oldIdx = list.findIndex(c => c.id === member.id);
+    if (oldIdx !== -1) list.splice(oldIdx, 1);
+  }
+
+  STATE.changelog.push({
+    timestamp: new Date().toISOString(),
+    userEmail: STATE.currentUser ? STATE.currentUser.email : 'system@aerocheck.com',
+    crewMember: target.Full_Name_EN || target.Full_Name_UA,
+    crewType: target.crewType || crewType,
+    type: 'CREW_COLLISION_REPLACED',
+    details: auditDetails.length > 0 ? auditDetails : [{ field: 'all', oldValue: 'existing', newValue: 'Confirmed replacement by admin' }]
+  });
+
+  saveStateToStorage();
+  document.getElementById('crew-collision-modal-backdrop')?.classList.remove('active');
+  document.getElementById('crew-modal-backdrop')?.classList.remove('active');
+  pendingCrewCollision = null;
+  switchView(STATE.currentView);
+  showToast(
+    STATE.lang === 'uk'
+      ? `Дані співробітника ${target.Full_Name_UA || target.Full_Name_EN} успішно замінено/оновлено!`
+      : `Crew member data replaced/updated successfully!`,
+    'success'
+  );
+}
+
+function handleCollisionAddSeparate() {
+  if (!pendingCrewCollision) return;
+  const { member, list, crewType } = pendingCrewCollision;
+
+  member.id = `crew_${crewType}_${Date.now()}`;
+  member.isNamesake = true;
+  list.push(member);
+
+  STATE.changelog.push({
+    timestamp: new Date().toISOString(),
+    userEmail: STATE.currentUser ? STATE.currentUser.email : 'system@aerocheck.com',
+    crewMember: member.Full_Name_EN || member.Full_Name_UA,
+    crewType: member.crewType || crewType,
+    type: 'CREW_ADD_NAMESAKE',
+    details: [{ field: 'LICENSE', oldValue: 'collision_approved', newValue: `Added as separate namesake with license: ${member.LICENSE || 'n/a'}` }]
+  });
+
+  saveStateToStorage();
+  document.getElementById('crew-collision-modal-backdrop')?.classList.remove('active');
+  document.getElementById('crew-modal-backdrop')?.classList.remove('active');
+  pendingCrewCollision = null;
+  switchView(STATE.currentView);
+  showToast(
+    STATE.lang === 'uk'
+      ? `Окремого співробітника (однофамільця) успішно додано до бази!`
+      : `Separate crew member (namesake) successfully added!`,
+    'success'
+  );
+}
+
+function handleCollisionCancel() {
+  document.getElementById('crew-collision-modal-backdrop')?.classList.remove('active');
+  pendingCrewCollision = null;
 }
 
 /**
@@ -12658,6 +12864,16 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('crew-modal-backdrop').classList.remove('active');
   });
   document.getElementById('crew-modal-form').addEventListener('submit', handleCrewModalSubmit);
+
+  // Crew Collision / Duplicate Modal triggers
+  const btnCollisionCancel = document.getElementById('btn-collision-cancel');
+  if (btnCollisionCancel) btnCollisionCancel.addEventListener('click', handleCollisionCancel);
+
+  const btnCollisionReplace = document.getElementById('btn-collision-replace');
+  if (btnCollisionReplace) btnCollisionReplace.addEventListener('click', handleCollisionReplace);
+
+  const btnCollisionAddSeparate = document.getElementById('btn-collision-add-separate');
+  if (btnCollisionAddSeparate) btnCollisionAddSeparate.addEventListener('click', handleCollisionAddSeparate);
 
   // Crew Modal Type, Rank & Department dynamic listeners
   const crewTypeSelect = document.getElementById('crew-modal-type-select');
