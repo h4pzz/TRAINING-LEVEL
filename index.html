@@ -1194,6 +1194,10 @@
                         <input type="text" id="settings-google-sheet-id" class="form-input" placeholder="Google Sheet ID персоналу (напр. 1BxiMVs0XRA5...)" style="font-family: monospace; font-size: 12px;" data-i18n-placeholder="placeholder_sheet_personnel">
                       </div>
                       <div style="display: flex; justify-content: flex-end; margin-top: 6px;">
+                        <a id="link-open-personnel-sheet" href="#" target="_blank" class="btn btn-secondary" style="display: none; height: 32px; font-size: 12px; align-items: center; gap: 6px; border-color: #10b981; color: #10b981;" title="Відкрити Google Sheets у новій вкладці">
+                          <i data-lucide="external-link" style="width: 13px; height: 13px;"></i>
+                          <span>Відкрити таблицю</span>
+                        </a>
                         <button class="btn btn-secondary" id="btn-sync-personnel" style="height: 32px; font-size: 12px;">
                           <i data-lucide="refresh-cw" style="width: 13px; height: 13px;"></i>
                           <span data-i18n="btn_sync_personnel">Синхронізувати персонал</span>
@@ -2755,9 +2759,19 @@
             <span class="ocr-stat-pill" style="color: #ef4444;">⚠️ Дублікати: <span id="ocr-stat-dup">0</span></span>
           </div>
         </div>
-        <button type="button" id="btn-close-ocr-modal" class="modal-close-btn" style="background: transparent; border: none; cursor: pointer; color: var(--text-secondary); padding: 6px; border-radius: var(--radius-sm);">
+        <div style="display: flex; align-items: center; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <label for="ocr-model-selector" style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary); white-space: nowrap;">Модель ШІ:</label>
+            <select id="ocr-model-selector" class="form-select" style="font-size: 11.5px; height: 28px; padding: 1px 8px; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-surface); color: var(--text-primary); font-weight: 500; cursor: pointer;">
+              <option value="gemini-3.8-flash" selected>gemini-3.8-flash (Швидка)</option>
+              <option value="gemini-3.5-flash">gemini-3.5-flash (Стабільна)</option>
+              <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview (Pro якість)</option>
+            </select>
+          </div>
+          <button type="button" id="btn-close-ocr-modal" class="modal-close-btn" style="background: transparent; border: none; cursor: pointer; color: var(--text-secondary); padding: 6px; border-radius: var(--radius-sm);">
           <i data-lucide="x" style="width: 20px; height: 20px;"></i>
-        </button>
+          </button>
+        </div>
       </div>
 
       <!-- Modal Body (3 columns: Queue, Document Preview, Form Editor) -->
@@ -3135,6 +3149,6 @@
   </div>
 
   <!-- Main SPA Application logic script -->
-  <script type="module" src="js/app.js?v=3.3"></script>
+  <script type="module" src="js/app.js?v=3.7"></script>
 </body>
 </html>

@@ -1529,5 +1529,296 @@ export async function syncAllFlightsToRemote(allFlights = [], { settings = null 
   return true;
 }
 
+/**
+ * Synchronizes personnel data (Flight_Crew and Cabin_Crew) directly with Google Sheets via Google Sheets API v4.
+ * - Reads existing sheet headers and rows to preserve custom layouts or ordering.
+ * - Updates existing crew member rows with current training dates, ranks, departments.
+ * - Appends newly added crew members to the end of the sheet.
+ * - If the sheet is empty, initializes standard headers and data rows.
+ * 
+ * @param {string} spreadsheetId - The Google Sheets Spreadsheet ID
+ * @param {Array<object>} flightCrew - Current STATE.flightCrew array
+ * @param {Array<object>} cabinCrew - Current STATE.cabinCrew array
+ * @param {string} accessToken - OAuth 2.0 Access Token with spreadsheets scope
+ * @returns {Promise<{success: boolean, message: string, flightStats?: object, cabinStats?: object}>}
+ */
+export async function syncPersonnelToGoogleSheets(spreadsheetId, flightCrew = [], cabinCrew = [], accessToken) {
+  if (!spreadsheetId || !spreadsheetId.trim()) {
+    throw new Error('Google Sheet ID не вказано в налаштуваннях');
+  }
+  if (!accessToken || !accessToken.trim()) {
+    throw new Error('Google OAuth Access Token відсутній. Авторизуйтеся в Google Drive/Sheets.');
+  }
+
+  const cleanSheetId = spreadsheetId.trim();
+
+  // 1. Fetch spreadsheet metadata to locate sheet tabs
+  const metaRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanSheetId}`, {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Accept': 'application/json'
+    }
+  });
+
+  if (metaRes.status === 401) {
+    throw new Error('AUTH_EXPIRED: Термін дії токена Google закінчився. Потрібно оновити авторизацію.');
+  }
+  if (!metaRes.ok) {
+    const errText = await metaRes.text();
+    throw new Error(`Помилка доступу до Google Sheets (${metaRes.status}): ${errText}`);
+  }
+
+  const metaData = await metaRes.json();
+  const sheets = metaData.sheets || [];
+
+  if (sheets.length === 0) {
+    throw new Error('У вказаній Google Sheets таблиці немає жодного аркуша');
+  }
+
+  // Locate Flight and Cabin sheet titles
+  let flightSheetTitle = null;
+  let cabinSheetTitle = null;
+
+  for (const s of sheets) {
+    const t = s.properties && s.properties.title ? s.properties.title : '';
+    const norm = t.toLowerCase();
+    if (!flightSheetTitle && (norm.includes('flight') || norm.includes('льотн') || norm.includes('пилот') || norm.includes('пілот'))) {
+      flightSheetTitle = t;
+    }
+    if (!cabinSheetTitle && (norm.includes('cabin') || norm.includes('кабін') || norm.includes('бортпровід') || norm.includes('провод'))) {
+      cabinSheetTitle = t;
+    }
+  }
+
+  // Fallback to 1st and 2nd sheets if not matched by name
+  if (!flightSheetTitle && sheets[0]) {
+    flightSheetTitle = sheets[0].properties.title;
+  }
+  if (!cabinSheetTitle) {
+    if (sheets.length > 1) {
+      cabinSheetTitle = sheets[1].properties.title;
+    } else {
+      // Create Cabin_Crew sheet dynamically if spreadsheet has only 1 sheet
+      try {
+        const addSheetRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanSheetId}:batchUpdate`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            requests: [
+              {
+                addSheet: {
+                  properties: {
+                    title: 'Cabin_Crew'
+                  }
+                }
+              }
+            ]
+          })
+        });
+        if (addSheetRes.ok) {
+          cabinSheetTitle = 'Cabin_Crew';
+        }
+      } catch (e) {
+        console.warn('Could not auto-add Cabin_Crew sheet:', e);
+      }
+    }
+  }
+
+  // Helper: Read all rows from a sheet
+  async function fetchSheetRows(sheetTitle) {
+    const range = encodeURIComponent(`'${sheetTitle}'!A1:AZ600`);
+    const r = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanSheetId}/values/${range}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Accept': 'application/json'
+      }
+    });
+    if (!r.ok) return [];
+    const d = await r.json();
+    return d.values || [];
+  }
+
+  // Standard fallback headers
+  const defaultFlightHeaders = [
+    'Rank', 'Department', 'Name_Shrt_UA', 'Full_Name_UA', 'Full_Name_EN', 
+    'OPC', 'OPC_NVG', 'LPC', 'Type', 'EMER_1', 'EMER_3', 'DG', 'AV_SEC', 'CRM', 'MED', 'LICENSE', 
+    'GI 275_T', 'GI 275_PRCT', 'BIRD STRIKE', 'MSB', 'PALL', 'HESLO_T', 'HESLO_PRCT', 'FFO', 'HHO_T', 'HHO_PRCT', 'NAIROBI'
+  ];
+
+  const defaultCabinHeaders = [
+    '#', 'Active', 'Rank', 'Department', 'Name_Shrt_UA', 'Full_Name_UA', 'Full_Name_EN', 
+    'OPC', 'LPC', 'CC_Type', 'EMER_1', 'EMER_3', 'DG', 'AV_SEC', 'CRM', 'MED', 
+    'Resc', 'Rappel', 'Hoist', 'EOIR', 'NAIROBI'
+  ];
+
+  function formatCellValue(val) {
+    if (val === undefined || val === null) return '';
+    const s = String(val).trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+      const parts = s.split('-');
+      return `${parts[2]}.${parts[1]}.${parts[0]}`;
+    }
+    return s;
+  }
+
+  function buildMemberRow(member, headers, idx) {
+    return headers.map(header => {
+      if (header === '#') return member.id || String(idx + 1);
+      if (header === 'Active') return (member.active === false || member.active === 'NO') ? 'NO' : 'YES';
+      const val = member[header];
+      return formatCellValue(val);
+    });
+  }
+
+  function processSheetData(crewList, defaultHeaders, existingRows, titlePrefix = null) {
+    let headerRowIndex = -1;
+    let headers = defaultHeaders;
+
+    for (let i = 0; i < existingRows.length; i++) {
+      const r = existingRows[i];
+      if (Array.isArray(r) && (r.includes('Full_Name_EN') || r.includes('Full_Name_UA') || r.includes('Name_Shrt_UA'))) {
+        headerRowIndex = i;
+        headers = r.map(h => String(h || '').trim());
+        break;
+      }
+    }
+
+    if (headerRowIndex === -1) {
+      // Empty or unformatted sheet -> generate standard layout
+      const matrix = [];
+      if (titlePrefix) {
+        matrix.push([]);
+        matrix.push([]);
+        matrix.push([titlePrefix]);
+      } else {
+        matrix.push([]);
+      }
+      matrix.push(headers);
+      crewList.forEach((m, idx) => {
+        matrix.push(buildMemberRow(m, headers, idx));
+      });
+      return {
+        matrix,
+        addedCount: crewList.length,
+        updatedCount: 0,
+        total: crewList.length
+      };
+    }
+
+    const prefixRows = existingRows.slice(0, headerRowIndex + 1);
+    const dataRows = existingRows.slice(headerRowIndex + 1);
+
+    const nameEnIdx = headers.indexOf('Full_Name_EN');
+    const nameUaIdx = headers.indexOf('Full_Name_UA');
+    const nameShrtIdx = headers.indexOf('Name_Shrt_UA');
+
+    let updatedCount = 0;
+    let addedCount = 0;
+    const matchedMembers = new Set();
+
+    const updatedDataRows = dataRows.map((row, rowIdx) => {
+      const rowNameEn = nameEnIdx !== -1 ? String(row[nameEnIdx] || '').trim().toLowerCase() : '';
+      const rowNameUa = nameUaIdx !== -1 ? String(row[nameUaIdx] || '').trim().toLowerCase() : '';
+      const rowNameShrt = nameShrtIdx !== -1 ? String(row[nameShrtIdx] || '').trim().toLowerCase() : '';
+
+      if (!rowNameEn && !rowNameUa && !rowNameShrt) {
+        return row;
+      }
+
+      const member = crewList.find(m => {
+        const mEn = String(m.Full_Name_EN || '').trim().toLowerCase();
+        const mUa = String(m.Full_Name_UA || '').trim().toLowerCase();
+        const mShrt = String(m.Name_Shrt_UA || '').trim().toLowerCase();
+        return (mEn && mEn === rowNameEn) || (mUa && mUa === rowNameUa) || (mShrt && mShrt === rowNameShrt);
+      });
+
+      if (member) {
+        matchedMembers.add(member);
+        updatedCount++;
+        return buildMemberRow(member, headers, rowIdx);
+      }
+
+      return row;
+    });
+
+    // Append crew members not found in the sheet (e.g. newly added members)
+    crewList.forEach((member, idx) => {
+      if (!matchedMembers.has(member)) {
+        addedCount++;
+        updatedDataRows.push(buildMemberRow(member, headers, updatedDataRows.length));
+      }
+    });
+
+    return {
+      matrix: prefixRows.concat(updatedDataRows),
+      addedCount,
+      updatedCount,
+      total: crewList.length
+    };
+  }
+
+  // 2. Fetch existing rows for both sheets
+  const existingFlightRows = flightSheetTitle ? await fetchSheetRows(flightSheetTitle) : [];
+  const existingCabinRows = cabinSheetTitle ? await fetchSheetRows(cabinSheetTitle) : [];
+
+  // 3. Merge data
+  const flightResult = processSheetData(flightCrew, defaultFlightHeaders, existingFlightRows, 'ЛЬОТНИЙ СКЛАД');
+  const cabinResult = cabinSheetTitle 
+    ? processSheetData(cabinCrew, defaultCabinHeaders, existingCabinRows, null)
+    : null;
+
+  // 4. Batch update back to Google Sheets
+  const updateData = [
+    {
+      range: `'${flightSheetTitle}'!A1`,
+      values: flightResult.matrix
+    }
+  ];
+
+  if (cabinSheetTitle && cabinResult) {
+    updateData.push({
+      range: `'${cabinSheetTitle}'!A1`,
+      values: cabinResult.matrix
+    });
+  }
+
+  const batchRes = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanSheetId}/values:batchUpdate`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      valueInputOption: 'USER_ENTERED',
+      data: updateData
+    })
+  });
+
+  if (!batchRes.ok) {
+    const errText = await batchRes.text();
+    throw new Error(`Помилка запису в Google Sheets (${batchRes.status}): ${errText}`);
+  }
+
+  return {
+    success: true,
+    message: `Успішно синхронізовано з Google Sheets!`,
+    flightStats: {
+      sheet: flightSheetTitle,
+      total: flightResult.total,
+      updated: flightResult.updatedCount,
+      added: flightResult.addedCount
+    },
+    cabinStats: cabinResult ? {
+      sheet: cabinSheetTitle,
+      total: cabinResult.total,
+      updated: cabinResult.updatedCount,
+      added: cabinResult.addedCount
+    } : null
+  };
+}
+
 
 

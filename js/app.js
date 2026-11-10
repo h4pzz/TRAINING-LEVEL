@@ -38,7 +38,8 @@ import {
   pullFlightsFromRemote,
   pushFlightsToRemote,
   deleteFlightFromRemote,
-  syncAllFlightsToRemote
+  syncAllFlightsToRemote,
+  syncPersonnelToGoogleSheets
 } from '../execution/drive_sync.js';
 import { dispatchFlightLogEmail, dispatchFlightsWeeklyEmail, formatFlightReportText, generateFlightPdfBase64 } from '../execution/email_dispatcher.js';
 import { 
@@ -56,7 +57,7 @@ import {
   mapPstnToRank,
   normalizeFlightCrewRole,
   PERMANENT_INSTRUCTORS
-} from '../execution/scan_ocr_parser.js?v=2.2';
+} from '../execution/scan_ocr_parser.js?v=2.4';
  
 /**
  * Returns today's date formatted as YYYY-MM-DD in local time
@@ -6020,6 +6021,27 @@ function renderSettingsSyncTab() {
   if (googleAppsScriptUrlInput) googleAppsScriptUrlInput.value = STATE.settings.googleAppsScriptUrl || '';
 
   if (googleSheetPersonnelInput) googleSheetPersonnelInput.value = STATE.settings.googleSpreadsheetIdPersonnel || STATE.settings.googleSpreadsheetId || '';
+  const linkOpenPersonnelSheet = document.getElementById('link-open-personnel-sheet');
+  const personnelSheetId = (STATE.settings.googleSpreadsheetIdPersonnel || STATE.settings.googleSpreadsheetId || '').trim();
+  if (linkOpenPersonnelSheet) {
+    if (personnelSheetId) {
+      linkOpenPersonnelSheet.href = `https://docs.google.com/spreadsheets/d/${personnelSheetId}/edit`;
+      linkOpenPersonnelSheet.style.display = 'inline-flex';
+    } else {
+      linkOpenPersonnelSheet.style.display = 'none';
+    }
+  }
+  if (googleSheetPersonnelInput && linkOpenPersonnelSheet) {
+    googleSheetPersonnelInput.oninput = () => {
+      const val = googleSheetPersonnelInput.value.trim();
+      if (val) {
+        linkOpenPersonnelSheet.href = `https://docs.google.com/spreadsheets/d/${val}/edit`;
+        linkOpenPersonnelSheet.style.display = 'inline-flex';
+      } else {
+        linkOpenPersonnelSheet.style.display = 'none';
+      }
+    };
+  }
   if (googleSheetFlightsInput) googleSheetFlightsInput.value = STATE.settings.googleSpreadsheetIdFlights || '';
   if (syncIntervalSelect) syncIntervalSelect.value = STATE.settings.syncInterval || 'manual';
 
@@ -6986,6 +7008,9 @@ async function processOcrQueueWorker() {
       selectOcrItem(currentIdx);
     }
 
+    const modelSelector = document.getElementById('ocr-model-selector');
+    const selectedModel = modelSelector?.value || localStorage.getItem('aerocheck_ocr_model') || 'gemini-3.8-flash';
+
     try {
       await processSingleScan(
         file,
@@ -7005,7 +7030,8 @@ async function processOcrQueueWorker() {
               if (window.lucide) window.lucide.createIcons();
             }
           }
-        }
+        },
+        selectedModel
       );
     } catch (e) {
       item.status = 'error';
@@ -7811,6 +7837,18 @@ function saveAllReadyOcrFlights() {
 }
 
 function initOcrScanImport() {
+  // Model selector preference
+  const modelSelector = document.getElementById('ocr-model-selector');
+  if (modelSelector) {
+    const savedModel = localStorage.getItem('aerocheck_ocr_model');
+    if (savedModel) {
+      modelSelector.value = savedModel;
+    }
+    modelSelector.addEventListener('change', () => {
+      localStorage.setItem('aerocheck_ocr_model', modelSelector.value);
+    });
+  }
+
   // Trigger buttons
   const btnTrigger1 = document.getElementById('btn-import-scans-ai');
   const btnTrigger2 = document.getElementById('btn-archive-import-scans-ai');
@@ -13054,16 +13092,108 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Sync Table 1 (Personnel)
+  // Sync Table 1 (Personnel) - Direct Google Sheets API v4 synchronization
   const btnSyncPersonnel = document.getElementById('btn-sync-personnel');
   if (btnSyncPersonnel) {
-    btnSyncPersonnel.addEventListener('click', () => {
-      showToast("Синхронізація таблиці персоналу (Flight_Crew & Cabin_Crew)...");
-      setTimeout(() => {
-        STATE.lastSyncTimestamp = new Date().toLocaleString();
-        document.getElementById('last-sync-timestamp-display').textContent = STATE.lastSyncTimestamp;
-        showToast("Таблицю персоналу успішно синхронізовано з Google Sheets!", "success");
-      }, 1000);
+    btnSyncPersonnel.addEventListener('click', async () => {
+      const sheetInput = document.getElementById('settings-google-sheet-id');
+      const spreadsheetId = (sheetInput?.value || STATE.settings.googleSpreadsheetIdPersonnel || STATE.settings.googleSpreadsheetId || '').trim();
+
+      if (!spreadsheetId) {
+        showToast("Вкажіть Google Sheet ID таблиці персоналу!", "warning");
+        sheetInput?.focus();
+        return;
+      }
+
+      // Save spreadsheet ID to settings
+      STATE.settings.googleSpreadsheetId = spreadsheetId;
+      STATE.settings.googleSpreadsheetIdPersonnel = spreadsheetId;
+      saveStateToStorage();
+
+      const linkOpenPersonnelSheet = document.getElementById('link-open-personnel-sheet');
+      if (linkOpenPersonnelSheet) {
+        linkOpenPersonnelSheet.href = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
+        linkOpenPersonnelSheet.style.display = 'inline-flex';
+      }
+
+      const clientId = (document.getElementById('settings-google-client-id')?.value || STATE.settings.googleClientId || '').trim();
+
+      async function executePersonnelSync(token) {
+        btnSyncPersonnel.disabled = true;
+        const origHtml = btnSyncPersonnel.innerHTML;
+        btnSyncPersonnel.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" style="width:13px; height:13px; border-width:2px; margin-right:5px;"></span> ${STATE.lang === 'uk' ? 'Синхронізація...' : 'Syncing...'}`;
+        showToast(STATE.lang === 'uk' ? "Синхронізація персоналу з Google Sheets..." : "Syncing personnel with Google Sheets...");
+
+        try {
+          const res = await syncPersonnelToGoogleSheets(spreadsheetId, STATE.flightCrew, STATE.cabinCrew, token);
+          
+          STATE.lastSyncTimestamp = new Date().toLocaleString();
+          const syncDisplay = document.getElementById('last-sync-timestamp-display');
+          if (syncDisplay) syncDisplay.textContent = STATE.lastSyncTimestamp;
+
+          let detailsMsg = '';
+          if (res.flightStats) {
+            detailsMsg += `Flight: ${res.flightStats.total} (додано: ${res.flightStats.added}, оновлено: ${res.flightStats.updated})`;
+          }
+          if (res.cabinStats) {
+            detailsMsg += detailsMsg ? ' | ' : '';
+            detailsMsg += `Cabin: ${res.cabinStats.total} (додано: ${res.cabinStats.added}, оновлено: ${res.cabinStats.updated})`;
+          }
+
+          showToast(STATE.lang === 'uk' 
+            ? `Таблицю персоналу успішно синхронізовано! ${detailsMsg}`
+            : `Personnel table successfully synced! ${detailsMsg}`, 
+            "success"
+          );
+        } catch (err) {
+          console.error('[Google Sheets Sync Error]', err);
+          if (err.message && err.message.includes('AUTH_EXPIRED')) {
+            showToast("Термін дії Google сесії закінчився. Запитуємо повторну авторизацію...", "warning");
+            requestFreshTokenAndSync();
+          } else {
+            showToast(`Помилка синхронізації Google Sheets: ${err.message}`, "error");
+          }
+        } finally {
+          btnSyncPersonnel.disabled = false;
+          btnSyncPersonnel.innerHTML = origHtml;
+          if (window.lucide) window.lucide.createIcons();
+        }
+      }
+
+      function requestFreshTokenAndSync() {
+        if (!clientId) {
+          showToast("Вкажіть Google OAuth 2.0 Client ID у полі вище для авторизації!", "warning");
+          document.getElementById('settings-google-client-id')?.focus();
+          return;
+        }
+        if (typeof google === 'undefined' || !google.accounts || !google.accounts.oauth2) {
+          showToast("Бібліотека Google Identity Services завантажується. Спробуйте ще раз за мить.", "warning");
+          return;
+        }
+        const tokenClient = google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/spreadsheets',
+          callback: async (response) => {
+            if (response.access_token) {
+              googleAccessToken = response.access_token;
+              if (typeof sessionStorage !== 'undefined') {
+                sessionStorage.setItem('google_access_token', response.access_token);
+              }
+              await executePersonnelSync(response.access_token);
+            } else if (response.error) {
+              showToast("Авторизація Google відхилена: " + response.error, "error");
+            }
+          }
+        });
+        tokenClient.requestAccessToken({ prompt: '' });
+      }
+
+      let currentToken = googleAccessToken || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('google_access_token') : null);
+      if (!currentToken) {
+        requestFreshTokenAndSync();
+      } else {
+        await executePersonnelSync(currentToken);
+      }
     });
   }
 
