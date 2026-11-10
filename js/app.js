@@ -39,7 +39,8 @@ import {
   pushFlightsToRemote,
   deleteFlightFromRemote,
   syncAllFlightsToRemote,
-  syncPersonnelToGoogleSheets
+  syncPersonnelToGoogleSheets,
+  deduplicateCrewArray
 } from '../execution/drive_sync.js';
 import { dispatchFlightLogEmail, dispatchFlightsWeeklyEmail, formatFlightReportText, generateFlightPdfBase64 } from '../execution/email_dispatcher.js';
 import { 
@@ -2515,8 +2516,17 @@ function openCrewEditModal(member) {
   emailInput.disabled = disableMeta;
   licenseInput.disabled = disableMeta;
   
-  // Hide license field for Cabin Crew
-  document.getElementById('crew-modal-license-group').style.display = initialCrewType === 'Flight' ? 'flex' : 'none';
+  // License / Certificate field label & display
+  const licGroup = document.getElementById('crew-modal-license-group');
+  if (licGroup) {
+    licGroup.style.display = 'flex';
+    const licLabel = licGroup.querySelector('label');
+    if (licLabel) {
+      licLabel.textContent = initialCrewType === 'Flight'
+        ? (STATE.lang === 'uk' ? 'Номер свідоцтва пілота (LICENSE)' : 'Pilot License Number (LICENSE)')
+        : (STATE.lang === 'uk' ? 'Номер свідоцтва / CMC (Attestation)' : 'Cabin Crew Attestation / CMC');
+    }
+  }
   
   // Load dynamic training date input elements
   renderCrewModalDateFields(initialCrewType, member, isNew);
@@ -2608,9 +2618,7 @@ function handleCrewModalSubmit(e) {
     member.Department = finalDept;
     member.Phone = document.getElementById('crew-modal-phone').value.trim();
     member.Email = document.getElementById('crew-modal-email').value.trim();
-    if (crewType === 'Flight') {
-      member.LICENSE = document.getElementById('crew-modal-license').value.trim();
-    }
+    member.LICENSE = document.getElementById('crew-modal-license') ? document.getElementById('crew-modal-license').value.trim() : '';
   }
   
   // Save dynamic dates
@@ -2631,6 +2639,32 @@ function handleCrewModalSubmit(e) {
   });
   
   if (isNew) {
+    const normEn = (member.Full_Name_EN || '').trim().toLowerCase();
+    const normUa = (member.Full_Name_UA || '').trim().toLowerCase();
+    const normLic = (member.LICENSE || '').trim().toUpperCase();
+
+    const existingMatch = list.find(c => {
+      const cLic = (c.LICENSE || '').trim().toUpperCase();
+      const cEn = (c.Full_Name_EN || '').trim().toLowerCase();
+      const cUa = (c.Full_Name_UA || '').trim().toLowerCase();
+
+      if (normLic && cLic && normLic === cLic) return true;
+      if (normEn && cEn && normEn === cEn) return true;
+      if (normUa && cUa && normUa === cUa) return true;
+      return false;
+    });
+
+    if (existingMatch) {
+      showToast(
+        STATE.lang === 'uk'
+          ? `Співробітник ${member.Full_Name_UA || member.Full_Name_EN} вже є в базі! Щоб уникнути дублікатів, відкрийте існуючий профіль.`
+          : `Crew member ${member.Full_Name_EN} already exists!`,
+        'warning',
+        7000
+      );
+      return;
+    }
+
     list.push(member);
     STATE.changelog.push({
       timestamp: new Date().toISOString(),
@@ -12631,7 +12665,16 @@ document.addEventListener('DOMContentLoaded', () => {
     crewTypeSelect.addEventListener('change', (e) => {
       const newType = e.target.value;
       document.getElementById('crew-modal-type').value = newType;
-      document.getElementById('crew-modal-license-group').style.display = newType === 'Flight' ? 'flex' : 'none';
+      const licGroup = document.getElementById('crew-modal-license-group');
+      if (licGroup) {
+        licGroup.style.display = 'flex';
+        const licLabel = licGroup.querySelector('label');
+        if (licLabel) {
+          licLabel.textContent = newType === 'Flight'
+            ? (STATE.lang === 'uk' ? 'Номер свідоцтва пілота (LICENSE)' : 'Pilot License Number (LICENSE)')
+            : (STATE.lang === 'uk' ? 'Номер свідоцтва / CMC (Attestation)' : 'Cabin Crew Attestation / CMC');
+        }
+      }
       const id = document.getElementById('crew-modal-id').value;
       const isNew = !id;
       const list = newType === 'Flight' ? STATE.flightCrew : STATE.cabinCrew;
@@ -13125,6 +13168,11 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast(STATE.lang === 'uk' ? "Синхронізація персоналу з Google Sheets..." : "Syncing personnel with Google Sheets...");
 
         try {
+          // Clean local state from duplicates before sending to cloud
+          STATE.flightCrew = deduplicateCrewArray(STATE.flightCrew);
+          STATE.cabinCrew = deduplicateCrewArray(STATE.cabinCrew);
+          saveStateToStorage();
+
           const res = await syncPersonnelToGoogleSheets(spreadsheetId, STATE.flightCrew, STATE.cabinCrew, token);
           
           STATE.lastSyncTimestamp = new Date().toLocaleString();

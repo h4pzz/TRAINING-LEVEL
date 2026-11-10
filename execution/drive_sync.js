@@ -1529,6 +1529,77 @@ export async function syncAllFlightsToRemote(allFlights = [], { settings = null 
   return true;
 }
 
+export function getCrewIdentityKey(item, isFromRow = false, headers = []) {
+  if (!item) return '';
+
+  let license = '';
+  let nameEn = '';
+  let nameUa = '';
+  let cabinId = '';
+
+  if (isFromRow) {
+    const row = item;
+    const licIdx = headers.indexOf('LICENSE');
+    const nameEnIdx = headers.indexOf('Full_Name_EN');
+    const nameUaIdx = headers.indexOf('Full_Name_UA');
+    const hashIdx = headers.indexOf('#');
+
+    license = licIdx !== -1 ? String(row[licIdx] || '').trim().toUpperCase() : '';
+    nameEn = nameEnIdx !== -1 ? String(row[nameEnIdx] || '').trim().toLowerCase() : '';
+    nameUa = nameUaIdx !== -1 ? String(row[nameUaIdx] || '').trim().toLowerCase() : '';
+    cabinId = hashIdx !== -1 ? String(row[hashIdx] || '').trim() : '';
+  } else {
+    const member = item;
+    license = member.LICENSE ? String(member.LICENSE).trim().toUpperCase() : '';
+    nameEn = member.Full_Name_EN ? String(member.Full_Name_EN).trim().toLowerCase() : '';
+    nameUa = member.Full_Name_UA ? String(member.Full_Name_UA).trim().toLowerCase() : '';
+    cabinId = member.id ? String(member.id).trim() : '';
+  }
+
+  // 1. If License is present and not a date, it is the primary unique identifier
+  if (license && !/^\d{2}\.\d{2}\.\d{4}$/.test(license) && !/^\d{4}-\d{2}-\d{2}$/.test(license)) {
+    return `lic:${license}`;
+  }
+
+  // 2. Full Name EN is unique per individual (e.g. "Kushch Oleksandr" vs "Kushch Oleksiy")
+  if (nameEn) {
+    return `en:${nameEn}`;
+  }
+
+  // 3. Full Name UA
+  if (nameUa) {
+    return `ua:${nameUa}`;
+  }
+
+  // 4. Cabin # ID
+  if (cabinId) {
+    return `id:${cabinId}`;
+  }
+
+  return '';
+}
+
+export function deduplicateCrewArray(list) {
+  if (!Array.isArray(list)) return [];
+  const map = new Map();
+  for (const m of list) {
+    const key = getCrewIdentityKey(m, false);
+    if (!key) continue;
+    if (!map.has(key)) {
+      map.set(key, { ...m });
+    } else {
+      const existing = map.get(key);
+      // Merge non-empty properties into existing
+      Object.keys(m).forEach(k => {
+        if (!existing[k] && m[k]) {
+          existing[k] = m[k];
+        }
+      });
+    }
+  }
+  return Array.from(map.values());
+}
+
 /**
  * Synchronizes personnel data (Flight_Crew and Cabin_Crew) directly with Google Sheets via Google Sheets API v4.
  * - Reads existing sheet headers and rows to preserve custom layouts or ordering.
@@ -1723,6 +1794,9 @@ export async function syncPersonnelToGoogleSheets(spreadsheetId, flightCrew = []
       }
     }
 
+    // Deduplicate input crewList first
+    const dedupedCrewList = deduplicateCrewArray(crewList);
+
     if (headerRowIndex === -1) {
       // Empty or unformatted sheet -> generate standard layout
       const matrix = [];
@@ -1734,66 +1808,74 @@ export async function syncPersonnelToGoogleSheets(spreadsheetId, flightCrew = []
         matrix.push([]);
       }
       matrix.push(headers);
-      crewList.forEach((m, idx) => {
+      dedupedCrewList.forEach((m, idx) => {
         matrix.push(buildMemberRow(m, headers, idx));
       });
       return {
         matrix,
-        addedCount: crewList.length,
+        addedCount: dedupedCrewList.length,
         updatedCount: 0,
-        total: crewList.length
+        total: dedupedCrewList.length
       };
     }
 
     const prefixRows = existingRows.slice(0, headerRowIndex + 1);
-    const dataRows = existingRows.slice(headerRowIndex + 1);
+    const rawDataRows = existingRows.slice(headerRowIndex + 1);
 
-    const nameEnIdx = headers.indexOf('Full_Name_EN');
-    const nameUaIdx = headers.indexOf('Full_Name_UA');
-    const nameShrtIdx = headers.indexOf('Name_Shrt_UA');
-
+    const seenKeysInSheet = new Set();
+    const updatedDataRows = [];
+    const matchedKeys = new Set();
     let updatedCount = 0;
     let addedCount = 0;
-    const matchedMembers = new Set();
 
-    const updatedDataRows = dataRows.map((row, rowIdx) => {
-      const rowNameEn = nameEnIdx !== -1 ? String(row[nameEnIdx] || '').trim().toLowerCase() : '';
-      const rowNameUa = nameUaIdx !== -1 ? String(row[nameUaIdx] || '').trim().toLowerCase() : '';
-      const rowNameShrt = nameShrtIdx !== -1 ? String(row[nameShrtIdx] || '').trim().toLowerCase() : '';
+    // Process existing sheet rows: update matching rows and DROP duplicate rows!
+    for (let rIdx = 0; rIdx < rawDataRows.length; rIdx++) {
+      const row = rawDataRows[rIdx];
+      const rowKey = getCrewIdentityKey(row, true, headers);
 
-      if (!rowNameEn && !rowNameUa && !rowNameShrt) {
-        return row;
+      if (!rowKey) {
+        // Keep empty rows or separators as is
+        updatedDataRows.push(row);
+        continue;
       }
 
-      const member = crewList.find(m => {
-        const mEn = String(m.Full_Name_EN || '').trim().toLowerCase();
-        const mUa = String(m.Full_Name_UA || '').trim().toLowerCase();
-        const mShrt = String(m.Name_Shrt_UA || '').trim().toLowerCase();
-        return (mEn && mEn === rowNameEn) || (mUa && mUa === rowNameUa) || (mShrt && mShrt === rowNameShrt);
-      });
+      // If we already saw this person earlier in the sheet, this is a DUPLICATE row -> SKIP IT to delete duplicate!
+      if (seenKeysInSheet.has(rowKey)) {
+        console.warn(`[Google Sheets Sync] Dropping duplicate row for key: ${rowKey}`);
+        continue;
+      }
+
+      seenKeysInSheet.add(rowKey);
+
+      // Find matching member from our deduped crewList
+      const member = dedupedCrewList.find(m => getCrewIdentityKey(m, false) === rowKey);
 
       if (member) {
-        matchedMembers.add(member);
+        matchedKeys.add(rowKey);
         updatedCount++;
-        return buildMemberRow(member, headers, rowIdx);
+        updatedDataRows.push(buildMemberRow(member, headers, updatedDataRows.length));
+      } else {
+        // Keep row if present in Google Sheet but not in local state
+        updatedDataRows.push(row);
       }
+    }
 
-      return row;
-    });
-
-    // Append crew members not found in the sheet (e.g. newly added members)
-    crewList.forEach((member, idx) => {
-      if (!matchedMembers.has(member)) {
+    // Now, APPEND only members from dedupedCrewList that were NOT already in the sheet!
+    for (const member of dedupedCrewList) {
+      const mKey = getCrewIdentityKey(member, false);
+      if (!matchedKeys.has(mKey) && !seenKeysInSheet.has(mKey)) {
         addedCount++;
+        matchedKeys.add(mKey);
+        seenKeysInSheet.add(mKey);
         updatedDataRows.push(buildMemberRow(member, headers, updatedDataRows.length));
       }
-    });
+    }
 
     return {
       matrix: prefixRows.concat(updatedDataRows),
       addedCount,
       updatedCount,
-      total: crewList.length
+      total: dedupedCrewList.length
     };
   }
 
@@ -1801,13 +1883,39 @@ export async function syncPersonnelToGoogleSheets(spreadsheetId, flightCrew = []
   const existingFlightRows = flightSheetTitle ? await fetchSheetRows(flightSheetTitle) : [];
   const existingCabinRows = cabinSheetTitle ? await fetchSheetRows(cabinSheetTitle) : [];
 
-  // 3. Merge data
+  // 3. Merge and deduplicate data
   const flightResult = processSheetData(flightCrew, defaultFlightHeaders, existingFlightRows, 'ЛЬОТНИЙ СКЛАД');
   const cabinResult = cabinSheetTitle 
     ? processSheetData(cabinCrew, defaultCabinHeaders, existingCabinRows, null)
     : null;
 
-  // 4. Batch update back to Google Sheets
+  // Clear existing ranges so old removed duplicate rows disappear completely
+  try {
+    const clearPromises = [];
+    if (flightSheetTitle) {
+      clearPromises.push(
+        fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanSheetId}/values/'${flightSheetTitle}'!A1:AZ600:clear`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: '{}'
+        })
+      );
+    }
+    if (cabinSheetTitle) {
+      clearPromises.push(
+        fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cleanSheetId}/values/'${cabinSheetTitle}'!A1:AZ600:clear`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: '{}'
+        })
+      );
+    }
+    await Promise.all(clearPromises);
+  } catch (clearErr) {
+    console.warn('[Google Sheets Clear Warning]', clearErr);
+  }
+
+  // 4. Batch update clean deduplicated matrix back to Google Sheets
   const updateData = [
     {
       range: `'${flightSheetTitle}'!A1`,
